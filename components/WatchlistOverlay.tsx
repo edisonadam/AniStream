@@ -41,7 +41,11 @@ const WatchlistOverlay: React.FC<WatchlistOverlayProps> = ({ onClose, onSelectAn
                                     <img src={anime.thumbnail} alt={anime.title} className="w-16 h-24 object-cover rounded-md flex-shrink-0" />
                                     <div className="flex-1 min-w-0">
                                         <h3 className="font-bold text-white truncate">{anime.title}</h3>
-                                        <p className="text-sm text-gray-400 truncate">{anime.genres.join(', ')}</p>
+                                        <p className="text-sm text-gray-400 truncate">
+                                            {anime.type && <span className="font-semibold">{anime.type}</span>}
+                                            {anime.type && anime.genres.length > 0 && <span> &bull; </span>}
+                                            {anime.genres.join(', ')}
+                                        </p>
                                         {anime.rating && (
                                             <div className="flex items-center gap-1 mt-1 text-sm text-yellow-400">
                                                 <StarIcon className="w-4 h-4" />

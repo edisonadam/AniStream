@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
@@ -12,6 +13,7 @@ import WatchlistOverlay from './components/WatchlistOverlay';
 import type { Anime, Filter } from './types';
 import { useWatchLater } from './hooks/useWatchLater';
 import { ContinueWatchingProvider } from './contexts/ContinueWatchingContext';
+import { ANIME_TYPES } from './constants';
 
 type View = 'home' | 'player' | 'list';
 
@@ -30,7 +32,7 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   
   const [filters, setFilters] = useState<Filter>(() => {
-    const savedFilters = localStorage.getItem('anistream-filters');
+    const savedFilters = sessionStorage.getItem('anistream-filters');
     return savedFilters ? JSON.parse(savedFilters) : {};
   });
   
@@ -102,22 +104,25 @@ const App: React.FC = () => {
         
         const data = await response.json();
 
-        let mappedData: Anime[] = data.data.map((item: any, index: number) => ({
-          id: item.mal_id,
-          title: item.title_english || item.title,
-          thumbnail: item.images.jpg.large_image_url,
-          bannerImage: item.images.jpg.large_image_url,
-          synopsis: item.synopsis || 'No synopsis available.',
-          genres: item.genres.map((g: any) => g.name),
-          releaseYear: item.year,
-          status: item.status === 'Finished Airing' ? 'Completed' : item.status === 'Currently Airing' ? 'Ongoing' : 'Upcoming',
-          totalEpisodes: item.episodes,
-          rating: item.score,
-          type: item.type,
-          studio: item.studios.length > 0 ? item.studios[0].name : 'Unknown',
-          hasSub: true, // Mock data
-          hasDub: index % 2 === 0, // Mock data
-        }));
+        let mappedData: Anime[] = data.data
+          .map((item: any): Anime => ({
+            id: item.mal_id,
+            title: item.title_english || item.title,
+            thumbnail: item.images.jpg.large_image_url,
+            bannerImage: item.images.jpg.large_image_url,
+            synopsis: item.synopsis || 'No synopsis available.',
+            genres: item.genres.map((g: any) => g.name),
+            releaseYear: item.year,
+            status: item.status === 'Finished Airing' ? 'Completed' : item.status === 'Currently Airing' ? 'Ongoing' : 'Upcoming',
+            totalEpisodes: item.episodes,
+            rating: item.score,
+            type: item.type,
+            studio: item.studios.length > 0 ? item.studios[0].name : 'Unknown',
+            hasSub: true, // Assume subs are available for most content.
+            hasDub: !!item.title_english, // Use English title as a proxy for dub availability.
+          }))
+          .filter((anime: Anime) => anime.type && ANIME_TYPES.includes(anime.type));
+
 
         // === Perform client-side filtering for params Jikan API doesn't support well together ===
         mappedData = mappedData.filter(anime => {
@@ -183,7 +188,7 @@ const App: React.FC = () => {
   
   const handleApplyFilters = (newFilters: Filter) => {
       setFilters(newFilters);
-      localStorage.setItem('anistream-filters', JSON.stringify(newFilters));
+      sessionStorage.setItem('anistream-filters', JSON.stringify(newFilters));
       setView('home');
       closeSidebar();
   }
@@ -191,7 +196,7 @@ const App: React.FC = () => {
   const handleSearchSubmit = (query: string) => {
     const newFilters = { ...filters, query: query.trim() };
     setFilters(newFilters);
-    localStorage.setItem('anistream-filters', JSON.stringify(newFilters));
+    sessionStorage.setItem('anistream-filters', JSON.stringify(newFilters));
     setIsSearchOpen(false);
     setView('home'); // Ensure we navigate back to the home/grid view
     setSelectedAnime(null); // Clear any selected anime

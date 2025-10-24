@@ -49,8 +49,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onApplyFilters, curr
   const [draftFilters, setDraftFilters] = useState<Filter>({ ...initialFilters, ...currentFilters });
 
   useEffect(() => {
-      // Load filters from localStorage on mount
-      const savedFilters = localStorage.getItem('anistream-filters');
+      // Load filters from sessionStorage on mount
+      const savedFilters = sessionStorage.getItem('anistream-filters');
       if (savedFilters) {
           const parsed = JSON.parse(savedFilters);
           // Ensure fields exist to avoid runtime errors
@@ -83,14 +83,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onApplyFilters, curr
   }
 
   const handleApply = () => {
-    localStorage.setItem('anistream-filters', JSON.stringify(draftFilters));
+    sessionStorage.setItem('anistream-filters', JSON.stringify(draftFilters));
     onApplyFilters(draftFilters);
     onClose();
   };
 
   const handleClear = () => {
     setDraftFilters(initialFilters);
-    localStorage.removeItem('anistream-filters');
+    sessionStorage.removeItem('anistream-filters');
     onApplyFilters(initialFilters); 
     onClose();
   };

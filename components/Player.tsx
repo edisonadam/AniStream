@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import type { Anime } from '../types';
 import { ChevronLeftIcon, PlusIcon, StarIcon, PlayCircleIcon } from './icons/Icons';
@@ -21,8 +22,6 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
   const [error, setError] = useState<string | null>(null);
 
   const [currentEpisode, setCurrentEpisode] = useState<number>(1);
-  const [language, setLanguage] = useState<'sub' | 'dub'>('sub');
-  const [server, setServer] = useState('vidsrc-embed.ru');
 
   const { updateProgress } = useContinueWatching();
   const playerRef = useRef<HTMLDivElement>(null);
@@ -127,7 +126,6 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
     } else {
         setCurrentEpisode(1);
     }
-    setLanguage('sub');
 
   }, [anime]);
 
@@ -137,7 +135,19 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
     }
   }, [currentEpisode, playerAnime, updateProgress]);
 
-  const streamUrl = tmdbId ? `https://${server}/embed/series/${tmdbId}/1/${currentEpisode}${language === 'dub' ? '?lang=dub' : ''}` : '';
+  const streamUrl = (() => {
+    if (!tmdbId || !playerAnime) return '';
+
+    const baseUrl = 'https://vidsrc-embed.ru';
+    const isMovie = playerAnime.type === 'Movie';
+
+    if (isMovie) {
+        return `${baseUrl}/embed/movie/${tmdbId}`;
+    } else {
+        // For TV, OVA, ONA, Special etc., we assume season 1 and use the season-episode format
+        return `${baseUrl}/embed/tv/${tmdbId}/1-${currentEpisode}`;
+    }
+  })();
 
   const totalEpisodes = playerAnime?.totalEpisodes || 0;
   const episodeList = Array.from({ length: totalEpisodes }, (_, i) => i + 1);
@@ -205,24 +215,14 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
                 <div className="lg:w-2/3">
                     <div className="aspect-video w-full rounded-2xl overflow-hidden shadow-2xl shadow-purple-900/50 bg-black flex items-center justify-center">
                         {streamUrl ? (
-                             <iframe key={`${playerAnime.id}-${currentEpisode}-${server}-${language}`} src={streamUrl} title={`Player for ${playerAnime.title} - E${currentEpisode}`} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen className="w-full h-full border-0"></iframe>
+                             <iframe key={`${playerAnime.id}-${currentEpisode}`} src={streamUrl} title={`Player for ${playerAnime.title} - E${currentEpisode}`} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen referrerPolicy="origin" className="w-full h-full border-0"></iframe>
                         ) : (
                             <div className="text-center text-gray-400 p-4">{error || "Select an episode to begin."}</div>
                         )}
                     </div>
                     
                     <div className="mt-4 p-4 bg-slate-800/50 rounded-2xl">
-                         <div className="flex flex-wrap items-center justify-between gap-4">
-                            <div className="flex items-center space-x-2">
-                                <span className="font-semibold text-gray-300">Server:</span>
-                                <select onChange={(e) => setServer(e.target.value)} value={server} className="bg-slate-700/60 border border-slate-600 rounded-lg px-3 py-2 text-white focus:ring-purple-500 focus:border-purple-500 transition-all">
-                                    <option value="vidsrc-embed.ru">VidSrc</option><option value="vidsrc.to">VidSrc.to</option><option value="vidsrc.pro">VidSrc Pro</option>
-                                </select>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                                <button onClick={() => setLanguage('sub')} className={`px-4 py-2 rounded-lg font-semibold transition-colors text-sm ${language === 'sub' ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/30' : 'bg-slate-700/60 hover:bg-slate-600'}`}>Sub</button>
-                                <button onClick={() => setLanguage('dub')} className={`px-4 py-2 rounded-lg font-semibold transition-colors text-sm ${language === 'dub' ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/30' : 'bg-slate-700/60 hover:bg-slate-600'}`}>Dub</button>
-                            </div>
+                         <div className="flex flex-wrap items-center justify-end gap-4">
                              <div className="flex items-center space-x-2">
                                 <button onClick={handlePrevEpisode} disabled={currentEpisode === 1} className="px-4 py-2 bg-slate-700/60 rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm">Prev</button>
                                 <button onClick={handleNextEpisode} disabled={currentEpisode === totalEpisodes} className="px-4 py-2 bg-slate-700/60 rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm">Next</button>

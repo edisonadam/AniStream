@@ -45,6 +45,7 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect }) => {
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
 
       <div className="absolute top-2 left-2 flex flex-col gap-1.5">
+        {anime.type && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-teal-600/80 text-white backdrop-blur-sm">{anime.type.toUpperCase()}</span>}
         {anime.hasSub && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-purple-600/80 text-white backdrop-blur-sm">SUB</span>}
         {anime.hasDub && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-indigo-600/80 text-white backdrop-blur-sm">DUB</span>}
       </div>

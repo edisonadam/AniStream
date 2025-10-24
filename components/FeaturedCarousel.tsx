@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Anime } from '../types';
 import { ChevronLeftIcon, ChevronRightIcon, InfoIcon, PlusIcon, StarIcon, CheckIcon } from './icons/Icons';
@@ -130,7 +129,8 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
         <h2 className="text-4xl md:text-6xl font-bold mb-3 drop-shadow-2xl" style={{textShadow: '0 4px 20px rgba(0,0,0,0.9)'}}>
           {currentSlide.title}
         </h2>
-        <div className="flex items-center gap-4 mb-4 text-gray-200" style={{textShadow: '0 2px 8px rgba(0,0,0,0.7)'}}>
+        <div className="flex items-center flex-wrap gap-x-4 gap-y-2 mb-4 text-gray-200" style={{textShadow: '0 2px 8px rgba(0,0,0,0.7)'}}>
+            {currentSlide.type && <span className="font-semibold">{currentSlide.type}</span>}
             {currentSlide.rating && (
                 <div className="flex items-center gap-1.5">
                     <StarIcon className="w-5 h-5 text-yellow-400" />
