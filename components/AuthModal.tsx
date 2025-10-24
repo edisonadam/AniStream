@@ -1,0 +1,94 @@
+import React, { useState } from 'react';
+import { useAuth } from '../hooks/useAuth';
+import { CloseIcon } from './icons/Icons';
+
+interface AuthModalProps {
+  onClose: () => void;
+}
+
+const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
+  const [activeTab, setActiveTab] = useState<'login' | 'signup'>('login');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
+  const { login } = useAuth();
+
+  // CAPTCHA state for the "What's 9 + 10?" meme question
+  const [captchaNum1] = useState(9);
+  const [captchaNum2] = useState(10);
+  const [captchaAnswer, setCaptchaAnswer] = useState('');
+  const [captchaError, setCaptchaError] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // CAPTCHA validation for sign-up
+    if (activeTab === 'signup') {
+      const answer = captchaAnswer.trim();
+      // Allow both "19" and the meme answer "21"
+      if (answer !== '19' && answer !== '21') {
+        setCaptchaError('Incorrect answer. Please try again.');
+        setCaptchaAnswer(''); // Clear the input
+        return; // Stop submission
+      }
+      setCaptchaError(''); // Clear error on success
+    }
+
+    if (username.trim()) {
+      login(username.trim());
+      onClose();
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center animate-fade-in-fast">
+      <div className="bg-slate-800/90 border border-slate-700 rounded-2xl shadow-2xl shadow-purple-900/50 w-full max-w-md m-4 p-8 relative transform transition-all animate-fade-in-up">
+        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-purple-400 transition-colors">
+          <CloseIcon />
+        </button>
+        <div className="flex border-b border-slate-700 mb-6">
+          <button onClick={() => setActiveTab('login')} className={`flex-1 py-2 text-lg font-semibold transition-colors ${activeTab === 'login' ? 'text-purple-400 border-b-2 border-purple-400' : 'text-gray-400'}`}>
+            Login
+          </button>
+          <button onClick={() => setActiveTab('signup')} className={`flex-1 py-2 text-lg font-semibold transition-colors ${activeTab === 'signup' ? 'text-purple-400 border-b-2 border-purple-400' : 'text-gray-400'}`}>
+            Sign Up
+          </button>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="space-y-4">
+            <input type="text" value={username} onChange={e => setUsername(e.target.value)} placeholder="Username" required className="w-full bg-slate-700/60 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-purple-500 focus:border-purple-500 transition-all" />
+            {activeTab === 'signup' && (
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email (optional for demo)" className="w-full bg-slate-700/60 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-purple-500 focus:border-purple-500 transition-all" />
+            )}
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password (mock)" required className="w-full bg-slate-700/60 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-purple-500 focus:border-purple-500 transition-all" />
+             {activeTab === 'signup' && (
+              <div className="bg-slate-700/60 border border-slate-600 rounded-lg px-4 py-3 flex items-center justify-between">
+                 <label htmlFor="captcha" className="text-gray-300 font-semibold">
+                   What is {captchaNum1} + {captchaNum2}?
+                 </label>
+                 <input
+                   id="captcha"
+                   type="text"
+                   value={captchaAnswer}
+                   onChange={e => setCaptchaAnswer(e.target.value)}
+                   required
+                   className="w-20 bg-slate-600/80 border border-slate-500 rounded-md p-2 text-white text-center focus:ring-purple-500 focus:border-purple-500"
+                 />
+              </div>
+            )}
+            {captchaError && <p className="text-red-400 text-sm text-center">{captchaError}</p>}
+          </div>
+          <button type="submit" className="mt-6 w-full py-3 bg-purple-600 rounded-lg font-semibold hover:bg-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg shadow-purple-500/30">
+            {activeTab === 'login' ? 'Log In' : 'Sign Up'}
+          </button>
+        </form>
+      </div>
+      <style>{`
+        @keyframes fade-in-fast { from { opacity: 0; } to { opacity: 1; } }
+        .animate-fade-in-fast { animation: fade-in-fast 0.2s ease-out forwards; }
+      `}</style>
+    </div>
+  );
+};
+
+export default AuthModal;

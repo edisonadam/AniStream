@@ -1,27 +1,55 @@
+// FIX: Removed self-import of 'Anime' type which was causing a conflict with the local declaration.
+
 export interface Anime {
-  id: number;
+  id: number; // mal_id
   title: string;
   thumbnail: string;
-  tag: 'Sub' | 'Dub';
-  tmdbId: number;
+  bannerImage: string;
   synopsis: string;
   genres: string[];
-  releaseYear: number;
-  status: 'Ongoing' | 'Completed';
-  totalEpisodes: number; // This can be the total across all seasons
-  rating: number;
-  type: 'TV' | 'Movie';
+  releaseYear: number | null;
+  status: 'Ongoing' | 'Completed' | 'Upcoming';
+  totalEpisodes: number | null;
+  rating: number | null;
+  type: string | null;
   studio: string;
-  bannerImage: string;
-  seasons: {
-    season: number;
-    episodes: number;
-  }[];
+  tmdbId?: number; // Will be fetched later
+  hasSub: boolean;
+  hasDub: boolean;
 }
 
-export interface Slide {
-  id: number;
-  title: string;
-  subtitle: string;
-  image: string;
+export interface User {
+  username: string;
+  avatar: string; // URL to avatar image
+}
+
+export interface Comment {
+  id: string;
+  animeId: number;
+  user: User;
+  text: string;
+  timestamp: number;
+}
+
+export interface Notification {
+  id: string;
+  text: string;
+  timestamp: number;
+  read: boolean;
+}
+
+export type Filter = {
+  query?: string;
+  genres?: string[];
+  types?: string[];
+  status?: 'Ongoing' | 'Completed' | 'Upcoming' | '';
+  year?: string;
+  sort?: 'popularity' | 'alphabetical' | 'release_date';
+  language?: 'Sub' | 'Dub' | 'Raw' | '';
+};
+
+export interface ContinueWatchingInfo {
+    animeId: number;
+    currentEpisode: number;
+    progress: number; // Percentage
 }
