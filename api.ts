@@ -30,6 +30,9 @@ export const buildSourceUrl = (
                 url.searchParams.set('s', season.toString());
                 url.searchParams.set('e', episode.toString());
             }
+            if (autoplayNext) {
+                url.searchParams.set('autoplay', '1');
+            }
             return url.toString();
         }
         case 'vidsrc': { // Server 2 - Vidsrc (Path-based format)
@@ -56,14 +59,26 @@ export const buildSourceUrl = (
             return queryString ? `${baseUrl}?${queryString}` : baseUrl;
         }
         case 'vidsrc-pk': { // Server 3 - VidSrc PK
+            let baseUrl = '';
             if (mediaType === 'movie') {
-                return `https://embed.vidsrc.pk/movie/${tmdbId}`;
-            }
-            if (mediaType === 'tv') {
+                baseUrl = `https://embed.vidsrc.pk/movie/${tmdbId}`;
+            } else if (mediaType === 'tv') {
                 if (season === undefined || episode === undefined) return null;
-                return `https://embed.vidsrc.pk/tv/${tmdbId}/${season}-${episode}`;
+                baseUrl = `https://embed.vidsrc.pk/tv/${tmdbId}/${season}-${episode}`;
+            } else {
+                return null;
             }
-            return null;
+
+            const params = new URLSearchParams();
+            if (autoplayNext) {
+                params.set('autoplay', '1');
+                if (mediaType === 'tv') {
+                    params.set('autonext', '1');
+                }
+            }
+
+            const queryString = params.toString();
+            return queryString ? `${baseUrl}?${queryString}` : baseUrl;
         }
         default: {
              // Fallback to the first server if something is wrong
@@ -73,6 +88,9 @@ export const buildSourceUrl = (
                 if (season === undefined || episode === undefined) return null;
                 url.searchParams.set('s', season.toString());
                 url.searchParams.set('e', episode.toString());
+            }
+            if (autoplayNext) {
+                url.searchParams.set('autoplay', '1');
             }
             return url.toString();
         }
