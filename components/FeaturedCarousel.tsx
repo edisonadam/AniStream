@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Anime } from '../types';
 import { ChevronLeftIcon, ChevronRightIcon, InfoIcon, PlusIcon, StarIcon, CheckIcon } from './icons/Icons';
@@ -8,9 +7,10 @@ import { useAuth } from '../hooks/useAuth';
 interface FeaturedCarouselProps {
   animeList: Anime[];
   onAnimeSelect: (anime: Anime) => void;
+  isLoading: boolean;
 }
 
-const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeSelect }) => {
+const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeSelect, isLoading }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const { addToWatchLater, isInWatchLater } = useWatchLater();
   const { isLoggedIn } = useAuth();
@@ -97,10 +97,23 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
   };
 
 
-  if (slides.length === 0) {
+  if (isLoading) {
     return (
-      <section className="relative w-full h-[60vh] md:h-[85vh] bg-[rgb(var(--surface-2))/0.5] animate-pulse"></section>
+        <section className="relative w-full h-[60vh] md:h-[85vh] bg-[rgb(var(--surface-2))] animate-pulse">
+            <div className="absolute bottom-10 md:bottom-20 left-4 md:left-12 max-w-xl z-20 space-y-4">
+                <div className="h-10 md:h-16 bg-[rgb(var(--surface-3))] rounded-lg w-3/4"></div>
+                <div className="h-6 bg-[rgb(var(--surface-3))] rounded-md w-1/2"></div>
+                <div className="flex items-center gap-3">
+                    <div className="h-12 bg-[rgb(var(--surface-4))] rounded-lg w-36"></div>
+                    <div className="h-12 bg-[rgb(var(--surface-4))] rounded-lg w-48"></div>
+                </div>
+            </div>
+        </section>
     );
+  }
+  
+  if (slides.length === 0) {
+      return null;
   }
 
   const currentSlide = slides[currentIndex];
@@ -116,7 +129,7 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
       {/* Slides */}
       {slides.map((slide, index) => (
         <div key={slide.id} className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${index === currentIndex ? 'opacity-100' : 'opacity-0'}`}>
-          <img src={slide.bannerImage} alt={slide.title} className="w-full h-full object-cover" />
+          <img src={slide.bannerImage} alt={slide.title} className={`w-full h-full object-cover ${index === currentIndex ? 'animate-ken-burns' : ''}`} />
         </div>
       ))}
 
@@ -127,33 +140,36 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
 
       {/* Content */}
       <div className="absolute bottom-10 md:bottom-20 left-4 md:left-12 text-white max-w-xl z-20">
-        <h2 className="text-4xl md:text-6xl font-bold mb-3 drop-shadow-2xl" style={{textShadow: '0 4px 20px rgba(0,0,0,0.9)'}}>
-          {currentSlide.title}
-        </h2>
-        <div className="flex items-center flex-wrap gap-x-4 gap-y-2 mb-4 text-[rgb(var(--text-secondary))]" style={{textShadow: '0 2px 8px rgba(0,0,0,0.7)'}}>
-            {currentSlide.type && <span className="font-semibold">{currentSlide.type}</span>}
-            {currentSlide.rating && (
-                <div className="flex items-center gap-1.5">
-                    <StarIcon className="w-5 h-5 text-[rgb(var(--color-warning))]" />
-                    <span className="font-semibold">{currentSlide.rating.toFixed(1)}</span>
-                </div>
-            )}
-            <p className="hidden sm:block">{currentSlide.genres.slice(0, 3).join(' • ')}</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button onClick={() => onAnimeSelect(currentSlide)} className="flex items-center gap-2 px-5 py-3 bg-[rgb(var(--color-primary))] text-white rounded-lg font-semibold hover:bg-[rgb(var(--color-primary-hover))] transition-all duration-300 transform hover:scale-105 shadow-lg shadow-[rgb(var(--shadow-color))/0.4] hover:shadow-[rgb(var(--shadow-color))/0.6]">
-            <InfoIcon />
-            <span>More Info</span>
-          </button>
-          {isLoggedIn && (
-            <button
-              onClick={() => !inWatchLater && addToWatchLater(currentSlide)}
-              disabled={inWatchLater}
-              className="flex items-center gap-2 px-5 py-3 bg-[rgb(var(--surface-3))/0.6] text-white rounded-lg font-semibold hover:bg-[rgb(var(--surface-4))] transition-colors backdrop-blur-sm disabled:opacity-70 disabled:cursor-not-allowed">
-              {inWatchLater ? <CheckIcon/> : <PlusIcon/>}
-              <span>{inWatchLater ? 'Added' : 'Add to Watchlist'}</span>
+        <div key={currentIndex} className="animate-subtle-fade-in-up">
+          <h2 className="text-4xl md:text-6xl font-bold mb-3 drop-shadow-2xl" style={{textShadow: '0 4px 20px rgba(0,0,0,0.9)'}}>
+            {currentSlide.title}
+          </h2>
+          <div className="flex items-center flex-wrap gap-x-4 gap-y-2 mb-4 text-[rgb(var(--text-secondary))]" style={{textShadow: '0 2px 8px rgba(0,0,0,0.7)'}}>
+              {currentSlide.isAdult && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-red-600/90 text-white backdrop-blur-sm">+18</span>}
+              {currentSlide.type && <span className="font-semibold">{currentSlide.type}</span>}
+              {currentSlide.rating && (
+                  <div className="flex items-center gap-1.5">
+                      <StarIcon className="w-5 h-5 text-[rgb(var(--color-warning))]" />
+                      <span className="font-semibold">{currentSlide.rating.toFixed(1)}</span>
+                  </div>
+              )}
+              <p className="hidden sm:block">{currentSlide.genres.slice(0, 3).join(' • ')}</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button onClick={() => onAnimeSelect(currentSlide)} className="flex items-center gap-2 px-5 py-3 bg-[rgb(var(--color-primary))] text-white rounded-lg font-semibold hover:bg-[rgb(var(--color-primary-hover))] transition-transform duration-300 hover:scale-105 shadow-lg shadow-[rgb(var(--shadow-color))/0.4] hover:shadow-[rgb(var(--shadow-color))/0.6]">
+              <InfoIcon />
+              <span>More Info</span>
             </button>
-          )}
+            {isLoggedIn && (
+              <button
+                onClick={() => !inWatchLater && addToWatchLater(currentSlide)}
+                disabled={inWatchLater}
+                className="flex items-center gap-2 px-5 py-3 bg-[rgb(var(--surface-3))/0.6] text-white rounded-lg font-semibold hover:bg-[rgb(var(--surface-4))] transition-colors backdrop-blur-sm disabled:opacity-70 disabled:cursor-not-allowed">
+                {inWatchLater ? <CheckIcon/> : <PlusIcon/>}
+                <span>{inWatchLater ? 'Added' : 'Add to Watchlist'}</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
       

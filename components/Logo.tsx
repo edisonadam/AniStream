@@ -10,7 +10,7 @@ const Logo: React.FC<LogoProps> = ({ onClick, className }) => {
   return (
     <>
       <button onClick={onClick} className={`logo-button ${className || ''}`} aria-label="Go to homepage">
-        AniStream
+        ANISTREAM
       </button>
       <style>{`
         .logo-button {

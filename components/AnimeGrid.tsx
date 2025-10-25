@@ -2,15 +2,17 @@
 import React from 'react';
 import AnimeCard from './AnimeCard';
 import type { Anime, Filter } from '../types';
+import AnimeCardSkeleton from './AnimeCardSkeleton';
 
 interface AnimeGridProps {
   onAnimeSelect: (anime: Anime) => void;
   animeList: Anime[];
   title: string;
   filters: Filter;
+  isLoading: boolean;
 }
 
-const AnimeGrid: React.FC<AnimeGridProps> = ({ onAnimeSelect, animeList, title, filters }) => {
+const AnimeGrid: React.FC<AnimeGridProps> = ({ onAnimeSelect, animeList, title, filters, isLoading }) => {
   const hasActiveFilters = Object.values(filters).some(v => {
     if (Array.isArray(v)) return v.length > 0;
     return !!v;
@@ -21,7 +23,13 @@ const AnimeGrid: React.FC<AnimeGridProps> = ({ onAnimeSelect, animeList, title, 
       <h2 className="text-3xl font-bold mb-8 text-[rgb(var(--text-primary))]" style={{ textShadow: `0 0 8px rgb(var(--shadow-color) / 0.5)` }}>
         {title}
       </h2>
-      {animeList.length > 0 ? (
+      {isLoading ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
+          {Array.from({ length: 12 }).map((_, index) => (
+            <AnimeCardSkeleton key={index} />
+          ))}
+        </div>
+      ) : animeList.length > 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
           {animeList.map((anime) => (
             <AnimeCard key={anime.id} anime={anime} onSelect={onAnimeSelect} />

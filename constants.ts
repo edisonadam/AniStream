@@ -25,8 +25,8 @@ export const COLOR_PRESETS: { id: ColorPreset, name: string }[] = [
 ];
 
 export const VIDEO_SERVERS: { id: VideoServer, name: string }[] = [
-    { id: 'embed-api', name: 'Server 1' },
-    { id: 'vidsrc', name: 'Vidsrc' },
+    { id: 'embed-api', name: 'Main' },
+    { id: 'vidsrc', name: 'VidSrc' },
     { id: 'vidsrc-pk', name: 'VidSrc PK' },
 ];
 
@@ -38,15 +38,4 @@ export const VIDSRC_DOMAINS: string[] = [
     'vidsrcme.su',
     'vidsrc-me.ru',
     'vidsrc-me.su',
-];
-
-export const SUBTITLE_LANGUAGES: { code: string, name: string }[] = [
-    { code: 'en', name: 'English' },
-    { code: 'es', name: 'Spanish' },
-    { code: 'pt', name: 'Portuguese' },
-    { code: 'fr', name: 'French' },
-    { code: 'de', name: 'German' },
-    { code: 'it', name: 'Italian' },
-    { code: 'ru', name: 'Russian' },
-    { code: 'ar', name: 'Arabic' },
 ];

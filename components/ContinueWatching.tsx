@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { Anime, ContinueWatchingInfo } from '../types';
 import { useContinueWatching } from '../hooks/useContinueWatching';
@@ -22,7 +21,10 @@ const ContinueWatchingCard: React.FC<ContinueWatchingCardProps> = ({ anime, prog
             <div className="aspect-[2/3] w-full overflow-hidden rounded-lg shadow-lg">
                 <img src={anime.thumbnail} alt={anime.title} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
             </div>
-             {anime.type && <span className="absolute top-2 right-2 px-2 py-0.5 text-xs font-bold rounded-full bg-[rgb(var(--color-secondary-accent))/0.8] text-white backdrop-blur-sm">{anime.type.toUpperCase()}</span>}
+             <div className="absolute top-2 right-2 flex flex-col items-end gap-1.5 z-10">
+                {anime.isAdult && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-red-600/90 text-white backdrop-blur-sm">+18</span>}
+                {anime.type && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-[rgb(var(--color-secondary-accent))/0.8] text-white backdrop-blur-sm">{anime.type.toUpperCase()}</span>}
+             </div>
             <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/90 to-transparent rounded-b-lg">
                 <p className="text-white text-sm font-bold truncate group-hover:text-[rgb(var(--color-primary-accent))] transition-colors">{anime.title}</p>
                 <p className="text-xs text-[rgb(var(--text-secondary))]">S{progressInfo.currentSeason} E{progressInfo.currentEpisode}</p>

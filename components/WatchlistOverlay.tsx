@@ -25,7 +25,7 @@ const WatchlistOverlay: React.FC<WatchlistOverlayProps> = ({ onClose, onSelectAn
     };
 
     return (
-        <div className="fixed inset-0 bg-[rgb(var(--surface-1))/0.95] backdrop-blur-lg z-50 animate-fade-in-fast flex flex-col">
+        <div className="fixed inset-0 bg-[rgb(var(--surface-1))/0.95] backdrop-blur-lg z-50 animate-cinematic-fade-in flex flex-col">
             <div className="flex-shrink-0 container mx-auto px-4 sm:px-6 lg:px-8 py-6">
                 <div className="flex justify-between items-center">
                     <h2 className="text-3xl font-bold text-[rgb(var(--text-primary))]">My Watchlist</h2>
@@ -71,8 +71,7 @@ const WatchlistOverlay: React.FC<WatchlistOverlayProps> = ({ onClose, onSelectAn
                 </div>
             </div>
              <style>{`
-                @keyframes fade-in-fast { from { opacity: 0; } to { opacity: 1; } }
-                .animate-fade-in-fast { animation: fade-in-fast 0.3s ease-out forwards; }
+                /* Removed old animation, now using global styles */
              `}</style>
         </div>
     );

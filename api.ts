@@ -1,3 +1,4 @@
+
 import type { VideoServer } from './types';
 
 /**
@@ -16,8 +17,7 @@ export const buildSourceUrl = (
     season?: number,
     episode?: number,
     vidsrcDomain?: string,
-    autoplay?: boolean,
-    subtitleLanguage?: string,
+    autoplay?: boolean
 ): string | null => {
     if (!mediaType || !tmdbId) return null;
 
@@ -50,9 +50,6 @@ export const buildSourceUrl = (
                 if (mediaType === 'tv') {
                     params.set('autonext', '1');
                 }
-            }
-            if (subtitleLanguage) {
-                params.set('ds_lang', subtitleLanguage);
             }
             
             const queryString = params.toString();

@@ -5,10 +5,12 @@ const defaultSettings: Settings = {
   theme: 'dark',
   colorPreset: 'neon-purple',
   autoplay: true,
-  videoServer: 'vidsrc',
+  videoServer: 'embed-api',
   vidsrcDomain: 'vsrc.su',
-  subtitleLanguage: 'en',
-  preferDub: false,
+  forceDesktopMode: false,
+  episodeViewStyle: 'default',
+  blurEpisodeThumbnails: true,
+  adsDisabled: false,
 };
 
 interface SettingsContextType {

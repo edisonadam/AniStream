@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
@@ -14,6 +13,7 @@ import ContinueWatching from './components/ContinueWatching';
 import type { Anime, Filter } from './types';
 import { useWatchLater } from './hooks/useWatchLater';
 import { useAuth } from './hooks/useAuth';
+import { useSettings } from './hooks/useSettings';
 import { ANIME_TYPES } from './constants';
 
 type View = 'home' | 'player' | 'list' | 'profile';
@@ -40,9 +40,35 @@ const App: React.FC = () => {
   const [genreMap, setGenreMap] = useState<Record<string, number>>({});
   const { isLoggedIn } = useAuth();
   const { watchLaterList } = useWatchLater();
+  const { settings } = useSettings();
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
   const closeSidebar = () => setIsSidebarOpen(false);
+
+  // Apply desktop mode class based on settings and window size
+  useEffect(() => {
+    const rootContainer = document.querySelector('#root > div');
+    if (!rootContainer) return;
+
+    const applyLayoutMode = () => {
+      const isDesktop = settings.forceDesktopMode || window.innerWidth >= 1024;
+      if (isDesktop) {
+        rootContainer.classList.add('desktop-mode');
+      } else {
+        rootContainer.classList.remove('desktop-mode');
+      }
+      if (settings.forceDesktopMode) {
+        rootContainer.classList.add('force-desktop-mode');
+      } else {
+        rootContainer.classList.remove('force-desktop-mode');
+      }
+    };
+
+    applyLayoutMode();
+    window.addEventListener('resize', applyLayoutMode);
+    return () => window.removeEventListener('resize', applyLayoutMode);
+  }, [settings.forceDesktopMode]);
+
 
   // Fetch genre mapping on initial load
   useEffect(() => {
@@ -109,22 +135,41 @@ const App: React.FC = () => {
         const data = await response.json();
 
         let mappedData: Anime[] = data.data
-          .map((item: any): Anime => ({
-            id: item.mal_id,
-            title: item.title_english || item.title,
-            thumbnail: item.images.jpg.large_image_url,
-            bannerImage: item.images.jpg.large_image_url,
-            synopsis: item.synopsis || 'No synopsis available.',
-            genres: item.genres.map((g: any) => g.name),
-            releaseYear: item.year,
-            status: item.status === 'Finished Airing' ? 'Completed' : item.status === 'Currently Airing' ? 'Ongoing' : 'Upcoming',
-            totalEpisodes: item.episodes,
-            rating: item.score,
-            type: item.type,
-            studio: item.studios.length > 0 ? item.studios[0].name : 'Unknown',
-            hasSub: true,
-            hasDub: !!item.title_english,
-          }))
+          .map((item: any): Anime => {
+            let totalMinutes = 0;
+            const hourMatch = item.duration?.match(/(\d+)\s*hr/);
+            const minMatch = item.duration?.match(/(\d+)\s*min/);
+            if (hourMatch?.[1]) totalMinutes += parseInt(hourMatch[1], 10) * 60;
+            if (minMatch?.[1]) totalMinutes += parseInt(minMatch[1], 10);
+            
+            let avgEpDuration: number | null = null;
+            if (item.duration && item.duration.includes('per ep')) {
+              const epMinMatch = item.duration.match(/(\d+)\s*min/);
+              if (epMinMatch && epMinMatch[1]) {
+                avgEpDuration = parseInt(epMinMatch[1], 10);
+              }
+            }
+
+            return {
+              id: item.mal_id,
+              title: item.title_english || item.title,
+              thumbnail: item.images.jpg.large_image_url,
+              bannerImage: item.images.jpg.large_image_url,
+              synopsis: item.synopsis || 'No synopsis available.',
+              genres: item.genres.map((g: any) => g.name),
+              releaseYear: item.year,
+              status: item.status === 'Finished Airing' ? 'Completed' : item.status === 'Currently Airing' ? 'Ongoing' : 'Upcoming',
+              totalEpisodes: item.episodes,
+              rating: item.score,
+              type: item.type,
+              studio: item.studios.length > 0 ? item.studios[0].name : 'Unknown',
+              hasSub: true,
+              hasDub: !!item.title_english,
+              runtime: totalMinutes > 0 ? totalMinutes : null,
+              avgEpisodeDuration: avgEpDuration,
+              isAdult: item.rating === 'Rx - Hentai',
+            };
+          })
           .filter((anime: Anime) => anime.type && ANIME_TYPES.includes(anime.type));
 
         mappedData = mappedData.filter(anime => {
@@ -242,12 +287,11 @@ const App: React.FC = () => {
 
     return (
       <>
-        {isHomePage && <FeaturedCarousel animeList={topAnimeList.slice(0, 5)} onAnimeSelect={handleSelectAnime} />}
+        {isHomePage && <FeaturedCarousel animeList={topAnimeList.slice(0, 5)} onAnimeSelect={handleSelectAnime} isLoading={isLoading} />}
         {isHomePage && isLoggedIn && <ContinueWatching allAnime={topAnimeList} onShowWatchlist={handleShowWatchLater} onSelectAnime={handleSelectAnime} />}
         
-        {isLoading && <div className="text-center p-12 text-xl font-semibold text-[rgb(var(--color-primary-accent))]/80">Loading Anime...</div>}
         {error && <div className="text-center p-12 text-[rgb(var(--color-danger))]">{error}</div>}
-        {!isLoading && !error && <AnimeGrid animeList={listToDisplay} onAnimeSelect={handleSelectAnime} title={getGridTitle()} filters={filters} />}
+        {!error && <AnimeGrid animeList={listToDisplay} onAnimeSelect={handleSelectAnime} title={getGridTitle()} filters={filters} isLoading={isLoading} />}
       </>
     );
   };
@@ -276,16 +320,14 @@ const App: React.FC = () => {
       {isWatchlistOpen && <WatchlistOverlay onClose={() => setIsWatchlistOpen(false)} onSelectAnime={handleSelectAnime}/>}
 
       <main className="pt-20">
-        {renderContent()}
+        <div key={`${view}-${selectedAnime?.id || 'home'}`} className="animate-cinematic-fade-in">
+          {renderContent()}
+        </div>
       </main>
       <Footer />
 
        <style>{`
-        @keyframes fade-in-up {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in-up { animation: fade-in-up 0.5s ease-out forwards; }
+        /* This style block can be removed as animations are now global in index.html */
        `}</style>
     </div>
   );

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, ReactNode } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import type { Filter } from '../types';
-// FIX: Remove unused UserCircleIcon which is not exported from Icons.tsx
+// FIX: Removed a stale comment about an unused icon.
 import { CloseIcon, SettingsIcon, ChevronDownIcon, TvIcon, ClockIcon, CalendarIcon, SortAscIcon, LanguageIcon, SunIcon, MoonIcon } from './icons/Icons';
 import { GENRES, ANIME_TYPES, ANIME_STATUSES, YEAR_OPTIONS, LANGUAGE_OPTIONS, COLOR_PRESETS } from '../constants';
 import Logo from './Logo';
@@ -189,7 +189,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onApplyFilters, curr
           </div>
         </div>
 
-        <div className="flex-shrink-0 p-4 space-y-4 border-t border-[rgb(var(--border-color))/0.5]">
+        <div className="flex-shrink-0 p-4 space-y-3 border-t border-[rgb(var(--border-color))/0.5]">
             <div className="grid grid-cols-2 gap-3">
                 <button onClick={handleClear} className="w-full py-3 text-center bg-[rgb(var(--surface-3))/0.8] rounded-lg font-semibold hover:bg-[rgb(var(--surface-4))] transition-colors">Clear All</button>
                 <button onClick={handleApply} className="w-full py-3 text-center bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))] rounded-lg font-semibold hover:bg-[rgb(var(--color-primary-hover))] transition-all duration-300 shadow-lg shadow-[rgb(var(--shadow-color))/0.3]">Apply Filters</button>
@@ -201,25 +201,27 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onApplyFilters, curr
                 </div>
              )}
             <div className="flex justify-between items-center p-2 bg-[rgb(var(--surface-2))/0.5] rounded-md">
-                <span className="text-sm font-semibold text-[rgb(var(--text-secondary))]">Theme</span>
-                <div className="flex items-center bg-[rgb(var(--surface-3))] rounded-full p-1">
-                    <button
-                        onClick={() => updateSettings({ theme: 'light' })}
-                        className={`p-1 rounded-full ${settings.theme === 'light' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))]' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}
-                        aria-label="Switch to light theme"
-                    >
-                        <SunIcon className="w-4 h-4" />
-                    </button>
-                    <button
-                        onClick={() => updateSettings({ theme: 'dark' })}
-                        className={`p-1 rounded-full ${settings.theme === 'dark' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))]' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}
-                        aria-label="Switch to dark theme"
-                    >
-                        <MoonIcon className="w-4 h-4"/>
-                    </button>
-                </div>
+                <span className="text-sm font-semibold text-[rgb(var(--text-secondary))]">Disable Ads</span>
+                <button
+                    onClick={() => updateSettings({ adsDisabled: !settings.adsDisabled })}
+                    className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${settings.adsDisabled ? 'bg-[rgb(var(--color-primary))]' : 'bg-[rgb(var(--surface-4))]'}`}
+                    aria-label={`Ads are currently ${settings.adsDisabled ? 'disabled' : 'enabled'}`}
+                >
+                    <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${settings.adsDisabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
             </div>
-            <p className="text-xs text-center text-[rgb(var(--text-muted))] pt-2">© {new Date().getFullYear()} AniStream</p>
+            <div className="flex justify-between items-center p-2 bg-[rgb(var(--surface-2))/0.5] rounded-md">
+                <span className="text-sm font-semibold text-[rgb(var(--text-secondary))]">Theme</span>
+                <button
+                    onClick={() => updateSettings({ theme: settings.theme === 'light' ? 'dark' : 'light' })}
+                    className="p-2 rounded-full bg-[rgb(var(--surface-3))] text-[rgb(var(--text-primary))] relative w-9 h-9 flex items-center justify-center overflow-hidden"
+                    aria-label={`Switch to ${settings.theme === 'light' ? 'dark' : 'light'} theme`}
+                >
+                    <SunIcon className={`w-5 h-5 absolute transition-all duration-300 ease-in-out ${settings.theme === 'light' ? 'opacity-100 transform rotate-0 scale-100' : 'opacity-0 transform -rotate-90 scale-50'}`} />
+                    <MoonIcon className={`w-5 h-5 absolute transition-all duration-300 ease-in-out ${settings.theme === 'dark' ? 'opacity-100 transform rotate-0 scale-100' : 'opacity-0 transform rotate-90 scale-50'}`} />
+                </button>
+            </div>
+            <p className="text-xs text-center text-[rgb(var(--text-muted))] pt-2">© {new Date().getFullYear()} ANISTREAM</p>
         </div>
       </aside>
     </>

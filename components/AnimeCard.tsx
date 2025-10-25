@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import type { Anime } from '../types';
 import { useWatchLater } from '../hooks/useWatchLater';
@@ -9,6 +8,21 @@ interface AnimeCardProps {
   anime: Anime;
   onSelect: (anime: Anime) => void;
 }
+
+const formatDuration = (minutes: number | null): string => {
+  if (minutes === null || minutes <= 0) {
+    return '';
+  }
+  if (minutes < 60) {
+    return `${minutes}m`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  if (remainingMinutes === 0) {
+    return `${hours}h`;
+  }
+  return `${hours}h ${remainingMinutes}m`;
+};
 
 const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect }) => {
   const { addToWatchLater, removeFromWatchLater, isInWatchLater } = useWatchLater();
@@ -32,7 +46,10 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect }) => {
   }
 
   return (
-    <div className="group relative overflow-hidden rounded-lg shadow-lg cursor-pointer transform transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-[rgb(var(--shadow-color))/0.4]"
+    <div className="group relative overflow-hidden rounded-lg shadow-lg cursor-pointer transform transition-all duration-300 hover:shadow-2xl hover:shadow-[rgb(var(--shadow-color))/0.4]"
+      style={{ transition: 'transform 0.3s ease, box-shadow 0.3s ease' }}
+      onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-8px) scale(1.03)'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0px) scale(1)'; }}
       onClick={() => onSelect(anime)}
       onKeyDown={(e) => e.key === 'Enter' && onSelect(anime)}
       role="button"
@@ -45,11 +62,16 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect }) => {
 
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
 
-      <div className="absolute top-2 left-2 flex flex-col gap-1.5">
+      <div className="absolute top-2 left-2 flex flex-col gap-1.5 z-10">
+        {anime.isAdult && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-red-600/90 text-white backdrop-blur-sm">+18</span>}
         {anime.type && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-[rgb(var(--color-secondary-accent))/0.8] text-white backdrop-blur-sm">{anime.type.toUpperCase()}</span>}
         {anime.hasSub && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-[rgb(var(--color-primary))/0.8] text-white backdrop-blur-sm">SUB</span>}
         {anime.hasDub && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-[rgb(var(--color-tertiary-accent))/0.8] text-white backdrop-blur-sm">DUB</span>}
       </div>
+      
+      {anime.runtime && anime.type === 'Movie' && <span className="absolute bottom-12 right-2 px-2 py-0.5 text-xs font-bold rounded bg-black/70 text-white backdrop-blur-sm z-10">{formatDuration(anime.runtime)}</span>}
+      {anime.avgEpisodeDuration && anime.type !== 'Movie' && <span className="absolute bottom-12 right-2 px-2 py-0.5 text-xs font-bold rounded bg-black/70 text-white backdrop-blur-sm z-10">~{anime.avgEpisodeDuration}m/ep</span>}
+
 
       {isLoggedIn && (
         <div className="absolute top-2 right-2">

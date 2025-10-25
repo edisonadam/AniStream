@@ -5,7 +5,7 @@ import { useProfileData } from '../hooks/useProfileData';
 import { useContinueWatching } from '../hooks/useContinueWatching';
 import { useWatchLater } from '../hooks/useWatchLater';
 import { ChevronLeftIcon, MoonIcon, SunIcon } from './icons/Icons';
-import { COLOR_PRESETS, VIDEO_SERVERS, VIDSRC_DOMAINS, SUBTITLE_LANGUAGES } from '../constants';
+import { COLOR_PRESETS, VIDEO_SERVERS, VIDSRC_DOMAINS } from '../constants';
 import type { Anime, ContinueWatchingInfo, ViewingHistoryItem, Rating } from '../types';
 import AnimeCard from './AnimeCard';
 
@@ -109,6 +109,15 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
                     ))}
                 </div>
             </div>
+            <div className="flex flex-col pt-4 border-t border-[rgb(var(--border-color))]/50">
+                <div className="flex justify-between items-center">
+                    <label className="font-semibold text-[rgb(var(--text-secondary))]">Force desktop mode</label>
+                    <button onClick={() => updateSettings({ forceDesktopMode: !settings.forceDesktopMode })} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${settings.forceDesktopMode ? 'bg-[rgb(var(--color-primary))]' : 'bg-[rgb(var(--surface-4))]'}`}>
+                        <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${settings.forceDesktopMode ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                </div>
+                 <p className="text-sm text-[rgb(var(--text-muted))] mt-1">Keep the desktop layout active even on smaller screens.</p>
+            </div>
           </div>
         </div>
 
@@ -122,24 +131,31 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
                     <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${settings.autoplay ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
             </div>
-            <div className="flex justify-between items-center pt-4 border-t border-[rgb(var(--border-color))]/50">
-               <label className="font-semibold text-[rgb(var(--text-secondary))]">Prefer Dubbed Audio</label>
-               <button onClick={() => updateSettings({ preferDub: !settings.preferDub })} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${settings.preferDub ? 'bg-[rgb(var(--color-primary))]' : 'bg-[rgb(var(--surface-4))]'}`}>
-                   <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${settings.preferDub ? 'translate-x-6' : 'translate-x-1'}`} />
-               </button>
-           </div>
+             <div className="flex justify-between items-center pt-4 border-t border-[rgb(var(--border-color))]/50">
+                <label className="font-semibold text-[rgb(var(--text-secondary))]">Blur Episode Thumbnails</label>
+                <button onClick={() => updateSettings({ blurEpisodeThumbnails: !settings.blurEpisodeThumbnails })} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${settings.blurEpisodeThumbnails ? 'bg-[rgb(var(--color-primary))]' : 'bg-[rgb(var(--surface-4))]'}`}>
+                    <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${settings.blurEpisodeThumbnails ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+            </div>
             <div className="flex flex-col sm:flex-row justify-between items-center pt-4 border-t border-[rgb(var(--border-color))]/50">
-                <label className="font-semibold text-[rgb(var(--text-secondary))] mb-2 sm:mb-0">Video Server</label>
+                <label className="font-semibold text-[rgb(var(--text-secondary))] mb-2 sm:mb-0">Default Video Server</label>
                 <div className="flex items-center bg-[rgb(var(--surface-3))] rounded-full p-1">
                     {VIDEO_SERVERS.map(server => (
                         <button key={server.id} onClick={() => updateSettings({ videoServer: server.id })} className={`px-4 py-1.5 text-sm rounded-full transition-all ${settings.videoServer === server.id ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>{server.name}</button>
                     ))}
                 </div>
             </div>
+             <div className="flex flex-col sm:flex-row justify-between items-center pt-4 border-t border-[rgb(var(--border-color))]/50">
+                <label className="font-semibold text-[rgb(var(--text-secondary))] mb-2 sm:mb-0">Default Episode View</label>
+                <div className="flex items-center bg-[rgb(var(--surface-3))] rounded-full p-1">
+                    <button onClick={() => updateSettings({ episodeViewStyle: 'default' })} className={`px-4 py-1.5 text-sm capitalize rounded-full transition-all ${settings.episodeViewStyle === 'default' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>{`Default`}</button>
+                    <button onClick={() => updateSettings({ episodeViewStyle: 'compact' })} className={`px-4 py-1.5 text-sm capitalize rounded-full transition-all ${settings.episodeViewStyle === 'compact' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>{`Compact`}</button>
+                    <button onClick={() => updateSettings({ episodeViewStyle: 'grid' })} className={`px-4 py-1.5 text-sm capitalize rounded-full transition-all ${settings.episodeViewStyle === 'grid' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>{`Grid`}</button>
+                </div>
+            </div>
             {settings.videoServer === 'vidsrc' && (
-                <>
                 <div className="flex flex-col sm:flex-row justify-between items-center pt-4 border-t border-[rgb(var(--border-color))]/50">
-                    <label htmlFor="vidsrc-domain-select" className="font-semibold text-[rgb(var(--text-secondary))] mb-2 sm:mb-0">Vidsrc Domain</label>
+                    <label htmlFor="vidsrc-domain-select" className="font-semibold text-[rgb(var(--text-secondary))] mb-2 sm:mb-0">Dub Server Domain</label>
                     <select
                         id="vidsrc-domain-select"
                         value={settings.vidsrcDomain}
@@ -151,20 +167,6 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
                         ))}
                     </select>
                 </div>
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pt-4 border-t border-[rgb(var(--border-color))]/50">
-                    <label htmlFor="subtitle-lang-select" className="font-semibold text-[rgb(var(--text-secondary))] mb-2 sm:mb-0">Default Subtitle Language</label>
-                    <select
-                        id="subtitle-lang-select"
-                        value={settings.subtitleLanguage}
-                        onChange={(e) => updateSettings({ subtitleLanguage: e.target.value })}
-                        className="w-full sm:w-auto bg-[rgb(var(--surface-input))] border border-[rgb(var(--border-color))] rounded-lg px-3 py-2 text-[rgb(var(--text-primary))] focus:ring-[rgb(var(--border-focus))] focus:border-[rgb(var(--border-focus))] transition-all"
-                    >
-                        {SUBTITLE_LANGUAGES.map(lang => (
-                            <option key={lang.code} value={lang.code}>{lang.name}</option>
-                        ))}
-                    </select>
-                </div>
-                </>
             )}
           </div>
         </div>
@@ -181,15 +183,15 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
     );
 
     return (
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in-up">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-subtle-fade-in-up">
             <button onClick={onGoBack} className="flex items-center space-x-2 text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] transition-colors group mb-8">
                 <ChevronLeftIcon className="w-6 h-6 transform group-hover:-translate-x-1 transition-transform" />
                 <span>Back to Browse</span>
             </button>
             
             <div className="flex justify-center border-b border-[rgb(var(--border-color))] mb-8">
-                <button onClick={() => setActiveTab('profile')} className={`px-6 py-3 text-lg font-semibold transition-colors ${activeTab === 'profile' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>Profile</button>
-                <button onClick={() => setActiveTab('settings')} className={`px-6 py-3 text-lg font-semibold transition-colors ${activeTab === 'settings' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>Settings</button>
+                <button onClick={() => setActiveTab('profile')} className={`px-6 py-3 text-lg font-semibold transition-colors ${activeTab === 'profile' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>{`Profile`}</button>
+                <button onClick={() => setActiveTab('settings')} className={`px-6 py-3 text-lg font-semibold transition-colors ${activeTab === 'settings' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>{`Settings`}</button>
             </div>
 
             {activeTab === 'profile' ? <ProfileTabContent /> : <SettingsTabContent />}

@@ -28,7 +28,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
     const mockNotifs: Notification[] = [
       { id: '1', text: 'New Episode of Void Scrambler is out!', timestamp: Date.now() - 3600000, read: false },
       { id: '2', text: 'Chronicles of Valoria was added to your Watch Later list.', timestamp: Date.now() - 86400000, read: false },
-      { id: '3', text: 'Welcome to AniStream!', timestamp: Date.now() - 172800000, read: true },
+      { id: '3', text: 'Welcome to ANISTREAM!', timestamp: Date.now() - 172800000, read: true },
     ];
     setNotifications(mockNotifs);
   }, []);

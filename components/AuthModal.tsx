@@ -42,9 +42,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center animate-fade-in-fast">
-      <div className="bg-[rgb(var(--surface-2))/0.9] border border-[rgb(var(--border-color))] rounded-2xl shadow-2xl shadow-[rgb(var(--shadow-color))/0.5] w-full max-w-md m-4 p-8 relative transform transition-all animate-fade-in-up">
-        <button onClick={onClose} className="absolute top-4 right-4 text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))] transition-colors">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center animate-cinematic-fade-in">
+      <div className="bg-[rgb(var(--surface-2))/0.9] border border-[rgb(var(--border-color))] rounded-2xl shadow-2xl shadow-[rgb(var(--shadow-color))/0.5] w-full max-w-md m-4 p-8 relative transform transition-all animate-subtle-fade-in-up">
+        <button onClick={onClose} className="absolute top-4 right-4 text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))]">
           <CloseIcon />
         </button>
         <div className="flex border-b border-[rgb(var(--border-color))] mb-6">
@@ -85,8 +85,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
         </form>
       </div>
       <style>{`
-        @keyframes fade-in-fast { from { opacity: 0; } to { opacity: 1; } }
-        .animate-fade-in-fast { animation: fade-in-fast 0.2s ease-out forwards; }
+        /* Removed old animation, now using global styles */
       `}</style>
     </div>
   );
