@@ -530,7 +530,16 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
     const useTmdbSeasons = seasons.length > 1;
     const useJikanSeriesParts = !useTmdbSeasons && seriesParts.length > 1;
 
-    let items: { id: string | number; isActive: boolean; name: string; imageUrl: string; onClick: () => void; }[] = [];
+    type NavItem = {
+      id: string | number;
+      isActive: boolean;
+      name: string;
+      imageUrl: string;
+      episodeCount?: number;
+      onClick: () => void;
+    };
+    
+    let items: NavItem[] = [];
 
     if (useTmdbSeasons) {
         items = [...seasons]
@@ -539,17 +548,18 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
                 id: s.season_number,
                 isActive: s.season_number === currentSeason,
                 name: s.name || `Season ${s.season_number}`,
-                imageUrl: s.poster_path ? `https://image.tmdb.org/t/p/w500${s.poster_path}` : playerAnime.bannerImage,
+                imageUrl: s.poster_path ? `https://image.tmdb.org/t/p/w500${s.poster_path}` : (playerAnime?.thumbnail || ''),
+                episodeCount: s.episode_count,
                 onClick: () => selectSeason(s.season_number)
             }));
     } else if (useJikanSeriesParts) {
         items = seriesParts.map(p => ({
             id: p.id!,
-            isActive: p.id === playerAnime.id,
+            isActive: p.id === playerAnime?.id,
             name: p.title!,
-            imageUrl: p.thumbnail || playerAnime.bannerImage,
+            imageUrl: p.thumbnail || (playerAnime?.thumbnail || ''),
             onClick: () => {
-                if (p.id !== playerAnime.id) {
+                if (p.id !== playerAnime?.id) {
                     onSelectRelated({
                         id: p.id!,
                         title: p.title || 'N/A',
@@ -579,16 +589,38 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
     return (
         <div className="mb-6">
             <h3 className="text-lg font-semibold text-[rgb(var(--color-primary-accent))] mb-3">{useTmdbSeasons ? 'Seasons' : 'Series'}</h3>
-            <div className={items.length > 2 ? 'flex gap-3 overflow-x-auto pb-4 -mx-1 px-1' : 'flex justify-center gap-3 pb-4'} style={items.length > 2 ? { scrollbarWidth: 'thin' } : {}}>
-                {isLoadingNavigator ? Array.from({length:5}).map((_, i) => <div key={i} className="flex-shrink-0 w-48 h-10 bg-[rgb(var(--surface-3))] rounded-lg animate-pulse"></div>)
-                    : items.map(item => (
-                        <button key={item.id} onClick={item.onClick} className="relative flex-shrink-0 w-48 h-10 rounded-lg group transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[rgb(var(--surface-1))] focus:ring-transparent hover:scale-105">
-                            <div className="absolute -inset-1 bg-cover bg-center filter blur-md opacity-50 group-hover:opacity-70 transition-opacity rounded-xl" style={{ backgroundImage: `url(${item.imageUrl})` }}></div>
-                            <div className={`relative w-full h-full flex items-center justify-center rounded-lg overflow-hidden transition-all duration-300 backdrop-blur-sm ${item.isActive ? 'bg-[rgb(var(--color-primary))]/70 ring-2 ring-[rgb(var(--color-primary-accent))] scale-105' : 'bg-[rgb(var(--surface-3))]/70 group-hover:bg-[rgb(var(--surface-4))]/80'}`}>
-                                <span className="font-bold text-white text-sm truncate px-2">{item.name}</span>
-                            </div>
-                        </button>
-                    ))}
+            <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8" style={{ scrollbarWidth: 'thin' }}>
+                {isLoadingNavigator ? Array.from({length: 4}).map((_, i) => (
+                    <div key={i} className="flex-shrink-0 w-40 animate-pulse">
+                        <div className="aspect-[2/3] w-full bg-[rgb(var(--surface-3))] rounded-lg"></div>
+                        <div className="h-4 mt-2 bg-[rgb(var(--surface-4))] rounded w-3/4"></div>
+                    </div>
+                )) : items.map(item => (
+                    <button 
+                        key={item.id} 
+                        onClick={item.onClick} 
+                        className={`flex-shrink-0 w-40 text-left rounded-lg group transition-all duration-300 overflow-hidden focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[rgb(var(--surface-1))] ${item.isActive ? 'ring-[rgb(var(--color-primary-accent))]' : 'ring-transparent'}`}
+                    >
+                        <div className="aspect-[2/3] w-full relative">
+                            <img 
+                                src={item.imageUrl} 
+                                alt={item.name} 
+                                className={`w-full h-full object-cover transition-all duration-300 group-hover:scale-110 ${!item.isActive ? 'opacity-70 group-hover:opacity-100' : ''}`} 
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"></div>
+                            {item.episodeCount && (
+                                <span className="absolute top-2 right-2 px-2 py-0.5 text-xs font-bold rounded-full bg-black/60 text-white backdrop-blur-sm">
+                                    {item.episodeCount} EP
+                                </span>
+                            )}
+                        </div>
+                        <div className="p-2 bg-[rgb(var(--surface-2))]">
+                            <p className={`font-semibold text-sm truncate transition-colors ${item.isActive ? 'text-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-primary))] group-hover:text-[rgb(var(--color-primary-accent))]'}`}>
+                                {item.name}
+                            </p>
+                        </div>
+                    </button>
+                ))}
             </div>
         </div>
     );

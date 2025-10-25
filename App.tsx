@@ -11,6 +11,7 @@ import SearchOverlay from './components/SearchOverlay';
 import WatchlistOverlay from './components/WatchlistOverlay';
 import ProfilePage from './components/ProfilePage';
 import ContinueWatching from './components/ContinueWatching';
+import GoToTopButton from './components/GoToTopButton';
 import type { Anime, Filter, Notification } from './types';
 import { useWatchLater } from './hooks/useWatchLater';
 import { useAuth } from './hooks/useAuth';
@@ -118,13 +119,8 @@ const App: React.FC = () => {
         if (genreIds) params.append('genres', genreIds);
       }
       
-      if (isSearchOrFilter) {
-          if (types && types.length > 0) {
-              params.append('type', types.map(t => t.toLowerCase()).join(','));
-          } else if (query) {
-              // Default to main anime types for general searches to exclude junk
-              params.append('type', ANIME_TYPES.map(t => t.toLowerCase()).join(','));
-          }
+      if (types && types.length > 0) {
+          params.append('type', types.map(t => t.toLowerCase()).join(','));
       }
 
       if (status) {
@@ -179,13 +175,19 @@ const App: React.FC = () => {
               avgEpisodeDuration: avgEpDuration,
               isAdult: item.rating === 'Rx - Hentai',
             };
-          })
-          .filter((anime: Anime) => anime.type && ANIME_TYPES.includes(anime.type));
+          });
+
+        // FIX: Conditionally filter out junk types ONLY when not performing a search or filter.
+        // This allows searches to return all relevant types.
+        if (!isSearchOrFilter) {
+          mappedData = mappedData.filter((anime: Anime) => anime.type && ANIME_TYPES.includes(anime.type));
+        }
         
         // Apply content restriction and post-fetch filters
         mappedData = mappedData.filter(anime => {
             if (settings.restrictAdultContent && anime.isAdult) return false;
-            if (types && types.length > 0 && (!anime.type || !types.includes(anime.type))) return false;
+            // The type filter is now handled by the API query parameter, so we don't need a redundant client-side check.
+            // if (types && types.length > 0 && (!anime.type || !types.includes(anime.type))) return false;
             if (filters.year && anime.releaseYear) {
                 const startYear = parseInt(filters.year.substring(0, 4));
                 if (anime.releaseYear < startYear || anime.releaseYear > startYear + 9) return false;
@@ -350,6 +352,7 @@ const App: React.FC = () => {
         </div>
       </main>
       <Footer />
+      <GoToTopButton />
 
        <style>{`
         /* This style block can be removed as animations are now global in index.html */
