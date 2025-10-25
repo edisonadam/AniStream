@@ -10,10 +10,11 @@ interface HeaderProps {
   onLoginClick: () => void;
   onSearchClick: () => void;
   onShowWatchLater: () => void;
+  onShowProfile: () => void;
   onLogoClick: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClick, onShowWatchLater, onLogoClick }) => {
+const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClick, onShowWatchLater, onShowProfile, onLogoClick }) => {
   const { isLoggedIn, user, logout } = useAuth();
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -48,6 +49,11 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
     logout();
     setIsProfileOpen(false);
   };
+
+  const handleProfileLink = (action: () => void) => {
+    action();
+    setIsProfileOpen(false);
+  }
 
   return (
     <header className="fixed top-0 left-0 right-0 z-40 bg-[rgb(var(--surface-1)/0.5)] backdrop-blur-sm shadow-lg shadow-[rgb(var(--shadow-color)/0.2)]">
@@ -91,8 +97,8 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
                     <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-[rgb(var(--surface-2))] ring-1 ring-black ring-opacity-5">
                       <div className="py-1" role="menu">
                         <div className="px-4 py-2 text-sm text-[rgb(var(--text-primary))] font-semibold border-b border-[rgb(var(--border-color))]">{user.username}</div>
-                        <button onClick={onShowWatchLater} className="block w-full text-left px-4 py-2 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))]">Watch Later</button>
-                        <a href="#" className="block px-4 py-2 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))]">Settings</a>
+                        <button onClick={() => handleProfileLink(onShowProfile)} className="block w-full text-left px-4 py-2 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))]">Profile & Settings</button>
+                        <button onClick={() => handleProfileLink(onShowWatchLater)} className="block w-full text-left px-4 py-2 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))]">Watch Later</button>
                         <button onClick={handleLogout} className="block w-full text-left px-4 py-2 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))]">Logout</button>
                       </div>
                     </div>

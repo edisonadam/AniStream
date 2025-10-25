@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import type { User } from '../types';
 
@@ -6,6 +7,7 @@ interface AuthContextType {
   isLoggedIn: boolean;
   login: (username: string) => void;
   logout: () => void;
+  updateUser: (updatedUser: Partial<User>) => void;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -57,15 +59,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     try {
-      // Prioritize localStorage as it's standard for this use case
       let storedUserString = localStorage.getItem('ani-stream-user');
 
-      // Fallback to cookies if localStorage is empty
       if (!storedUserString) {
         const cookieUserString = getCookie('ani-stream-user');
         if (cookieUserString) {
           storedUserString = cookieUserString;
-          // Sync cookie data back to localStorage for consistency
           localStorage.setItem('ani-stream-user', storedUserString);
         }
       }
@@ -75,32 +74,41 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     } catch (error) {
       console.error("Failed to parse user from storage", error);
-      // Clear both on error to prevent a corrupted state
       localStorage.removeItem('ani-stream-user');
       eraseCookie('ani-stream-user');
     }
   }, []);
 
+  const persistUser = (userToSave: User | null) => {
+    if (userToSave) {
+        const userString = JSON.stringify(userToSave);
+        localStorage.setItem('ani-stream-user', userString);
+        setCookie('ani-stream-user', userString, 365);
+    } else {
+        localStorage.removeItem('ani-stream-user');
+        eraseCookie('ani-stream-user');
+    }
+    setUser(userToSave);
+  }
+
   const login = (username: string) => {
     const newUser: User = { username, avatar: `https://api.dicebear.com/8.x/bottts-neutral/svg?seed=${username}` };
-    const userString = JSON.stringify(newUser);
-    
-    // Save to both localStorage and cookies for robust persistence
-    localStorage.setItem('ani-stream-user', userString);
-    setCookie('ani-stream-user', userString, 365); // Set cookie for 1 year
-    
-    setUser(newUser);
+    persistUser(newUser);
   };
 
   const logout = () => {
-    // Clear from both localStorage and cookies
-    localStorage.removeItem('ani-stream-user');
-    eraseCookie('ani-stream-user');
-    setUser(null);
+    persistUser(null);
   };
+  
+  const updateUser = (updatedUser: Partial<User>) => {
+    if (user) {
+        const newUser = { ...user, ...updatedUser };
+        persistUser(newUser);
+    }
+  }
 
   return (
-    <AuthContext.Provider value={{ user, isLoggedIn: !!user, login, logout }}>
+    <AuthContext.Provider value={{ user, isLoggedIn: !!user, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

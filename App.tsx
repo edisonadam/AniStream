@@ -9,11 +9,14 @@ import Player from './components/Player';
 import AuthModal from './components/AuthModal';
 import SearchOverlay from './components/SearchOverlay';
 import WatchlistOverlay from './components/WatchlistOverlay';
+import ProfilePage from './components/ProfilePage';
+import ContinueWatching from './components/ContinueWatching';
 import type { Anime, Filter } from './types';
 import { useWatchLater } from './hooks/useWatchLater';
+import { useAuth } from './hooks/useAuth';
 import { ANIME_TYPES } from './constants';
 
-type View = 'home' | 'player' | 'list';
+type View = 'home' | 'player' | 'list' | 'profile';
 
 const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -35,7 +38,7 @@ const App: React.FC = () => {
   });
   
   const [genreMap, setGenreMap] = useState<Record<string, number>>({});
-
+  const { isLoggedIn } = useAuth();
   const { watchLaterList } = useWatchLater();
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
@@ -66,10 +69,8 @@ const App: React.FC = () => {
       setIsLoading(true);
       setError(null);
 
-      // FIX: If genre filters are active, wait for the genre map to be loaded.
-      // This prevents a race condition on initial load with filters from session storage.
       if (filters.genres && filters.genres.length > 0 && Object.keys(genreMap).length === 0) {
-        return; // It will refetch when genreMap updates.
+        return; 
       }
 
       const params = new URLSearchParams({ limit: '25' });
@@ -78,7 +79,6 @@ const App: React.FC = () => {
 
       const { query, genres, types, status, sort } = filters;
 
-      // Determine if we need to use the more flexible /anime endpoint
       if (query || (genres && genres.length > 0) || status) {
         endpoint = 'https://api.jikan.moe/v4/anime';
         isSearchOrFilter = true;
@@ -122,13 +122,11 @@ const App: React.FC = () => {
             rating: item.score,
             type: item.type,
             studio: item.studios.length > 0 ? item.studios[0].name : 'Unknown',
-            hasSub: true, // Assume subs are available for most content.
-            hasDub: !!item.title_english, // Use English title as a proxy for dub availability.
+            hasSub: true,
+            hasDub: !!item.title_english,
           }))
           .filter((anime: Anime) => anime.type && ANIME_TYPES.includes(anime.type));
 
-
-        // === Perform client-side filtering for params Jikan API doesn't support well together ===
         mappedData = mappedData.filter(anime => {
             if (types && types.length > 0 && (!anime.type || !types.includes(anime.type))) return false;
             if (filters.year && anime.releaseYear) {
@@ -139,7 +137,6 @@ const App: React.FC = () => {
               if (filters.language === 'Sub' && !anime.hasSub) return false;
               if (filters.language === 'Dub' && !anime.hasDub) return false;
             }
-            // Enhance text search to include genres
             if(query && !isSearchOrFilter) {
                 const lowerQuery = query.toLowerCase();
                 const titleMatch = anime.title.toLowerCase().includes(lowerQuery);
@@ -149,11 +146,10 @@ const App: React.FC = () => {
             return true;
         });
         
-        // Client-side sort if API didn't handle it
         if (!isSearchOrFilter) {
             if (sort === 'alphabetical') mappedData.sort((a, b) => a.title.localeCompare(b.title));
             else if (sort === 'release_date') mappedData.sort((a, b) => (b.releaseYear || 0) - (a.releaseYear || 0));
-            else mappedData.sort((a, b) => (b.rating || 0) - (a.rating || 0)); // Default popularity
+            else mappedData.sort((a, b) => (b.rating || 0) - (a.rating || 0));
         }
 
         setAnimeList(mappedData);
@@ -186,6 +182,11 @@ const App: React.FC = () => {
   const handleShowWatchLater = () => {
       setIsWatchlistOpen(true);
   };
+
+  const handleShowProfile = () => {
+    setView('profile');
+    closeSidebar();
+  }
   
   const handleApplyFilters = (newFilters: Filter) => {
       setFilters(newFilters);
@@ -199,8 +200,8 @@ const App: React.FC = () => {
     setFilters(newFilters);
     sessionStorage.setItem('anistream-filters', JSON.stringify(newFilters));
     setIsSearchOpen(false);
-    setView('home'); // Ensure we navigate back to the home/grid view
-    setSelectedAnime(null); // Clear any selected anime
+    setView('home');
+    setSelectedAnime(null);
   };
 
   const handleEscKey = useCallback((event: KeyboardEvent) => {
@@ -209,8 +210,9 @@ const App: React.FC = () => {
       if (isAuthModalOpen) setIsAuthModalOpen(false);
       if (isSearchOpen) setIsSearchOpen(false);
       if (isWatchlistOpen) setIsWatchlistOpen(false);
+      if (view === 'profile') setView('home');
     }
-  }, [isSidebarOpen, isAuthModalOpen, isSearchOpen, isWatchlistOpen]);
+  }, [isSidebarOpen, isAuthModalOpen, isSearchOpen, isWatchlistOpen, view]);
 
   useEffect(() => {
     document.addEventListener('keydown', handleEscKey);
@@ -229,7 +231,11 @@ const App: React.FC = () => {
 
   const renderContent = () => {
     if (view === 'player' && selectedAnime) {
-      return <Player anime={selectedAnime} onGoBack={handleGoHome} onSelectRelated={handleSelectAnime} />;
+      return <Player anime={selectedAnime} onGoBack={handleGoHome} onSelectRelated={handleSelectAnime} allAnime={animeList} />;
+    }
+
+    if (view === 'profile') {
+        return <ProfilePage onGoBack={handleGoHome} allAnime={animeList} onSelectAnime={handleSelectAnime}/>
     }
     
     const listToDisplay = view === 'list' ? watchLaterList : animeList;
@@ -237,6 +243,7 @@ const App: React.FC = () => {
     return (
       <>
         {isHomePage && <FeaturedCarousel animeList={topAnimeList.slice(0, 5)} onAnimeSelect={handleSelectAnime} />}
+        {isHomePage && isLoggedIn && <ContinueWatching allAnime={topAnimeList} onShowWatchlist={handleShowWatchLater} onSelectAnime={handleSelectAnime} />}
         
         {isLoading && <div className="text-center p-12 text-xl font-semibold text-[rgb(var(--color-primary-accent))]/80">Loading Anime...</div>}
         {error && <div className="text-center p-12 text-[rgb(var(--color-danger))]">{error}</div>}
@@ -246,12 +253,13 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="bg-gradient-to-b from-[rgb(var(--bg-gradient-start))] via-[rgb(var(--bg-gradient-via))] to-[rgb(var(--bg-gradient-end))] min-h-screen text-[rgb(var(--text-primary))] font-sans">
+    <div className="bg-gradient-to-b from-[rgb(var(--bg-gradient-start))] via-[rgb(var(--bg-gradient-via))] to-[rgb(var(--bg-gradient-end))] min-h-screen text-[rgb(var(--text-primary))] font-sans transition-colors duration-500">
       <Header 
         onMenuClick={toggleSidebar} 
         onLoginClick={() => setIsAuthModalOpen(true)}
         onSearchClick={() => setIsSearchOpen(true)}
         onShowWatchLater={handleShowWatchLater}
+        onShowProfile={handleShowProfile}
         onLogoClick={handleGoHome}
       />
       <Sidebar 
@@ -260,6 +268,7 @@ const App: React.FC = () => {
         onApplyFilters={handleApplyFilters}
         currentFilters={filters}
         onShowWatchLater={handleShowWatchLater}
+        onShowProfile={handleShowProfile}
         onLogoClick={handleGoHome}
       />
       {isAuthModalOpen && <AuthModal onClose={() => setIsAuthModalOpen(false)} />}

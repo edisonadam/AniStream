@@ -2,10 +2,11 @@
 import React, { useState, useEffect, ReactNode } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import type { Filter } from '../types';
+// FIX: Remove unused UserCircleIcon which is not exported from Icons.tsx
 import { CloseIcon, SettingsIcon, ChevronDownIcon, TvIcon, ClockIcon, CalendarIcon, SortAscIcon, LanguageIcon, SunIcon, MoonIcon } from './icons/Icons';
-import { GENRES, ANIME_TYPES, ANIME_STATUSES, YEAR_OPTIONS, LANGUAGE_OPTIONS } from '../constants';
+import { GENRES, ANIME_TYPES, ANIME_STATUSES, YEAR_OPTIONS, LANGUAGE_OPTIONS, COLOR_PRESETS } from '../constants';
 import Logo from './Logo';
-import { useTheme } from '../hooks/useTheme';
+import { useSettings } from '../hooks/useSettings';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ interface SidebarProps {
   onApplyFilters: (filters: Filter) => void;
   currentFilters: Filter;
   onShowWatchLater: () => void;
+  onShowProfile: () => void;
   onLogoClick: () => void;
 }
 
@@ -26,8 +28,8 @@ const initialFilters: Filter = {
   language: '',
 };
 
-const FilterAccordion: React.FC<{ title: string; icon: ReactNode; children: ReactNode }> = ({ title, icon, children }) => {
-    const [isOpen, setIsOpen] = useState(false);
+const FilterAccordion: React.FC<{ title: string; icon: ReactNode; children: ReactNode; defaultOpen?: boolean }> = ({ title, icon, children, defaultOpen = false }) => {
+    const [isOpen, setIsOpen] = useState(defaultOpen);
     return (
         <div className="border-b border-[rgb(var(--border-color))/0.5]">
             <button onClick={() => setIsOpen(!isOpen)} className="w-full flex justify-between items-center p-3 text-left text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-2))/0.5] transition-colors">
@@ -46,17 +48,15 @@ const FilterAccordion: React.FC<{ title: string; icon: ReactNode; children: Reac
     )
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onApplyFilters, currentFilters, onShowWatchLater, onLogoClick }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onApplyFilters, currentFilters, onShowWatchLater, onShowProfile, onLogoClick }) => {
   const { user, logout } = useAuth();
   const [draftFilters, setDraftFilters] = useState<Filter>({ ...initialFilters, ...currentFilters });
-  const { theme, toggleTheme } = useTheme();
+  const { settings, updateSettings } = useSettings();
 
   useEffect(() => {
-      // Load filters from sessionStorage on mount
       const savedFilters = sessionStorage.getItem('anistream-filters');
       if (savedFilters) {
           const parsed = JSON.parse(savedFilters);
-          // Ensure fields exist to avoid runtime errors
           setDraftFilters({ ...initialFilters, ...parsed });
       }
   }, []);
@@ -97,14 +97,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onApplyFilters, curr
     onApplyFilters(initialFilters); 
     onClose();
   };
-
-  const handleLogoClick = () => {
-      onLogoClick();
-      onClose();
-  }
-
-  const handleWatchLaterClick = () => {
-      onShowWatchLater();
+  
+  const handleLinkClick = (action: () => void) => {
+      action();
       onClose();
   }
   
@@ -127,10 +122,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onApplyFilters, curr
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        {/* Header */}
         <div className="flex-shrink-0 p-4 border-b border-[rgb(var(--border-color))/0.5] space-y-4">
           <div className="flex justify-between items-center">
-            <Logo onClick={handleLogoClick} />
+            <Logo onClick={() => handleLinkClick(onLogoClick)} />
             <button onClick={onClose} className="text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] transition-colors" aria-label="Close menu"><CloseIcon /></button>
           </div>
           {user && (
@@ -140,15 +134,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onApplyFilters, curr
                 <p className="font-semibold text-[rgb(var(--text-primary))]">{user.username}</p>
                 <p className="text-xs text-[rgb(var(--text-muted))]">Welcome back!</p>
               </div>
-              <button className="text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))]"><SettingsIcon /></button>
+              <button onClick={() => handleLinkClick(onShowProfile)} className="text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))]"><SettingsIcon /></button>
             </div>
           )}
         </div>
 
-        {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
           
-          {/* Genres */}
           <div>
             <h3 className="text-lg font-semibold text-[rgb(var(--color-primary-accent))] mb-3 px-2">Genres</h3>
             <div className="grid grid-cols-2 gap-2">
@@ -163,52 +155,31 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onApplyFilters, curr
             </div>
           </div>
           
-          {/* Filters */}
           <div>
             <h3 className="text-lg font-semibold text-[rgb(var(--color-primary-accent))] mb-2 px-2">Filters</h3>
             <div className="rounded-lg bg-[rgb(var(--surface-2))/0.5] overflow-hidden">
                 <FilterAccordion title="Type" icon={<TvIcon/>}>
                     <div className="grid grid-cols-2 gap-2">
-                        {ANIME_TYPES.map(type => (
-                            <button key={type} onClick={() => handleTypeToggle(type)} className={`px-2 py-1.5 text-sm rounded-md ${draftFilters.types?.includes(type) ? 'bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))]' : 'bg-[rgb(var(--surface-3))/0.5] hover:bg-[rgb(var(--surface-4))]'}`}>
-                                {type}
-                            </button>
-                        ))}
+                        {ANIME_TYPES.map(type => ( <button key={type} onClick={() => handleTypeToggle(type)} className={`px-2 py-1.5 text-sm rounded-md ${draftFilters.types?.includes(type) ? 'bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))]' : 'bg-[rgb(var(--surface-3))/0.5] hover:bg-[rgb(var(--surface-4))]'}`}> {type} </button> ))}
                     </div>
                 </FilterAccordion>
                 <FilterAccordion title="Language" icon={<LanguageIcon/>}>
                     <div className="flex flex-col gap-2">
-                        {LANGUAGE_OPTIONS.map(lang => (
-                             <button key={lang} onClick={() => handleFilterChange('language', draftFilters.language === lang ? '' : lang as 'Sub' | 'Dub' | 'Raw')} className={`px-2 py-1.5 text-sm rounded-md text-left ${draftFilters.language === lang ? 'bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))]' : 'bg-[rgb(var(--surface-3))/0.5] hover:bg-[rgb(var(--surface-4))]'}`}>
-                                {lang}
-                            </button>
-                        ))}
+                        {LANGUAGE_OPTIONS.map(lang => ( <button key={lang} onClick={() => handleFilterChange('language', draftFilters.language === lang ? '' : lang as 'Sub' | 'Dub' | 'Raw')} className={`px-2 py-1.5 text-sm rounded-md text-left ${draftFilters.language === lang ? 'bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))]' : 'bg-[rgb(var(--surface-3))/0.5] hover:bg-[rgb(var(--surface-4))]'}`}>{lang}</button>))}
                     </div>
                 </FilterAccordion>
                  <FilterAccordion title="Status" icon={<ClockIcon/>}>
                     <div className="flex flex-col gap-2">
-                        {ANIME_STATUSES.map(status => (
-                             <button key={status} onClick={() => handleFilterChange('status', draftFilters.status === status ? '' : status as 'Ongoing' | 'Completed' | 'Upcoming')} className={`px-2 py-1.5 text-sm rounded-md text-left ${draftFilters.status === status ? 'bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))]' : 'bg-[rgb(var(--surface-3))/0.5] hover:bg-[rgb(var(--surface-4))]'}`}>
-                                {status}
-                            </button>
-                        ))}
+                        {ANIME_STATUSES.map(status => ( <button key={status} onClick={() => handleFilterChange('status', draftFilters.status === status ? '' : status as 'Ongoing' | 'Completed' | 'Upcoming')} className={`px-2 py-1.5 text-sm rounded-md text-left ${draftFilters.status === status ? 'bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))]' : 'bg-[rgb(var(--surface-3))/0.5] hover:bg-[rgb(var(--surface-4))]'}`}>{status}</button>))}
                     </div>
                 </FilterAccordion>
                 <FilterAccordion title="Year" icon={<CalendarIcon/>}>
                      <div className="grid grid-cols-2 gap-2">
-                        {YEAR_OPTIONS.map(year => (
-                             <button key={year} onClick={() => handleFilterChange('year', draftFilters.year === year ? '' : year)} className={`px-2 py-1.5 text-sm rounded-md ${draftFilters.year === year ? 'bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))]' : 'bg-[rgb(var(--surface-3))/0.5] hover:bg-[rgb(var(--surface-4))]'}`}>
-                                {year}
-                            </button>
-                        ))}
+                        {YEAR_OPTIONS.map(year => (<button key={year} onClick={() => handleFilterChange('year', draftFilters.year === year ? '' : year)} className={`px-2 py-1.5 text-sm rounded-md ${draftFilters.year === year ? 'bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))]' : 'bg-[rgb(var(--surface-3))/0.5] hover:bg-[rgb(var(--surface-4))]'}`}>{year}</button>))}
                     </div>
                 </FilterAccordion>
                 <FilterAccordion title="Sort By" icon={<SortAscIcon/>}>
-                    <select
-                      value={draftFilters.sort}
-                      onChange={(e) => handleFilterChange('sort', e.target.value as Filter['sort'])}
-                      className="w-full bg-[rgb(var(--surface-input))/0.6] border border-[rgb(var(--border-color))] rounded-lg p-2 text-[rgb(var(--text-primary))] focus:ring-[rgb(var(--border-focus))] focus:border-[rgb(var(--border-focus))]"
-                    >
+                    <select value={draftFilters.sort} onChange={(e) => handleFilterChange('sort', e.target.value as Filter['sort'])} className="w-full bg-[rgb(var(--surface-input))/0.6] border border-[rgb(var(--border-color))] rounded-lg p-2 text-[rgb(var(--text-primary))] focus:ring-[rgb(var(--border-focus))] focus:border-[rgb(var(--border-focus))]">
                       <option value="popularity">Popularity</option>
                       <option value="release_date">Newest</option>
                       <option value="alphabetical">A-Z</option>
@@ -218,30 +189,37 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onApplyFilters, curr
           </div>
         </div>
 
-        {/* Footer & Actions */}
         <div className="flex-shrink-0 p-4 space-y-4 border-t border-[rgb(var(--border-color))/0.5]">
-            <div className="flex justify-between items-center bg-[rgb(var(--surface-2))/0.5] p-2 rounded-lg">
-                <span className="font-semibold text-sm text-[rgb(var(--text-secondary))]">Theme</span>
-                <button
-                    onClick={toggleTheme}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-[rgb(var(--surface-3))/0.8] text-[rgb(var(--text-primary))] hover:bg-[rgb(var(--surface-4))/0.8)] transition-colors"
-                    aria-label={`Switch to ${theme === 'dark-neon' ? 'light' : 'neon'} theme`}
-                >
-                    {theme === 'dark-neon' ? <MoonIcon className="w-4 h-4 text-[rgb(var(--color-primary-accent))]" /> : <SunIcon className="w-4 h-4 text-[rgb(var(--color-warning))]" />}
-                    <span className="capitalize text-sm">{theme === 'dark-neon' ? 'Neon' : 'Light'}</span>
-                </button>
-            </div>
             <div className="grid grid-cols-2 gap-3">
                 <button onClick={handleClear} className="w-full py-3 text-center bg-[rgb(var(--surface-3))/0.8] rounded-lg font-semibold hover:bg-[rgb(var(--surface-4))] transition-colors">Clear All</button>
                 <button onClick={handleApply} className="w-full py-3 text-center bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))] rounded-lg font-semibold hover:bg-[rgb(var(--color-primary-hover))] transition-all duration-300 shadow-lg shadow-[rgb(var(--shadow-color))/0.3]">Apply Filters</button>
             </div>
              {user && (
                 <div className="grid grid-cols-2 gap-2 text-sm text-center">
-                    <button onClick={handleWatchLaterClick} className="p-2 text-[rgb(var(--text-secondary))] bg-[rgb(var(--surface-2))/0.5] rounded-md hover:text-[rgb(var(--color-primary-accent))]">Watch Later</button>
+                    <button onClick={() => handleLinkClick(onShowWatchLater)} className="p-2 text-[rgb(var(--text-secondary))] bg-[rgb(var(--surface-2))/0.5] rounded-md hover:text-[rgb(var(--color-primary-accent))]">Watch Later</button>
                     <button onClick={handleLogout} className="p-2 text-[rgb(var(--text-secondary))] bg-[rgb(var(--surface-2))/0.5] rounded-md hover:text-[rgb(var(--color-primary-accent))]">Logout</button>
                 </div>
              )}
-            <p className="text-xs text-center text-gray-600 pt-2">© {new Date().getFullYear()} AniStream</p>
+            <div className="flex justify-between items-center p-2 bg-[rgb(var(--surface-2))/0.5] rounded-md">
+                <span className="text-sm font-semibold text-[rgb(var(--text-secondary))]">Theme</span>
+                <div className="flex items-center bg-[rgb(var(--surface-3))] rounded-full p-1">
+                    <button
+                        onClick={() => updateSettings({ theme: 'light' })}
+                        className={`p-1 rounded-full ${settings.theme === 'light' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))]' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}
+                        aria-label="Switch to light theme"
+                    >
+                        <SunIcon className="w-4 h-4" />
+                    </button>
+                    <button
+                        onClick={() => updateSettings({ theme: 'dark' })}
+                        className={`p-1 rounded-full ${settings.theme === 'dark' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))]' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}
+                        aria-label="Switch to dark theme"
+                    >
+                        <MoonIcon className="w-4 h-4"/>
+                    </button>
+                </div>
+            </div>
+            <p className="text-xs text-center text-[rgb(var(--text-muted))] pt-2">© {new Date().getFullYear()} AniStream</p>
         </div>
       </aside>
     </>

@@ -1,6 +1,6 @@
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark" data-color-preset="neon-purple">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
@@ -8,98 +8,116 @@
     <title>AniStream - Your Anime Universe</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-      :root {
-        --theme-name: 'dark-neon';
-
-        /* Colors */
+      :root, :root[data-color-preset="neon-purple"] {
+        /* Base Colors */
+        --color-primary-hue: 265;
+        --color-secondary-hue: 174;
+        --color-tertiary-hue: 243;
+        
+        /* THEME: Neon Purple */
         --color-primary: 147 51 234; /* purple-600 */
         --color-primary-hover: 126 34 206; /* purple-700 */
         --color-primary-accent: 192 132 252; /* purple-400 */
         --color-secondary-accent: 13 148 136; /* teal-600 */
         --color-tertiary-accent: 79 70 229; /* indigo-600 */
-        --color-danger: 239 68 68; /* red-500 */
-        --color-warning: 251 191 36; /* yellow-400 */
-
-        /* Text */
-        --text-primary: 241 245 249; /* slate-100 */
-        --text-secondary: 209 213 219; /* gray-300 */
-        --text-muted: 156 163 175; /* gray-400 */
-        --text-on-primary: 255 255 255;
-        --text-on-accent: 243 232 255; /* purple-100 */
-
-        /* Background & Surfaces */
-        --bg-gradient-start: 59 7 100; /* purple-900 */
-        --bg-gradient-via: 15 23 42; /* slate-900 */
-        --bg-gradient-end: 0 0 0; /* black */
-        --surface-1: 15 23 42; /* slate-900 */
-        --surface-2: 30 41 59; /* slate-800 */
-        --surface-3: 51 65 85; /* slate-700 */
-        --surface-4: 71 85 105; /* slate-600 */
-        --surface-input: 51 65 85; /* slate-700 */
-
-        /* Borders */
-        --border-color: 51 65 85; /* slate-700 */
-        --border-focus: 147 51 234; /* purple-600 */
-
-        /* Shadows & Effects */
         --shadow-color: 168 85 247; /* purple-500 */
         --logo-glow-1: #a855f7;
         --logo-glow-2: #c084fc;
-        --scrollbar-thumb: #6B21A8;
-        --scrollbar-thumb-hover: #8B5CF6;
-        --scrollbar-track: #0F172A;
       }
-
-      html.theme-dark-light {
-        --theme-name: 'dark-light';
-
-        /* Colors */
+      
+      :root[data-color-preset="indigo-flare"] {
+        /* THEME: Indigo Flare */
         --color-primary: 79 70 229; /* indigo-600 */
         --color-primary-hover: 67 56 202; /* indigo-700 */
         --color-primary-accent: 129 140 248; /* indigo-400 */
         --color-secondary-accent: 16 185 129; /* emerald-500 */
         --color-tertiary-accent: 59 130 246; /* blue-500 */
-        
-        /* Text */
-        --text-primary: 229 231 235; /* gray-200 */
-        
-        /* Background & Surfaces */
-        --bg-gradient-start: 46 16 101; /* indigo-950 */
-        --bg-gradient-via: 30 41 59; /* slate-800 */
-        --bg-gradient-end: 17 24 39; /* gray-900 */
-        --surface-1: 30 41 59; /* slate-800 */
-        --surface-2: 51 65 85; /* slate-700 */
-        --surface-3: 71 85 105; /* slate-600 */
-        --surface-4: 100 116 139; /* slate-500 */
-        --surface-input: 71 85 105; /* slate-600 */
-
-        /* Borders */
-        --border-color: 71 85 105; /* slate-600 */
-        --border-focus: 99 102 241; /* indigo-500 */
-
-        /* Shadows & Effects */
         --shadow-color: 99 102 241; /* indigo-500 */
         --logo-glow-1: #6366f1;
         --logo-glow-2: #818cf8;
-        --scrollbar-thumb: #4338ca;
-        --scrollbar-thumb-hover: #4f46e5;
-        --scrollbar-track: #1e293b;
       }
 
-      /* For custom scrollbar styling if needed */
-      ::-webkit-scrollbar {
-        width: 8px;
+      :root[data-color-preset="cyber-blue"] {
+        /* THEME: Cyber Blue */
+        --color-primary: 37 99 235; /* blue-600 */
+        --color-primary-hover: 29 78 216; /* blue-700 */
+        --color-primary-accent: 96 165 250; /* blue-400 */
+        --color-secondary-accent: 22 163 74; /* green-600 */
+        --color-tertiary-accent: 217 70 239; /* fuchsia-500 */
+        --shadow-color: 59 130 246; /* blue-500 */
+        --logo-glow-1: #3b82f6;
+        --logo-glow-2: #60a5fa;
       }
-      ::-webkit-scrollbar-track {
-        background: var(--scrollbar-track);
+      
+      :root[data-color-preset="sunset-orange"] {
+        /* THEME: Sunset Orange */
+        --color-primary: 234 88 12; /* orange-600 */
+        --color-primary-hover: 217 70 23; /* orange-700 */
+        --color-primary-accent: 251 146 60; /* orange-400 */
+        --color-secondary-accent: 220 38 38; /* red-600 */
+        --color-tertiary-accent: 217 119 6; /* amber-500 */
+        --shadow-color: 249 115 22; /* orange-500 */
+        --logo-glow-1: #f97316;
+        --logo-glow-2: #fb923c;
       }
-      ::-webkit-scrollbar-thumb {
-        background: var(--scrollbar-thumb);
-        border-radius: 4px;
+
+      /* Dark Mode Palette */
+      :root[data-theme="dark"] {
+        --color-danger: 239 68 68;
+        --color-warning: 251 191 36;
+        --text-primary: 241 245 249;
+        --text-secondary: 209 213 219;
+        --text-muted: 156 163 175;
+        --text-on-primary: 255 255 255;
+        --text-on-accent: 243 232 255;
+        --bg-gradient-start: 59 7 100;
+        --bg-gradient-via: 15 23 42;
+        --bg-gradient-end: 0 0 0;
+        --surface-1: 15 23 42;
+        --surface-2: 30 41 59;
+        --surface-3: 51 65 85;
+        --surface-4: 71 85 105;
+        --surface-input: 51 65 85;
+        --border-color: 51 65 85;
+        --border-focus: var(--color-primary);
+        --scrollbar-thumb: rgb(var(--color-primary-hover));
+        --scrollbar-thumb-hover: rgb(var(--color-primary));
+        --scrollbar-track: #0F172A;
       }
-      ::-webkit-scrollbar-thumb:hover {
-        background: var(--scrollbar-thumb-hover);
+      
+      /* Light Mode Palette */
+      :root[data-theme="light"] {
+        --color-danger: 220 38 38; /* red-600 */
+        --color-warning: 245 158 11; /* amber-500 */
+        --text-primary: 15 23 42; /* slate-900 */
+        --text-secondary: 51 65 85; /* slate-700 */
+        --text-muted: 100 116 139; /* slate-500 */
+        --text-on-primary: 255 255 255;
+        --text-on-accent: 15 23 42;
+        --bg-gradient-start: 241 245 249; /* slate-100 */
+        --bg-gradient-via: 226 232 240; /* slate-200 */
+        --bg-gradient-end: 203 213 225; /* slate-300 */
+        --surface-1: 255 255 255;
+        --surface-2: 241 245 249;
+        --surface-3: 226 232 240;
+        --surface-4: 203 213 225;
+        --surface-input: 226 232 240;
+        --border-color: 203 213 225;
+        --border-focus: var(--color-primary);
+        --scrollbar-thumb: rgb(var(--color-primary-hover));
+        --scrollbar-thumb-hover: rgb(var(--color-primary));
+        --scrollbar-track: #e2e8f0;
+
+        /* Adjust logo glow for light mode */
+        --logo-glow-1: transparent;
+        --logo-glow-2: transparent;
       }
+
+      /* Scrollbar */
+      ::-webkit-scrollbar { width: 8px; }
+      ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+      ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
+      ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
     </style>
   <script type="importmap">
 {

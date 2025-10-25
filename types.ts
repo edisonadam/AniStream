@@ -1,5 +1,3 @@
-// FIX: Removed self-import of 'Anime' type which was causing a conflict with the local declaration.
-
 export interface Anime {
   id: number; // mal_id
   title: string;
@@ -16,6 +14,19 @@ export interface Anime {
   tmdbId?: number; // Will be fetched later
   hasSub: boolean;
   hasDub: boolean;
+}
+
+// FIX: Add Season and Episode interfaces for use in the Player component.
+export interface Season {
+    season_number: number;
+    episode_count: number;
+    name: string;
+}
+
+export interface Episode {
+    episode_number: number;
+    name: string;
+    still_path: string | null;
 }
 
 export interface User {
@@ -38,12 +49,12 @@ export interface Notification {
   read: boolean;
 }
 
-// FIX: Added missing ContinueWatchingInfo interface.
 export interface ContinueWatchingInfo {
   animeId: number;
   currentSeason: number;
   currentEpisode: number;
   progress: number;
+  timestamp: number;
 }
 
 export type Filter = {
@@ -55,3 +66,27 @@ export type Filter = {
   sort?: 'popularity' | 'alphabetical' | 'release_date';
   language?: 'Sub' | 'Dub' | 'Raw' | '';
 };
+
+export type Theme = 'light' | 'dark';
+export type ColorPreset = 'neon-purple' | 'indigo-flare' | 'cyber-blue' | 'sunset-orange';
+export type VideoServer = 'embed-api' | 'vidsrc' | 'vidsrc-pk';
+
+export interface Settings {
+    theme: Theme;
+    colorPreset: ColorPreset;
+    autoplay: boolean;
+    videoServer: VideoServer;
+    vidsrcDomain: string;
+    subtitleLanguage: string;
+    preferDub: boolean;
+}
+
+export interface ViewingHistoryItem {
+    animeId: number;
+    timestamp: number;
+}
+
+export interface Rating {
+    animeId: number;
+    rating: number; // 1-10
+}
