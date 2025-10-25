@@ -4,6 +4,7 @@ import { HamburgerIcon, SearchIcon, BellIcon, UserIcon, CloseIcon } from './icon
 import { useAuth } from '../hooks/useAuth';
 import type { Notification } from '../types';
 import Logo from './Logo';
+import { useProfileData } from '../hooks/useProfileData';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -12,26 +13,17 @@ interface HeaderProps {
   onShowWatchLater: () => void;
   onShowProfile: () => void;
   onLogoClick: () => void;
+  onNotificationClick: (notification: Notification) => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClick, onShowWatchLater, onShowProfile, onLogoClick }) => {
+const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClick, onShowWatchLater, onShowProfile, onLogoClick, onNotificationClick }) => {
   const { isLoggedIn, user, logout } = useAuth();
+  const { notifications, markNotificationsAsRead } = useProfileData();
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-
+  
   const notificationRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    // Mock notifications
-    const mockNotifs: Notification[] = [
-      { id: '1', text: 'New Episode of Void Scrambler is out!', timestamp: Date.now() - 3600000, read: false },
-      { id: '2', text: 'Chronicles of Valoria was added to your Watch Later list.', timestamp: Date.now() - 86400000, read: false },
-      { id: '3', text: 'Welcome to ANISTREAM!', timestamp: Date.now() - 172800000, read: true },
-    ];
-    setNotifications(mockNotifs);
-  }, []);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -39,6 +31,15 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
     if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) setIsNotificationOpen(false);
     if (profileRef.current && !profileRef.current.contains(event.target as Node)) setIsProfileOpen(false);
   };
+  
+  const handleNotificationToggle = () => {
+    setIsNotificationOpen(prev => {
+        if (!prev && unreadCount > 0) {
+            markNotificationsAsRead();
+        }
+        return !prev;
+    });
+  }
 
   useEffect(() => {
     document.addEventListener('mousedown', handleClickOutside);
@@ -53,6 +54,11 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
   const handleProfileLink = (action: () => void) => {
     action();
     setIsProfileOpen(false);
+  }
+
+  const handleNotificationItemClick = (notification: Notification) => {
+    onNotificationClick(notification);
+    setIsNotificationOpen(false);
   }
 
   return (
@@ -70,20 +76,30 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
             {isLoggedIn && user ? (
               <>
                 <div className="relative" ref={notificationRef}>
-                  <button onClick={() => setIsNotificationOpen(!isNotificationOpen)} className="p-2 rounded-full text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] hover:bg-[rgb(var(--surface-2))] transition-all" aria-label="View notifications">
+                  <button onClick={handleNotificationToggle} className="p-2 rounded-full text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] hover:bg-[rgb(var(--surface-2))] transition-all" aria-label="View notifications">
                     <BellIcon />
                     {unreadCount > 0 && <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-[rgb(var(--color-primary))] ring-2 ring-[rgb(var(--surface-1))]"></span>}
                   </button>
                   {isNotificationOpen && (
-                    <div className="origin-top-right absolute right-0 mt-2 w-72 sm:w-80 rounded-md shadow-lg bg-[rgb(var(--surface-2))] ring-1 ring-black ring-opacity-5">
+                    <div className="origin-top-right absolute right-0 mt-2 w-72 sm:w-96 rounded-md shadow-lg bg-[rgb(var(--surface-2))] ring-1 ring-black ring-opacity-5">
                       <div className="p-2 font-semibold text-[rgb(var(--text-primary))] border-b border-[rgb(var(--border-color))]">Notifications</div>
-                      <div className="py-1 max-h-80 overflow-y-auto">
-                        {notifications.map(n => (
-                          <a key={n.id} href="#" className={`block px-4 py-3 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] ${!n.read ? 'font-bold' : ''}`}>
-                            {n.text}
-                            <p className="text-xs text-[rgb(var(--text-muted))] mt-1">{new Date(n.timestamp).toLocaleDateString()}</p>
-                          </a>
-                        ))}
+                      <div className="py-1 max-h-96 overflow-y-auto">
+                        {notifications.length > 0 ? notifications.map(n => (
+                          <button key={n.id} onClick={() => handleNotificationItemClick(n)} className={`block w-full text-left px-4 py-3 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] ${!n.read ? 'bg-[rgb(var(--color-primary))/0.1]' : ''}`}>
+                            <div className="flex items-start gap-3">
+                                {n.relatedUser && <img src={n.relatedUser.avatar} alt={n.relatedUser.username} className="w-8 h-8 rounded-full flex-shrink-0"/>}
+                                <div className="flex-1">
+                                    <p>
+                                        {n.relatedUser && <span className="font-bold text-[rgb(var(--color-primary-accent))]">{n.relatedUser.username} </span>}
+                                        {n.text}
+                                    </p>
+                                    <p className="text-xs text-[rgb(var(--text-muted))] mt-1">{new Date(n.timestamp).toLocaleString()}</p>
+                                </div>
+                            </div>
+                          </button>
+                        )) : (
+                            <p className="text-center p-8 text-sm text-[rgb(var(--text-muted))]">No new notifications.</p>
+                        )}
                       </div>
                     </div>
                   )}

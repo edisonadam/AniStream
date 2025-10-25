@@ -1,8 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import type { Anime } from '../types';
 import { CloseIcon, SearchIcon } from './icons/Icons';
 import { DEFAULT_SEARCH_SUGGESTIONS } from '../constants';
+import { useSettings } from '../hooks/useSettings';
 
 interface SearchOverlayProps {
   onClose: () => void;
@@ -14,6 +14,7 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose, onAnimeSelect, o
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<Anime[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const { settings } = useSettings();
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -38,24 +39,34 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose, onAnimeSelect, o
                 if (!response.ok) throw new Error('Failed to fetch suggestions.');
                 const data = await response.json();
                 
-                const mappedData: Anime[] = data.data.map((item: any) => ({
-                  id: item.mal_id,
-                  title: item.title_english || item.title,
-                  thumbnail: item.images.jpg.image_url,
-                  bannerImage: item.images.jpg.large_image_url,
-                  synopsis: item.synopsis || 'No synopsis available.',
-                  genres: item.genres.map((g: any) => g.name),
-                  releaseYear: item.year,
-                  status: item.status === 'Finished Airing' ? 'Completed' : item.status === 'Currently Airing' ? 'Ongoing' : 'Upcoming',
-                  totalEpisodes: item.episodes,
-                  rating: item.score,
-                  type: item.type,
-                  studio: item.studios.length > 0 ? item.studios[0].name : 'Unknown',
-                  hasSub: true,
-                  hasDub: false,
-                }));
+                const mappedData: Anime[] = data.data
+                  .map((item: any): Anime | null => {
+                    if (!item || !item.mal_id || !item.title) return null;
+                    return {
+                        id: item.mal_id,
+                        title: item.title_english || item.title,
+                        thumbnail: item.images.jpg.image_url,
+                        bannerImage: item.images.jpg.large_image_url,
+                        synopsis: item.synopsis || 'No synopsis available.',
+                        genres: (item.genres || []).map((g: any) => g.name),
+                        releaseYear: item.year,
+                        status: item.status === 'Finished Airing' ? 'Completed' : item.status === 'Currently Airing' ? 'Ongoing' : 'Upcoming',
+                        totalEpisodes: item.episodes,
+                        rating: item.score,
+                        type: item.type,
+                        studio: (item.studios || []).length > 0 ? item.studios[0].name : 'Unknown',
+                        hasSub: true,
+                        hasDub: !!item.title_english,
+                        isAdult: item.rating === 'Rx - Hentai',
+                        runtime: null,
+                        avgEpisodeDuration: null,
+                    };
+                  })
+                  .filter((anime): anime is Anime => anime !== null);
+                
+                const filteredData = mappedData.filter(anime => !(settings.restrictAdultContent && anime.isAdult));
+                setSuggestions(filteredData);
 
-                setSuggestions(mappedData);
             } catch (error) {
                 console.error(error);
                 setSuggestions([]);
@@ -67,7 +78,7 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose, onAnimeSelect, o
     }, 300); // 300ms debounce
 
     return () => clearTimeout(debounceTimer);
-  }, [query]);
+  }, [query, settings.restrictAdultContent]);
 
   const handleSelect = (anime: Anime) => {
     onAnimeSelect(anime);
@@ -125,10 +136,20 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose, onAnimeSelect, o
                     <li className="px-3 pt-2 pb-1 text-sm text-[rgb(var(--text-muted))] font-semibold">Suggestions</li>
                     {suggestions.map(anime => (
                     <li key={anime.id} onClick={() => handleSelect(anime)} className="flex items-center gap-4 p-3 rounded-lg cursor-pointer hover:bg-[rgb(var(--color-primary))/0.3] transition-colors">
-                        <img src={anime.thumbnail} alt={anime.title} className="w-10 h-14 object-cover rounded-md flex-shrink-0" />
+                        <div className="relative flex-shrink-0 w-12 h-16 bg-[rgb(var(--surface-3))] rounded-md overflow-hidden">
+                            <img src={anime.thumbnail} alt={anime.title} className="w-full h-full object-cover" />
+                            <div className="absolute top-1 left-1 flex flex-col items-start gap-1 z-10">
+                                {anime.isAdult && <span className="px-1 py-0.5 text-[9px] font-bold rounded-sm bg-red-600/90 text-white backdrop-blur-sm">+18</span>}
+                                {anime.type && <span className="px-1 py-0.5 text-[9px] font-bold rounded-sm bg-[rgb(var(--color-secondary-accent))/0.8] text-white backdrop-blur-sm">{anime.type.toUpperCase()}</span>}
+                            </div>
+                        </div>
                         <div className="flex-1 min-w-0">
                             <p className="font-semibold text-[rgb(var(--text-primary))] truncate">{anime.title}</p>
-                            <p className="text-xs text-[rgb(var(--text-muted))]">{anime.type} &bull; {anime.releaseYear}</p>
+                            <div className="flex items-center gap-1.5 text-xs text-[rgb(var(--text-muted))] mt-1">
+                                {anime.releaseYear && <span>{anime.releaseYear}</span>}
+                                {anime.hasSub && <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-[rgb(var(--color-primary))/0.6] text-white">SUB</span>}
+                                {anime.hasDub && <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-[rgb(var(--color-tertiary-accent))/0.6] text-white">DUB</span>}
+                            </div>
                         </div>
                     </li>
                     ))}

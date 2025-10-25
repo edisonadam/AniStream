@@ -4,13 +4,16 @@ import type { Settings, Theme, ColorPreset } from '../types';
 const defaultSettings: Settings = {
   theme: 'dark',
   colorPreset: 'neon-purple',
-  autoplay: true,
+  autoplayNext: true,
+  autoSkipIntro: false,
+  autoSkipOutro: false,
   videoServer: 'embed-api',
   vidsrcDomain: 'vsrc.su',
   forceDesktopMode: false,
   episodeViewStyle: 'default',
   blurEpisodeThumbnails: true,
   adsDisabled: false,
+  restrictAdultContent: true,
 };
 
 interface SettingsContextType {

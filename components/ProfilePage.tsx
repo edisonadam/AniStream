@@ -4,9 +4,9 @@ import { useSettings } from '../hooks/useSettings';
 import { useProfileData } from '../hooks/useProfileData';
 import { useContinueWatching } from '../hooks/useContinueWatching';
 import { useWatchLater } from '../hooks/useWatchLater';
-import { ChevronLeftIcon, MoonIcon, SunIcon } from './icons/Icons';
+import { ChevronLeftIcon, MoonIcon, SunIcon, CloseIcon } from './icons/Icons';
 import { COLOR_PRESETS, VIDEO_SERVERS, VIDSRC_DOMAINS } from '../constants';
-import type { Anime, ContinueWatchingInfo, ViewingHistoryItem, Rating } from '../types';
+import type { Anime, ContinueWatchingInfo, ViewingHistoryItem, Rating, User } from '../types';
 import AnimeCard from './AnimeCard';
 
 interface ProfilePageProps {
@@ -15,12 +15,12 @@ interface ProfilePageProps {
     onSelectAnime: (anime: Anime) => void;
 }
 
-type Tab = 'profile' | 'settings';
+type Tab = 'profile' | 'friends' | 'settings';
 
 const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectAnime }) => {
-    const { user, updateUser, logout } = useAuth();
+    const { user, updateUser, logout, isLoggedIn } = useAuth();
     const { settings, updateSettings } = useSettings();
-    const { history, ratings, getRating, clearHistory } = useProfileData();
+    const { history, ratings, getRating, clearHistory, friends, removeFriend } = useProfileData();
     const { continueWatchingList } = useContinueWatching();
     const { watchLaterList } = useWatchLater();
 
@@ -88,6 +88,32 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
       </div>
     );
     
+    const FriendsTabContent = () => (
+        <div className="max-w-2xl mx-auto">
+            <h2 className="text-2xl font-bold mb-6">My Friends ({friends.length})</h2>
+            {friends.length > 0 ? (
+                <div className="space-y-3">
+                    {friends.map(friend => (
+                        <div key={friend.username} className="flex items-center justify-between bg-[rgb(var(--surface-2))] p-3 rounded-lg">
+                            <div className="flex items-center gap-4">
+                                <img src={friend.avatar} alt={friend.username} className="w-12 h-12 rounded-full" />
+                                <span className="font-bold text-[rgb(var(--text-primary))]">{friend.username}</span>
+                            </div>
+                            <button onClick={() => removeFriend(friend.username)} className="p-2 rounded-full bg-[rgb(var(--surface-3))] text-[rgb(var(--text-muted))] hover:bg-[rgb(var(--color-danger))]/80 hover:text-white transition-colors">
+                                <CloseIcon/>
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="text-center p-12 bg-[rgb(var(--surface-2))] rounded-xl">
+                    <p className="text-lg text-[rgb(var(--text-muted))]">You haven't added any friends yet.</p>
+                    <p className="text-sm text-[rgb(var(--text-muted))] mt-2">You can add friends from the comments section on any anime!</p>
+                </div>
+            )}
+        </div>
+    );
+    
     const SettingsTabContent = () => (
       <div className="max-w-2xl mx-auto space-y-8">
         {/* Appearance Settings */}
@@ -123,12 +149,39 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
 
         {/* Playback Settings */}
         <div className="bg-[rgb(var(--surface-2))] p-6 rounded-xl">
-          <h3 className="text-xl font-bold mb-4 text-[rgb(var(--color-primary-accent))]">Playback</h3>
+          <h3 className="text-xl font-bold mb-4 text-[rgb(var(--color-primary-accent))]">Playback & Content</h3>
            <div className="space-y-4">
-             <div className="flex justify-between items-center">
+            <div className="flex flex-col">
+              <div className="flex justify-between items-center">
+                <label htmlFor="restrict-adult-toggle" className={`font-semibold ${isLoggedIn ? 'text-[rgb(var(--text-secondary))]' : 'text-[rgb(var(--text-muted))]'}`}>Restrict Adult Content</label>
+                <button
+                    id="restrict-adult-toggle"
+                    onClick={() => updateSettings({ restrictAdultContent: !settings.restrictAdultContent })}
+                    disabled={!isLoggedIn}
+                    className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${settings.restrictAdultContent ? 'bg-[rgb(var(--color-primary))]' : 'bg-[rgb(var(--surface-4))]'} ${!isLoggedIn ? 'cursor-not-allowed opacity-50' : ''}`}
+                    aria-label={`Adult content is currently ${settings.restrictAdultContent ? 'restricted' : 'allowed'}`}
+                >
+                    <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${settings.restrictAdultContent ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+              {!isLoggedIn && <p className="text-sm text-[rgb(var(--text-muted))] mt-1">You must be logged in to change this setting.</p>}
+            </div>
+             <div className="flex justify-between items-center pt-4 border-t border-[rgb(var(--border-color))]/50">
                 <label className="font-semibold text-[rgb(var(--text-secondary))]">Autoplay Next Episode</label>
-                <button onClick={() => updateSettings({ autoplay: !settings.autoplay })} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${settings.autoplay ? 'bg-[rgb(var(--color-primary))]' : 'bg-[rgb(var(--surface-4))]'}`}>
-                    <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${settings.autoplay ? 'translate-x-6' : 'translate-x-1'}`} />
+                <button onClick={() => updateSettings({ autoplayNext: !settings.autoplayNext })} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${settings.autoplayNext ? 'bg-[rgb(var(--color-primary))]' : 'bg-[rgb(var(--surface-4))]'}`}>
+                    <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${settings.autoplayNext ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+            </div>
+            <div className="flex justify-between items-center pt-4 border-t border-[rgb(var(--border-color))]/50">
+                <label className="font-semibold text-[rgb(var(--text-secondary))]">Auto Skip Intro</label>
+                <button onClick={() => updateSettings({ autoSkipIntro: !settings.autoSkipIntro })} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${settings.autoSkipIntro ? 'bg-[rgb(var(--color-primary))]' : 'bg-[rgb(var(--surface-4))]'}`}>
+                    <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${settings.autoSkipIntro ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+            </div>
+            <div className="flex justify-between items-center pt-4 border-t border-[rgb(var(--border-color))]/50">
+                <label className="font-semibold text-[rgb(var(--text-secondary))]">Auto Skip Outro</label>
+                <button onClick={() => updateSettings({ autoSkipOutro: !settings.autoSkipOutro })} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${settings.autoSkipOutro ? 'bg-[rgb(var(--color-primary))]' : 'bg-[rgb(var(--surface-4))]'}`}>
+                    <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${settings.autoSkipOutro ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
             </div>
              <div className="flex justify-between items-center pt-4 border-t border-[rgb(var(--border-color))]/50">
@@ -182,6 +235,15 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
       </div>
     );
 
+    const renderActiveTab = () => {
+        switch(activeTab) {
+            case 'profile': return <ProfileTabContent />;
+            case 'friends': return <FriendsTabContent />;
+            case 'settings': return <SettingsTabContent />;
+            default: return <ProfileTabContent />;
+        }
+    }
+
     return (
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-subtle-fade-in-up">
             <button onClick={onGoBack} className="flex items-center space-x-2 text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] transition-colors group mb-8">
@@ -191,10 +253,11 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
             
             <div className="flex justify-center border-b border-[rgb(var(--border-color))] mb-8">
                 <button onClick={() => setActiveTab('profile')} className={`px-6 py-3 text-lg font-semibold transition-colors ${activeTab === 'profile' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>{`Profile`}</button>
+                <button onClick={() => setActiveTab('friends')} className={`px-6 py-3 text-lg font-semibold transition-colors ${activeTab === 'friends' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>{`Friends`}</button>
                 <button onClick={() => setActiveTab('settings')} className={`px-6 py-3 text-lg font-semibold transition-colors ${activeTab === 'settings' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>{`Settings`}</button>
             </div>
 
-            {activeTab === 'profile' ? <ProfileTabContent /> : <SettingsTabContent />}
+            {renderActiveTab()}
         </div>
     );
 };

@@ -10,7 +10,7 @@ import SearchOverlay from './components/SearchOverlay';
 import WatchlistOverlay from './components/WatchlistOverlay';
 import ProfilePage from './components/ProfilePage';
 import ContinueWatching from './components/ContinueWatching';
-import type { Anime, Filter } from './types';
+import type { Anime, Filter, Notification } from './types';
 import { useWatchLater } from './hooks/useWatchLater';
 import { useAuth } from './hooks/useAuth';
 import { useSettings } from './hooks/useSettings';
@@ -105,7 +105,7 @@ const App: React.FC = () => {
 
       const { query, genres, types, status, sort } = filters;
 
-      if (query || (genres && genres.length > 0) || status) {
+      if (query || (genres && genres.length > 0) || status || (types && types.length > 0)) {
         endpoint = 'https://api.jikan.moe/v4/anime';
         isSearchOrFilter = true;
       }
@@ -117,6 +117,15 @@ const App: React.FC = () => {
         if (genreIds) params.append('genres', genreIds);
       }
       
+      if (isSearchOrFilter) {
+          if (types && types.length > 0) {
+              params.append('type', types.map(t => t.toLowerCase()).join(','));
+          } else if (query) {
+              // Default to main anime types for general searches to exclude junk
+              params.append('type', ANIME_TYPES.map(t => t.toLowerCase()).join(','));
+          }
+      }
+
       if (status) {
         const jikanStatusMap = { 'Ongoing': 'airing', 'Completed': 'complete', 'Upcoming': 'upcoming' };
         params.append('status', jikanStatusMap[status]);
@@ -171,8 +180,10 @@ const App: React.FC = () => {
             };
           })
           .filter((anime: Anime) => anime.type && ANIME_TYPES.includes(anime.type));
-
+        
+        // Apply content restriction and post-fetch filters
         mappedData = mappedData.filter(anime => {
+            if (settings.restrictAdultContent && anime.isAdult) return false;
             if (types && types.length > 0 && (!anime.type || !types.includes(anime.type))) return false;
             if (filters.year && anime.releaseYear) {
                 const startYear = parseInt(filters.year.substring(0, 4));
@@ -210,7 +221,7 @@ const App: React.FC = () => {
     };
     
     fetchAnime();
-  }, [filters, genreMap]);
+  }, [filters, genreMap, settings.restrictAdultContent]);
 
   const handleSelectAnime = (anime: Anime) => {
     setSelectedAnime(anime);
@@ -247,6 +258,15 @@ const App: React.FC = () => {
     setIsSearchOpen(false);
     setView('home');
     setSelectedAnime(null);
+  };
+
+  const handleNotificationClick = (notification: Notification) => {
+    if (notification.animeId) {
+        const anime = topAnimeList.find(a => a.id === notification.animeId) || animeList.find(a => a.id === notification.animeId);
+        if (anime) {
+            handleSelectAnime(anime);
+        }
+    }
   };
 
   const handleEscKey = useCallback((event: KeyboardEvent) => {
@@ -305,6 +325,7 @@ const App: React.FC = () => {
         onShowWatchLater={handleShowWatchLater}
         onShowProfile={handleShowProfile}
         onLogoClick={handleGoHome}
+        onNotificationClick={handleNotificationClick}
       />
       <Sidebar 
         isOpen={isSidebarOpen} 

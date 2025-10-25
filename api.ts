@@ -17,7 +17,7 @@ export const buildSourceUrl = (
     season?: number,
     episode?: number,
     vidsrcDomain?: string,
-    autoplay?: boolean
+    autoplayNext?: boolean
 ): string | null => {
     if (!mediaType || !tmdbId) return null;
 
@@ -45,7 +45,7 @@ export const buildSourceUrl = (
             }
 
             const params = new URLSearchParams();
-            if (autoplay) {
+            if (autoplayNext) {
                 params.set('autoplay', '1');
                 if (mediaType === 'tv') {
                     params.set('autonext', '1');

@@ -45,6 +45,8 @@ export interface Comment {
   user: User;
   text: string;
   timestamp: number;
+  parentId?: string; // ID of the parent comment
+  replyingTo?: string; // Username of the user being replied to
 }
 
 export interface Notification {
@@ -52,6 +54,10 @@ export interface Notification {
   text: string;
   timestamp: number;
   read: boolean;
+  type: 'reply' | 'friend_request' | 'system' | 'share';
+  relatedUser?: User; // The user who triggered the notification (e.g., who replied)
+  animeId?: number; // The anime related to the notification
+  commentId?: string; // To scroll to a specific comment
 }
 
 export interface ContinueWatchingInfo {
@@ -80,13 +86,16 @@ export type EpisodeViewStyle = 'default' | 'compact' | 'grid';
 export interface Settings {
     theme: Theme;
     colorPreset: ColorPreset;
-    autoplay: boolean;
+    autoplayNext: boolean;
+    autoSkipIntro: boolean;
+    autoSkipOutro: boolean;
     videoServer: VideoServer;
     vidsrcDomain: string;
     forceDesktopMode: boolean;
     episodeViewStyle: EpisodeViewStyle;
     blurEpisodeThumbnails: boolean;
     adsDisabled: boolean;
+    restrictAdultContent: boolean;
 }
 
 export interface ViewingHistoryItem {
