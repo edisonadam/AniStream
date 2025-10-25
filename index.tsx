@@ -1,9 +1,10 @@
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { AuthProvider } from './contexts/AuthContext';
 import { WatchLaterProvider } from './contexts/WatchLaterContext';
-import { ContinueWatchingProvider } from './contexts/ContinueWatchingContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -16,11 +17,13 @@ const root = ReactDOM.createRoot(rootElement);
 // This is a common pattern to avoid having a provider depend on a child component.
 const AppWrapper = () => {
   return (
-    <AuthProvider>
-      <WatchLaterProvider>
-        <App />
-      </WatchLaterProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <WatchLaterProvider>
+          <App />
+        </WatchLaterProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 };
 

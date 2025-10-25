@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import type { Anime } from '../types';
 import { useWatchLater } from '../hooks/useWatchLater';
@@ -31,7 +32,7 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect }) => {
   }
 
   return (
-    <div className="group relative overflow-hidden rounded-lg shadow-lg cursor-pointer transform transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-purple-500/40"
+    <div className="group relative overflow-hidden rounded-lg shadow-lg cursor-pointer transform transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-[rgb(var(--shadow-color))/0.4]"
       onClick={() => onSelect(anime)}
       onKeyDown={(e) => e.key === 'Enter' && onSelect(anime)}
       role="button"
@@ -45,19 +46,19 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect }) => {
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
 
       <div className="absolute top-2 left-2 flex flex-col gap-1.5">
-        {anime.type && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-teal-600/80 text-white backdrop-blur-sm">{anime.type.toUpperCase()}</span>}
-        {anime.hasSub && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-purple-600/80 text-white backdrop-blur-sm">SUB</span>}
-        {anime.hasDub && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-indigo-600/80 text-white backdrop-blur-sm">DUB</span>}
+        {anime.type && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-[rgb(var(--color-secondary-accent))/0.8] text-white backdrop-blur-sm">{anime.type.toUpperCase()}</span>}
+        {anime.hasSub && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-[rgb(var(--color-primary))/0.8] text-white backdrop-blur-sm">SUB</span>}
+        {anime.hasDub && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-[rgb(var(--color-tertiary-accent))/0.8] text-white backdrop-blur-sm">DUB</span>}
       </div>
 
       {isLoggedIn && (
         <div className="absolute top-2 right-2">
-            <button onClick={handleMenuToggle} className="p-1.5 bg-black/50 rounded-full text-white hover:bg-purple-600/80 transition-colors">
+            <button onClick={handleMenuToggle} className="p-1.5 bg-black/50 rounded-full text-white hover:bg-[rgb(var(--color-primary))/0.8] transition-colors">
                 <DotsVerticalIcon />
             </button>
             {isMenuOpen && (
-                <div className="absolute top-full right-0 mt-1 bg-slate-800 rounded-md shadow-lg p-1 z-10 w-40">
-                    <button onClick={handleWatchLaterClick} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-gray-200 hover:bg-slate-700 rounded-md">
+                <div className="absolute top-full right-0 mt-1 bg-[rgb(var(--surface-2))] rounded-md shadow-lg p-1 z-10 w-40">
+                    <button onClick={handleWatchLaterClick} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] rounded-md">
                         {inWatchLater ? <CheckIcon/> : <PlusIcon/>}
                         <span>{inWatchLater ? 'In Watch Later' : 'Watch Later'}</span>
                     </button>
@@ -67,7 +68,7 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect }) => {
       )}
 
       <div className="absolute bottom-0 left-0 right-0 p-3">
-        <h3 className="text-white font-bold text-sm truncate group-hover:text-purple-300 transition-colors">
+        <h3 className="text-white font-bold text-sm truncate group-hover:text-[rgb(var(--color-primary-accent))] transition-colors">
           {anime.title}
         </h3>
       </div>

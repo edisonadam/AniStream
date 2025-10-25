@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { CloseIcon } from './icons/Icons';
@@ -42,28 +43,28 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center animate-fade-in-fast">
-      <div className="bg-slate-800/90 border border-slate-700 rounded-2xl shadow-2xl shadow-purple-900/50 w-full max-w-md m-4 p-8 relative transform transition-all animate-fade-in-up">
-        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-purple-400 transition-colors">
+      <div className="bg-[rgb(var(--surface-2))/0.9] border border-[rgb(var(--border-color))] rounded-2xl shadow-2xl shadow-[rgb(var(--shadow-color))/0.5] w-full max-w-md m-4 p-8 relative transform transition-all animate-fade-in-up">
+        <button onClick={onClose} className="absolute top-4 right-4 text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))] transition-colors">
           <CloseIcon />
         </button>
-        <div className="flex border-b border-slate-700 mb-6">
-          <button onClick={() => setActiveTab('login')} className={`flex-1 py-2 text-lg font-semibold transition-colors ${activeTab === 'login' ? 'text-purple-400 border-b-2 border-purple-400' : 'text-gray-400'}`}>
+        <div className="flex border-b border-[rgb(var(--border-color))] mb-6">
+          <button onClick={() => setActiveTab('login')} className={`flex-1 py-2 text-lg font-semibold transition-colors ${activeTab === 'login' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>
             Login
           </button>
-          <button onClick={() => setActiveTab('signup')} className={`flex-1 py-2 text-lg font-semibold transition-colors ${activeTab === 'signup' ? 'text-purple-400 border-b-2 border-purple-400' : 'text-gray-400'}`}>
+          <button onClick={() => setActiveTab('signup')} className={`flex-1 py-2 text-lg font-semibold transition-colors ${activeTab === 'signup' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>
             Sign Up
           </button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4">
-            <input type="text" value={username} onChange={e => setUsername(e.target.value)} placeholder="Username" required className="w-full bg-slate-700/60 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-purple-500 focus:border-purple-500 transition-all" />
+            <input type="text" value={username} onChange={e => setUsername(e.target.value)} placeholder="Username" required className="w-full bg-[rgb(var(--surface-input))/0.6] border border-[rgb(var(--border-color))] rounded-lg px-4 py-3 text-[rgb(var(--text-primary))] focus:ring-[rgb(var(--border-focus))] focus:border-[rgb(var(--border-focus))] transition-all" />
             {activeTab === 'signup' && (
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email (optional for demo)" className="w-full bg-slate-700/60 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-purple-500 focus:border-purple-500 transition-all" />
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email (optional for demo)" className="w-full bg-[rgb(var(--surface-input))/0.6] border border-[rgb(var(--border-color))] rounded-lg px-4 py-3 text-[rgb(var(--text-primary))] focus:ring-[rgb(var(--border-focus))] focus:border-[rgb(var(--border-focus))] transition-all" />
             )}
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password (mock)" required className="w-full bg-slate-700/60 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-purple-500 focus:border-purple-500 transition-all" />
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password (mock)" required className="w-full bg-[rgb(var(--surface-input))/0.6] border border-[rgb(var(--border-color))] rounded-lg px-4 py-3 text-[rgb(var(--text-primary))] focus:ring-[rgb(var(--border-focus))] focus:border-[rgb(var(--border-focus))] transition-all" />
              {activeTab === 'signup' && (
-              <div className="bg-slate-700/60 border border-slate-600 rounded-lg px-4 py-3 flex items-center justify-between">
-                 <label htmlFor="captcha" className="text-gray-300 font-semibold">
+              <div className="bg-[rgb(var(--surface-input))/0.6] border border-[rgb(var(--border-color))] rounded-lg px-4 py-3 flex items-center justify-between">
+                 <label htmlFor="captcha" className="text-[rgb(var(--text-secondary))] font-semibold">
                    What is {captchaNum1} + {captchaNum2}?
                  </label>
                  <input
@@ -72,13 +73,13 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
                    value={captchaAnswer}
                    onChange={e => setCaptchaAnswer(e.target.value)}
                    required
-                   className="w-20 bg-slate-600/80 border border-slate-500 rounded-md p-2 text-white text-center focus:ring-purple-500 focus:border-purple-500"
+                   className="w-20 bg-[rgb(var(--surface-4))/0.8] border border-[rgb(var(--border-color))] rounded-md p-2 text-white text-center focus:ring-[rgb(var(--border-focus))] focus:border-[rgb(var(--border-focus))]"
                  />
               </div>
             )}
-            {captchaError && <p className="text-red-400 text-sm text-center">{captchaError}</p>}
+            {captchaError && <p className="text-[rgb(var(--color-danger))] text-sm text-center">{captchaError}</p>}
           </div>
-          <button type="submit" className="mt-6 w-full py-3 bg-purple-600 rounded-lg font-semibold hover:bg-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg shadow-purple-500/30">
+          <button type="submit" className="mt-6 w-full py-3 bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))] rounded-lg font-semibold hover:bg-[rgb(var(--color-primary-hover))] transition-all duration-300 transform hover:scale-105 shadow-lg shadow-[rgb(var(--shadow-color))/0.3]">
             {activeTab === 'login' ? 'Log In' : 'Sign Up'}
           </button>
         </form>

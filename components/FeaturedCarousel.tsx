@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Anime } from '../types';
 import { ChevronLeftIcon, ChevronRightIcon, InfoIcon, PlusIcon, StarIcon, CheckIcon } from './icons/Icons';
@@ -98,7 +99,7 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
 
   if (slides.length === 0) {
     return (
-      <section className="relative w-full h-[60vh] md:h-[85vh] bg-slate-800/50 animate-pulse"></section>
+      <section className="relative w-full h-[60vh] md:h-[85vh] bg-[rgb(var(--surface-2))/0.5] animate-pulse"></section>
     );
   }
 
@@ -120,8 +121,8 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
       ))}
 
       {/* Gradient Fades */}
-      <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-slate-900 via-slate-900/70 to-transparent z-10"></div>
-      <div className="absolute bottom-0 left-0 w-full h-64 bg-gradient-to-t from-slate-900 via-slate-900/80 to-transparent z-10"></div>
+      <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-[rgb(var(--bg-gradient-via))] via-[rgb(var(--bg-gradient-via))/0.7] to-transparent z-10"></div>
+      <div className="absolute bottom-0 left-0 w-full h-64 bg-gradient-to-t from-[rgb(var(--bg-gradient-via))] via-[rgb(var(--bg-gradient-via))/0.8] to-transparent z-10"></div>
       <div className="absolute inset-0 bg-gradient-to-r from-black/50 to-transparent w-1/2 z-10"></div>
 
       {/* Content */}
@@ -129,18 +130,18 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
         <h2 className="text-4xl md:text-6xl font-bold mb-3 drop-shadow-2xl" style={{textShadow: '0 4px 20px rgba(0,0,0,0.9)'}}>
           {currentSlide.title}
         </h2>
-        <div className="flex items-center flex-wrap gap-x-4 gap-y-2 mb-4 text-gray-200" style={{textShadow: '0 2px 8px rgba(0,0,0,0.7)'}}>
+        <div className="flex items-center flex-wrap gap-x-4 gap-y-2 mb-4 text-[rgb(var(--text-secondary))]" style={{textShadow: '0 2px 8px rgba(0,0,0,0.7)'}}>
             {currentSlide.type && <span className="font-semibold">{currentSlide.type}</span>}
             {currentSlide.rating && (
                 <div className="flex items-center gap-1.5">
-                    <StarIcon className="w-5 h-5 text-yellow-400" />
+                    <StarIcon className="w-5 h-5 text-[rgb(var(--color-warning))]" />
                     <span className="font-semibold">{currentSlide.rating.toFixed(1)}</span>
                 </div>
             )}
             <p className="hidden sm:block">{currentSlide.genres.slice(0, 3).join(' • ')}</p>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={() => onAnimeSelect(currentSlide)} className="flex items-center gap-2 px-5 py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg shadow-purple-500/40 hover:shadow-purple-400/60">
+          <button onClick={() => onAnimeSelect(currentSlide)} className="flex items-center gap-2 px-5 py-3 bg-[rgb(var(--color-primary))] text-white rounded-lg font-semibold hover:bg-[rgb(var(--color-primary-hover))] transition-all duration-300 transform hover:scale-105 shadow-lg shadow-[rgb(var(--shadow-color))/0.4] hover:shadow-[rgb(var(--shadow-color))/0.6]">
             <InfoIcon />
             <span>More Info</span>
           </button>
@@ -148,7 +149,7 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
             <button
               onClick={() => !inWatchLater && addToWatchLater(currentSlide)}
               disabled={inWatchLater}
-              className="flex items-center gap-2 px-5 py-3 bg-slate-700/60 text-white rounded-lg font-semibold hover:bg-slate-600 transition-colors backdrop-blur-sm disabled:opacity-70 disabled:cursor-not-allowed">
+              className="flex items-center gap-2 px-5 py-3 bg-[rgb(var(--surface-3))/0.6] text-white rounded-lg font-semibold hover:bg-[rgb(var(--surface-4))] transition-colors backdrop-blur-sm disabled:opacity-70 disabled:cursor-not-allowed">
               {inWatchLater ? <CheckIcon/> : <PlusIcon/>}
               <span>{inWatchLater ? 'Added' : 'Add to Watchlist'}</span>
             </button>
@@ -157,17 +158,17 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
       </div>
       
       {/* Navigation */}
-      <button onClick={goToPrev} className="absolute top-1/2 left-4 transform -translate-y-1/2 p-2 bg-black/30 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-purple-600/50 z-20" aria-label="Previous slide">
+      <button onClick={goToPrev} className="absolute top-1/2 left-4 transform -translate-y-1/2 p-2 bg-black/30 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-[rgb(var(--color-primary))/0.5] z-20" aria-label="Previous slide">
         <ChevronLeftIcon />
       </button>
-      <button onClick={goToNext} className="absolute top-1/2 right-4 transform -translate-y-1/2 p-2 bg-black/30 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-purple-600/50 z-20" aria-label="Next slide">
+      <button onClick={goToNext} className="absolute top-1/2 right-4 transform -translate-y-1/2 p-2 bg-black/30 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-[rgb(var(--color-primary))/0.5] z-20" aria-label="Next slide">
         <ChevronRightIcon />
       </button>
 
       {/* Indicators */}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2 z-20">
         {slides.map((_, index) => (
-          <button key={index} onClick={() => goToSlide(index)} className={`w-3 h-3 rounded-full transition-all duration-300 ${currentIndex === index ? 'bg-purple-500 scale-125' : 'bg-gray-500/50 hover:bg-gray-400'}`}></button>
+          <button key={index} onClick={() => goToSlide(index)} className={`w-3 h-3 rounded-full transition-all duration-300 ${currentIndex === index ? 'bg-[rgb(var(--shadow-color))] scale-125' : 'bg-gray-500/50 hover:bg-gray-400'}`}></button>
         ))}
       </div>
     </section>

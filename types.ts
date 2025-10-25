@@ -38,6 +38,14 @@ export interface Notification {
   read: boolean;
 }
 
+// FIX: Added missing ContinueWatchingInfo interface.
+export interface ContinueWatchingInfo {
+  animeId: number;
+  currentSeason: number;
+  currentEpisode: number;
+  progress: number;
+}
+
 export type Filter = {
   query?: string;
   genres?: string[];
@@ -47,9 +55,3 @@ export type Filter = {
   sort?: 'popularity' | 'alphabetical' | 'release_date';
   language?: 'Sub' | 'Dub' | 'Raw' | '';
 };
-
-export interface ContinueWatchingInfo {
-    animeId: number;
-    currentEpisode: number;
-    progress: number; // Percentage
-}

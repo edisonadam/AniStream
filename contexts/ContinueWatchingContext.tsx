@@ -4,7 +4,13 @@ import { useAuth } from '../hooks/useAuth';
 
 interface ContinueWatchingContextType {
   continueWatchingList: ContinueWatchingInfo[];
-  updateProgress: (animeId: number, currentEpisode: number, totalEpisodes: number) => void;
+  updateProgress: (
+    animeId: number, 
+    currentSeason: number, 
+    currentEpisode: number, 
+    totalEpisodesInShow: number | null, 
+    seasonEpisodeCounts: number[]
+  ) => void;
 }
 
 export const ContinueWatchingContext = createContext<ContinueWatchingContextType | undefined>(undefined);
@@ -27,8 +33,8 @@ export const ContinueWatchingProvider: React.FC<ContinueWatchingProviderProps> =
         if (!storedList && initialAnimeList.length > 2) {
             // Create mock data for new users
             const mockData: ContinueWatchingInfo[] = [
-                { animeId: initialAnimeList[1].id, currentEpisode: 5, progress: Math.round((5 / (initialAnimeList[1].totalEpisodes || 24)) * 100) },
-                { animeId: initialAnimeList[2].id, currentEpisode: 2, progress: Math.round((2 / (initialAnimeList[2].totalEpisodes || 12)) * 100) },
+                { animeId: initialAnimeList[1].id, currentSeason: 1, currentEpisode: 5, progress: Math.round((5 / (initialAnimeList[1].totalEpisodes || 24)) * 100) },
+                { animeId: initialAnimeList[2].id, currentSeason: 1, currentEpisode: 2, progress: Math.round((2 / (initialAnimeList[2].totalEpisodes || 12)) * 100) },
             ];
             storedList = JSON.stringify(mockData);
             localStorage.setItem(storageKey, storedList);
@@ -48,19 +54,33 @@ export const ContinueWatchingProvider: React.FC<ContinueWatchingProviderProps> =
     }
   }, [user, initialAnimeList]);
 
-  const updateProgress = useCallback((animeId: number, currentEpisode: number, totalEpisodes: number) => {
+  const updateProgress = useCallback((
+    animeId: number, 
+    currentSeason: number, 
+    currentEpisode: number, 
+    totalEpisodesInShow: number | null,
+    seasonEpisodeCounts: number[]
+  ) => {
     if (!user) return;
     
     setContinueWatchingList(prevList => {
       const newList = [...prevList];
       const existingIndex = newList.findIndex(item => item.animeId === animeId);
-      const progress = Math.round((currentEpisode / totalEpisodes) * 100);
+      
+      const episodesInPreviousSeasons = seasonEpisodeCounts
+        .slice(0, currentSeason - 1)
+        .reduce((sum, count) => sum + count, 0);
+      const overallEpisodeNumber = episodesInPreviousSeasons + currentEpisode;
+      
+      const progress = totalEpisodesInShow ? Math.min(100, Math.round((overallEpisodeNumber / totalEpisodesInShow) * 100)) : 0;
+
+      const newItem = { animeId, currentSeason, currentEpisode, progress };
 
       if (existingIndex !== -1) {
-        newList[existingIndex] = { ...newList[existingIndex], currentEpisode, progress };
-      } else {
-        newList.unshift({ animeId, currentEpisode, progress });
+        newList.splice(existingIndex, 1);
       }
+      
+      newList.unshift(newItem);
 
       // Keep the list from getting too long
       const limitedList = newList.slice(0, 10);

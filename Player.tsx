@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
-// FIX: Corrected import path for types.
-import type { Anime } from '../types';
-import { ChevronLeftIcon, StarIcon, FullscreenIcon, ChevronDownIcon, ChevronRightIcon } from './icons/Icons';
-import AnimeCard from './AnimeCard';
-import Comments from './Comments';
-// FIX: Corrected import path for api and imported AVAILABLE_SERVERS.
-import { buildSourceUrl } from '../api';
+import type { Anime } from './types';
+import { ChevronLeftIcon, StarIcon, FullscreenIcon, ChevronDownIcon, ChevronRightIcon } from './components/icons/Icons';
+import AnimeCard from './components/AnimeCard';
+import Comments from './components/Comments';
+import { buildSourceUrl } from './api';
 
 const TMDB_API_KEY = '0f463393529890c7bf7e801f907981f8';
 
@@ -201,9 +199,9 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
 
   useEffect(() => {
     const url = buildSourceUrl(
-        mediaIds.mediaType, 
+        mediaIds.mediaType,
         mediaIds.tmdb,
-        mediaIds.mediaType === 'tv' ? currentSeason : undefined, 
+        mediaIds.mediaType === 'tv' ? currentSeason : undefined,
         mediaIds.mediaType === 'tv' ? currentEpisode : undefined
     );
     setSourceUrl(url);

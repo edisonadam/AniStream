@@ -3,7 +3,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import FeaturedCarousel from './components/FeaturedCarousel';
-import ContinueWatching from './components/ContinueWatching';
 import AnimeGrid from './components/AnimeGrid';
 import Footer from './components/Footer';
 import Player from './components/Player';
@@ -12,7 +11,6 @@ import SearchOverlay from './components/SearchOverlay';
 import WatchlistOverlay from './components/WatchlistOverlay';
 import type { Anime, Filter } from './types';
 import { useWatchLater } from './hooks/useWatchLater';
-import { ContinueWatchingProvider } from './contexts/ContinueWatchingContext';
 import { ANIME_TYPES } from './constants';
 
 type View = 'home' | 'player' | 'list';
@@ -67,6 +65,12 @@ const App: React.FC = () => {
     const fetchAnime = async () => {
       setIsLoading(true);
       setError(null);
+
+      // FIX: If genre filters are active, wait for the genre map to be loaded.
+      // This prevents a race condition on initial load with filters from session storage.
+      if (filters.genres && filters.genres.length > 0 && Object.keys(genreMap).length === 0) {
+        return; // It will refetch when genreMap updates.
+      }
 
       const params = new URLSearchParams({ limit: '25' });
       let endpoint = 'https://api.jikan.moe/v4/top/anime';
@@ -164,10 +168,7 @@ const App: React.FC = () => {
       }
     };
     
-    // Only fetch if genreMap is ready (if needed for a filter) or if no genre filter is set
-    if ((filters.genres && filters.genres.length > 0 && Object.keys(genreMap).length > 0) || !filters.genres || filters.genres.length === 0) {
-        fetchAnime();
-    }
+    fetchAnime();
   }, [filters, genreMap]);
 
   const handleSelectAnime = (anime: Anime) => {
@@ -236,51 +237,48 @@ const App: React.FC = () => {
     return (
       <>
         {isHomePage && <FeaturedCarousel animeList={topAnimeList.slice(0, 5)} onAnimeSelect={handleSelectAnime} />}
-        {isHomePage && <ContinueWatching allAnime={topAnimeList} onShowWatchlist={() => setIsWatchlistOpen(true)} onSelectAnime={handleSelectAnime} />}
         
-        {isLoading && <div className="text-center p-12 text-xl font-semibold text-purple-300">Loading Anime...</div>}
-        {error && <div className="text-center p-12 text-red-400">{error}</div>}
+        {isLoading && <div className="text-center p-12 text-xl font-semibold text-[rgb(var(--color-primary-accent))]/80">Loading Anime...</div>}
+        {error && <div className="text-center p-12 text-[rgb(var(--color-danger))]">{error}</div>}
         {!isLoading && !error && <AnimeGrid animeList={listToDisplay} onAnimeSelect={handleSelectAnime} title={getGridTitle()} filters={filters} />}
       </>
     );
   };
 
   return (
-    <ContinueWatchingProvider initialAnimeList={topAnimeList}>
-      <div className="bg-gradient-to-b from-purple-900 via-slate-900 to-black min-h-screen text-gray-100 font-sans">
-        <Header 
-          onMenuClick={toggleSidebar} 
-          onLoginClick={() => setIsAuthModalOpen(true)}
-          onSearchClick={() => setIsSearchOpen(true)}
-          onShowWatchLater={handleShowWatchLater}
-          onLogoClick={handleGoHome}
-        />
-        <Sidebar 
-          isOpen={isSidebarOpen} 
-          onClose={closeSidebar} 
-          onApplyFilters={handleApplyFilters}
-          currentFilters={filters}
-          onShowWatchLater={handleShowWatchLater}
-          onLogoClick={handleGoHome}
-        />
-        {isAuthModalOpen && <AuthModal onClose={() => setIsAuthModalOpen(false)} />}
-        {isSearchOpen && <SearchOverlay onClose={() => setIsSearchOpen(false)} onAnimeSelect={handleSelectAnime} onSearchSubmit={handleSearchSubmit} />}
-        {isWatchlistOpen && <WatchlistOverlay onClose={() => setIsWatchlistOpen(false)} onSelectAnime={handleSelectAnime}/>}
+    <div className="bg-gradient-to-b from-[rgb(var(--bg-gradient-start))] via-[rgb(var(--bg-gradient-via))] to-[rgb(var(--bg-gradient-end))] min-h-screen text-[rgb(var(--text-primary))] font-sans">
+      <Header 
+        onMenuClick={toggleSidebar} 
+        onLoginClick={() => setIsAuthModalOpen(true)}
+        onSearchClick={() => setIsSearchOpen(true)}
+        onShowWatchLater={handleShowWatchLater}
+        onLogoClick={handleGoHome}
+      />
+      <Sidebar 
+        isOpen={isSidebarOpen} 
+        onClose={closeSidebar} 
+        onApplyFilters={handleApplyFilters}
+        currentFilters={filters}
+        onShowWatchLater={handleShowWatchLater}
+        onLogoClick={handleGoHome}
+      />
+      {isAuthModalOpen && <AuthModal onClose={() => setIsAuthModalOpen(false)} />}
+      {isSearchOpen && <SearchOverlay onClose={() => setIsSearchOpen(false)} onAnimeSelect={handleSelectAnime} onSearchSubmit={handleSearchSubmit} />}
+      {isWatchlistOpen && <WatchlistOverlay onClose={() => setIsWatchlistOpen(false)} onSelectAnime={handleSelectAnime}/>}
 
-        <main className="pt-20">
-          {renderContent()}
-        </main>
-        <Footer />
+      <main className="pt-20">
+        {renderContent()}
+      </main>
+      <Footer />
 
-         <style>{`
-          @keyframes fade-in-up {
-              from { opacity: 0; transform: translateY(20px); }
-              to { opacity: 1; transform: translateY(0); }
-          }
-          .animate-fade-in-up { animation: fade-in-up 0.5s ease-out forwards; }
-         `}</style>
-      </div>
-    </ContinueWatchingProvider>
+       <style>{`
+        @keyframes fade-in-up {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-up { animation: fade-in-up 0.5s ease-out forwards; }
+       `}</style>
+    </div>
   );
 };
 

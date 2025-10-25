@@ -1,3 +1,4 @@
+
 import React from 'react';
 import AnimeCard from './AnimeCard';
 import type { Anime, Filter } from '../types';
@@ -17,7 +18,7 @@ const AnimeGrid: React.FC<AnimeGridProps> = ({ onAnimeSelect, animeList, title, 
 
   return (
     <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <h2 className="text-3xl font-bold mb-8 text-white" style={{ textShadow: '0 0 8px rgba(168, 85, 247, 0.5)' }}>
+      <h2 className="text-3xl font-bold mb-8 text-[rgb(var(--text-primary))]" style={{ textShadow: `0 0 8px rgb(var(--shadow-color) / 0.5)` }}>
         {title}
       </h2>
       {animeList.length > 0 ? (
@@ -27,21 +28,21 @@ const AnimeGrid: React.FC<AnimeGridProps> = ({ onAnimeSelect, animeList, title, 
           ))}
         </div>
       ) : (
-        <div className="text-center text-gray-400 p-12 text-lg bg-slate-800/50 rounded-2xl">
+        <div className="text-center text-[rgb(var(--text-muted))] p-12 text-lg bg-[rgb(var(--surface-2))/0.5] rounded-2xl">
             <p className="text-2xl mb-2">🎬</p>
             {filters.query ? (
                  <>
-                    <p className="font-semibold text-white">No results found for "{filters.query}"</p>
+                    <p className="font-semibold text-[rgb(var(--text-primary))]">No results found for "{filters.query}"</p>
                     <p>Try a different search or clear some filters.</p>
                 </>
             ) : hasActiveFilters ? (
                  <>
-                    <p className="font-semibold text-white">No anime found matching your filters.</p>
+                    <p className="font-semibold text-[rgb(var(--text-primary))]">No anime found matching your filters.</p>
                     <p>Try adjusting or clearing your filters!</p>
                  </>
             ) : (
                 <>
-                    <p className="font-semibold text-white">No anime to display.</p>
+                    <p className="font-semibold text-[rgb(var(--text-primary))]">No anime to display.</p>
                     <p>There might be an issue fetching data. Please try again later.</p>
                 </>
             )}
