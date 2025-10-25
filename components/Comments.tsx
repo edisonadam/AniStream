@@ -14,7 +14,8 @@ const CommentForm: React.FC<{
   cta: string;
   placeholder: string;
   onCancel?: () => void;
-}> = ({ onSubmit, cta, placeholder, onCancel }) => {
+  autoFocus?: boolean;
+}> = ({ onSubmit, cta, placeholder, onCancel, autoFocus = false }) => {
   const [text, setText] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -32,7 +33,7 @@ const CommentForm: React.FC<{
         placeholder={placeholder}
         className="w-full bg-[rgb(var(--surface-input))/0.6] border border-[rgb(var(--border-color))] rounded-lg p-3 text-[rgb(var(--text-primary))] focus:ring-[rgb(var(--border-focus))] focus:border-[rgb(var(--border-focus))] transition-all"
         rows={2}
-        autoFocus
+        autoFocus={autoFocus}
       ></textarea>
       <div className="flex justify-end items-center gap-2 mt-2">
         {onCancel && (
@@ -160,6 +161,7 @@ const Comments: React.FC<CommentsProps> = ({ anime }) => {
                             cta="Post Reply"
                             placeholder={`Replying to ${comment.user.username}...`}
                             onCancel={() => setReplyingTo(null)}
+                            autoFocus={true}
                         />
                     </div>
                 )}

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
@@ -252,7 +253,10 @@ const App: React.FC = () => {
   }
 
   const handleSearchSubmit = (query: string) => {
-    const newFilters = { ...filters, query: query.trim() };
+    const newFilters: Filter = { query: query.trim() };
+    if (filters.sort) { // Preserve sorting preference
+        newFilters.sort = filters.sort;
+    }
     setFilters(newFilters);
     sessionStorage.setItem('anistream-filters', JSON.stringify(newFilters));
     setIsSearchOpen(false);
