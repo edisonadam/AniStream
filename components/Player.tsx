@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import type { Anime, Season, Episode, VideoServer, EpisodeViewStyle, User } from '../types';
 import { ChevronLeftIcon, StarIcon, ChevronRightIcon, ViewGridIcon, ViewListIcon, ViewCarouselIcon, EyeIcon, EyeOffIcon, RewindIcon, FastForwardIcon, RefreshCwIcon, ShareIcon, CloseIcon } from './icons/Icons';
@@ -67,6 +68,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [trailers, setTrailers] = useState<{key: string, name: string}[]>([]);
   const [isLoadingEpisodes, setIsLoadingEpisodes] = useState(false);
+  const [episodeError, setEpisodeError] = useState<string | null>(null);
   const [isLoadingTrailers, setIsLoadingTrailers] = useState(false);
   const [currentSeason, setCurrentSeason] = useState<number>(1);
   const [currentEpisode, setCurrentEpisode] = useState<number>(1);
@@ -90,6 +92,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
   const [skipMessage, setSkipMessage] = useState('');
   
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [failedImages, setFailedImages] = useState<Set<string | number>>(new Set());
 
   const { settings, updateSettings } = useSettings();
   const { user } = useAuth();
@@ -115,6 +118,31 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
     const total = runtimes.reduce((acc, r) => acc + r, 0);
     return Math.round(total / runtimes.length);
   }, [episodes]);
+
+  // Effect for preloading banner images for faster display
+  useEffect(() => {
+    const imagesToPreload: string[] = [];
+    if (seasons.length > 0) {
+        seasons.forEach(s => {
+            if (s.poster_path) {
+                imagesToPreload.push(`https://image.tmdb.org/t/p/w500${s.poster_path}`);
+            }
+        });
+    } else if (seriesParts.length > 1) {
+        seriesParts.forEach(p => {
+            // Avoid preloading duplicate images that are already handled as fallbacks
+            if (p.thumbnail && p.thumbnail !== anime.thumbnail) {
+                imagesToPreload.push(p.thumbnail);
+            }
+        });
+    }
+    
+    imagesToPreload.forEach(src => {
+        const img = new Image();
+        img.src = src;
+    });
+  }, [seasons, seriesParts, anime.thumbnail]);
+
 
   useEffect(() => {
     setLocalEpisodeViewStyle(settings.episodeViewStyle);
@@ -204,6 +232,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
         setSeasons([]); setEpisodes([]); setTrailers([]); setSeriesParts([]); setRelatedMovies([]);
         setActiveTab('episodes'); setLocalBlur(null); setEpisodePage(1);
         setIsLoadingNavigator(true);
+        setFailedImages(new Set()); // Reset failed images on new anime
 
         try {
             const fullDetailsRes = await fetch(`https://api.jikan.moe/v4/anime/${anime.id}/full`);
@@ -214,20 +243,48 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
             setPlayerAnime(fullAnimeData); setDisplayTitle(fullAnimeData.title);
             
             const relationsRes = await fetch(`https://api.jikan.moe/v4/anime/${anime.id}/relations`);
+            let relationsData: any[] = [];
             if (relationsRes.ok) {
-                const relationsData = (await relationsRes.json()).data;
-                const relatedEntries = relationsData.filter((r: any) => ['Prequel', 'Sequel'].includes(r.relation)).flatMap((r: any) => r.entry.map((entry: any) => ({ ...entry, id: entry.mal_id, title: entry.name, thumbnail: entry.images?.jpg.image_url, relationType: r.relation })));
-                const partsMap = new Map<number, Partial<Anime>>();
-                relatedEntries.filter((p: any) => p.relationType === 'Prequel').forEach((p: any) => partsMap.set(p.id, p));
-                partsMap.set(fullAnimeData.id, fullAnimeData);
-                relatedEntries.filter((p: any) => p.relationType === 'Sequel').forEach((p: any) => partsMap.set(p.id, p));
-                setSeriesParts(Array.from(partsMap.values()));
+                relationsData = (await relationsRes.json()).data;
+            }
 
-                const movieRelations = relationsData
-                  .flatMap((r: any) => r.entry.filter((entry: any) => entry.type === 'Movie'))
-                  .map((m: any): Anime => ({ id: m.mal_id, title: m.name, thumbnail: m.images.jpg.image_url, type: 'Movie', bannerImage: '', synopsis: '', genres: [], releaseYear: null, status: 'Completed', totalEpisodes: 1, rating: null, studio: '', hasSub: true, hasDub: false, runtime: null, isAdult: false, avgEpisodeDuration: null }));
+            const parentStory = relationsData.find((r: any) => r.relation === 'Parent story')?.entry[0];
+            const baseAnimeForTmdb = parentStory 
+                ? { title: parentStory.name, year: null } 
+                : { title: fullAnimeData.title, year: fullAnimeData.releaseYear };
+
+            if (relationsData.length > 0) {
+                const allEntries = relationsData.flatMap((r: any) =>
+                    r.entry.map((entry: any) => ({ ...entry, relationType: r.relation }))
+                );
+            
+                const seriesRelations = ['Prequel', 'Sequel', 'Parent story', 'Side story', 'Alternative version', 'Other'];
+                const seriesMediaTypes = ['TV', 'OVA', 'ONA', 'Special', 'Movie'];
+
+                const seriesPartsRaw = allEntries.filter((e: any) =>
+                    seriesRelations.includes(e.relationType) && seriesMediaTypes.includes(e.type)
+                );
+            
+                const sortedSeriesParts = [
+                    ...seriesPartsRaw.filter(p => p.relationType === 'Prequel'),
+                    fullAnimeData, // Anchor with the current anime
+                    ...seriesPartsRaw.filter(p => p.relationType !== 'Prequel'),
+                ];
+            
+                const finalSeriesParts = Array.from(new Map(sortedSeriesParts.map(p => [p.mal_id || p.id, p])).values())
+                    .map((p: any): Partial<Anime> => ({ id: p.mal_id || p.id, title: p.name || p.title, thumbnail: p.images?.jpg.image_url || p.thumbnail, type: p.type }));
+            
+                setSeriesParts(finalSeriesParts.length > 1 ? finalSeriesParts : [fullAnimeData]);
+            
+                const movieRelations = allEntries
+                    .filter((entry: any) => entry.type === 'Movie')
+                    .map((m: any): Anime => ({
+                        id: m.mal_id, title: m.name, thumbnail: m.images.jpg.image_url, type: 'Movie', bannerImage: '', synopsis: '', genres: [], releaseYear: null, status: 'Completed', totalEpisodes: 1, rating: null, studio: '', hasSub: true, hasDub: false, runtime: null, isAdult: false, avgEpisodeDuration: null
+                    }));
                 setRelatedMovies(Array.from(new Map(movieRelations.map(m => [m.id, m])).values()));
-            } else { setSeriesParts([fullAnimeData]); }
+            } else {
+                setSeriesParts([fullAnimeData]);
+            }
 
             const recommendationsRes = await fetch(`https://api.jikan.moe/v4/anime/${anime.id}/recommendations`);
             if (recommendationsRes.ok) {
@@ -242,10 +299,35 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
                  const tmdbLink = (await externalLinksRes.json()).data.find((l: any) => l.name === 'TheMovieDB');
                  if (tmdbLink?.url) { const [, type, id] = tmdbLink.url.match(/(tv|movie)\/(\d+)/) || []; if (id && (type === 'tv' || type === 'movie')) { foundTmdbId = parseInt(id, 10); foundMediaType = type; } }
             }
-             if (!foundTmdbId && fullAnimeData.title) {
+            if (!foundTmdbId && baseAnimeForTmdb.title) {
                 const searchMediaType = fullAnimeData.type === 'Movie' ? 'movie' : 'tv';
-                const searchRes = await fetch(`https://api.themoviedb.org/3/search/${searchMediaType}?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(fullAnimeData.title.replace(/season \d+/i, '').trim())}`);
-                if (searchRes.ok) { const match = (await searchRes.json()).results[0]; if (match) { foundTmdbId = match.id; foundMediaType = searchMediaType; } }
+                const cleanQueryTitle = baseAnimeForTmdb.title.replace(/(season|part)\s\d+/i, '').trim();
+
+                const searchParams = new URLSearchParams({
+                    api_key: TMDB_API_KEY,
+                    query: cleanQueryTitle,
+                });
+
+                if (baseAnimeForTmdb.year) {
+                    if (searchMediaType === 'tv') {
+                        searchParams.append('first_air_date_year', baseAnimeForTmdb.year.toString());
+                    } else {
+                        searchParams.append('year', baseAnimeForTmdb.year.toString());
+                    }
+                }
+                
+                const searchRes = await fetch(`https://api.themoviedb.org/3/search/${searchMediaType}?${searchParams.toString()}`);
+                
+                if (searchRes.ok) { 
+                    const searchData = await searchRes.json();
+                    const lowerCleanQueryTitle = cleanQueryTitle.toLowerCase();
+                    const exactMatch = searchData.results.find((r: any) => (r.name || r.title)?.toLowerCase() === lowerCleanQueryTitle);
+                    const match = exactMatch || searchData.results[0]; 
+                    if (match) { 
+                        foundTmdbId = match.id; 
+                        foundMediaType = searchMediaType; 
+                    } 
+                }
             }
 
             if (foundTmdbId && foundMediaType) {
@@ -331,28 +413,41 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
       }
   }, [currentSeason, currentEpisode, playerAnime, mediaIds.mediaType]);
 
-  useEffect(() => {
-    if (mediaIds.mediaType !== 'tv' || !mediaIds.tmdb || !currentSeason) { setEpisodes([]); if (!isLoading) setIsSeasonTransitioning(false); return; }
-    const fetchSeasonEpisodes = async () => {
-      setIsLoadingEpisodes(true); setEpisodePage(1);
-      try {
+  const fetchSeasonEpisodes = useCallback(async () => {
+    if (mediaIds.mediaType !== 'tv' || !mediaIds.tmdb || !currentSeason) return;
+    
+    setIsLoadingEpisodes(true);
+    setEpisodeError(null);
+    try {
         const res = await fetch(`https://api.themoviedb.org/3/tv/${mediaIds.tmdb}/season/${currentSeason}?api_key=${TMDB_API_KEY}`);
-        if (!res.ok) throw new Error('Failed to fetch episode data.');
-        setEpisodes((await res.json()).episodes?.map((ep: any) => ({
+        if (!res.ok) throw new Error(`Failed to fetch episode data (Status: ${res.status}).`);
+        const data = await res.json();
+        setEpisodes(data.episodes?.map((ep: any) => ({
             ...ep,
             episode_number: ep.episode_number,
             name: ep.name,
             still_path: ep.still_path,
             runtime: ep.runtime,
         })) || []);
-      } catch (e) { console.error(e); setEpisodes([]); }
-      finally { 
-          setIsLoadingEpisodes(false); 
-          setIsSeasonTransitioning(false);
-      }
-    };
-    fetchSeasonEpisodes();
-  }, [mediaIds.mediaType, mediaIds.tmdb, currentSeason, isLoading]);
+    } catch (e) {
+        console.error(e);
+        setEpisodes([]);
+        setEpisodeError(e instanceof Error ? e.message : 'An unknown error occurred.');
+    } finally {
+        setIsLoadingEpisodes(false);
+        setIsSeasonTransitioning(false);
+    }
+  }, [mediaIds.mediaType, mediaIds.tmdb, currentSeason]);
+
+  useEffect(() => {
+    if (mediaIds.mediaType === 'tv' && mediaIds.tmdb && currentSeason) {
+        setEpisodePage(1);
+        fetchSeasonEpisodes();
+    } else {
+        setEpisodes([]);
+        if (!isLoading) setIsSeasonTransitioning(false);
+    }
+  }, [fetchSeasonEpisodes, mediaIds.mediaType, mediaIds.tmdb, currentSeason, isLoading]);
 
   // Unified trailer fetching for movies and TV shows
   useEffect(() => {
@@ -527,7 +622,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
   const headerEpisodeText = mediaIds.mediaType === 'tv' ? `S${currentSeason} E${currentEpisode}` : (playerAnime?.totalEpisodes ?? 0) > 1 ? `Episode ${currentEpisode}` : 'Movie';
 
   const SeasonNavigator = () => {
-    const useTmdbSeasons = seasons.length > 1;
+    const useTmdbSeasons = seasons.length > 0;
     const useJikanSeriesParts = !useTmdbSeasons && seriesParts.length > 1;
 
     type NavItem = {
@@ -548,40 +643,52 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
                 id: s.season_number,
                 isActive: s.season_number === currentSeason,
                 name: s.name || `Season ${s.season_number}`,
-                imageUrl: s.poster_path ? `https://image.tmdb.org/t/p/w500${s.poster_path}` : (playerAnime?.thumbnail || ''),
+                imageUrl: s.poster_path ? `https://image.tmdb.org/t/p/w500${s.poster_path}` : '',
                 episodeCount: s.episode_count,
                 onClick: () => selectSeason(s.season_number)
             }));
     } else if (useJikanSeriesParts) {
-        items = seriesParts.map(p => ({
-            id: p.id!,
-            isActive: p.id === playerAnime?.id,
-            name: p.title!,
-            imageUrl: p.thumbnail || (playerAnime?.thumbnail || ''),
-            onClick: () => {
-                if (p.id !== playerAnime?.id) {
-                    onSelectRelated({
-                        id: p.id!,
-                        title: p.title || 'N/A',
-                        type: p.type || 'TV',
-                        thumbnail: p.thumbnail || '',
-                        bannerImage: '',
-                        synopsis: '',
-                        genres: [],
-                        releaseYear: null,
-                        status: 'Ongoing',
-                        totalEpisodes: null,
-                        rating: null,
-                        studio: '',
-                        hasSub: true,
-                        hasDub: false,
-                        runtime: null,
-                        isAdult: false,
-                        avgEpisodeDuration: null,
-                    });
+        items = seriesParts.map(p => {
+            const isCurrentAnime = p.id === playerAnime?.id;
+            let finalImageUrl = p.thumbnail || '';
+
+            // FIX: To prevent showing duplicate posters, if a related series part (like a sequel)
+            // has the same thumbnail URL as the current anime, we treat it as if it has no
+            // unique image. This forces a placeholder to be shown instead of a repeated image.
+            if (!isCurrentAnime && playerAnime?.thumbnail && finalImageUrl === playerAnime.thumbnail) {
+                finalImageUrl = '';
+            }
+            
+            return {
+                id: p.id!,
+                isActive: p.id === playerAnime?.id,
+                name: p.title!,
+                imageUrl: finalImageUrl,
+                onClick: () => {
+                    if (p.id !== playerAnime?.id) {
+                        onSelectRelated({
+                            id: p.id!,
+                            title: p.title || 'N/A',
+                            type: p.type || 'TV',
+                            thumbnail: p.thumbnail || '',
+                            bannerImage: '',
+                            synopsis: '',
+                            genres: [],
+                            releaseYear: null,
+                            status: 'Ongoing',
+                            totalEpisodes: null,
+                            rating: null,
+                            studio: '',
+                            hasSub: true,
+                            hasDub: false,
+                            runtime: null,
+                            isAdult: false,
+                            avgEpisodeDuration: null,
+                        });
+                    }
                 }
             }
-        }));
+        });
     }
 
     if (items.length <= 1 && !isLoadingNavigator) return null;
@@ -595,32 +702,42 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
                         <div className="aspect-[2/3] w-full bg-[rgb(var(--surface-3))] rounded-lg"></div>
                         <div className="h-4 mt-2 bg-[rgb(var(--surface-4))] rounded w-3/4"></div>
                     </div>
-                )) : items.map(item => (
-                    <button 
-                        key={item.id} 
-                        onClick={item.onClick} 
-                        className={`flex-shrink-0 w-40 text-left rounded-lg group transition-all duration-300 overflow-hidden focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[rgb(var(--surface-1))] ${item.isActive ? 'ring-[rgb(var(--color-primary-accent))]' : 'ring-transparent'}`}
-                    >
-                        <div className="aspect-[2/3] w-full relative">
-                            <img 
-                                src={item.imageUrl} 
-                                alt={item.name} 
-                                className={`w-full h-full object-cover transition-all duration-300 group-hover:scale-110 ${!item.isActive ? 'opacity-70 group-hover:opacity-100' : ''}`} 
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"></div>
-                            {item.episodeCount && (
-                                <span className="absolute top-2 right-2 px-2 py-0.5 text-xs font-bold rounded-full bg-black/60 text-white backdrop-blur-sm">
-                                    {item.episodeCount} EP
-                                </span>
-                            )}
-                        </div>
-                        <div className="p-2 bg-[rgb(var(--surface-2))]">
-                            <p className={`font-semibold text-sm truncate transition-colors ${item.isActive ? 'text-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-primary))] group-hover:text-[rgb(var(--color-primary-accent))]'}`}>
-                                {item.name}
-                            </p>
-                        </div>
-                    </button>
-                ))}
+                )) : items.map(item => {
+                    const hasFailed = failedImages.has(item.id);
+                    return (
+                        <button 
+                            key={item.id} 
+                            onClick={item.onClick} 
+                            className={`flex-shrink-0 w-40 text-left rounded-lg group transition-all duration-300 overflow-hidden focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[rgb(var(--surface-1))] ${item.isActive ? 'ring-[rgb(var(--color-primary-accent))]' : 'ring-transparent'}`}
+                        >
+                            <div className="aspect-[2/3] w-full relative">
+                                {item.imageUrl && !hasFailed ? (
+                                    <img 
+                                        src={item.imageUrl} 
+                                        alt={item.name} 
+                                        className={`w-full h-full object-cover transition-all duration-300 group-hover:scale-110 ${!item.isActive ? 'opacity-70 group-hover:opacity-100' : ''}`}
+                                        onError={() => setFailedImages(prev => new Set(prev).add(item.id))}
+                                    />
+                                 ) : (
+                                    <div className="w-full h-full bg-[rgb(var(--surface-3))] flex items-center justify-center p-2 text-center">
+                                        <span className="text-xs text-[rgb(var(--text-secondary))]">{item.name}</span>
+                                    </div>
+                                 )}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"></div>
+                                {item.episodeCount && (
+                                    <span className="absolute top-2 right-2 px-2 py-0.5 text-xs font-bold rounded-full bg-black/60 text-white backdrop-blur-sm">
+                                        {item.episodeCount} EP
+                                    </span>
+                                )}
+                            </div>
+                            <div className="p-2 bg-[rgb(var(--surface-2))]">
+                                <p className={`font-semibold text-sm truncate transition-colors ${item.isActive ? 'text-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-primary))] group-hover:text-[rgb(var(--color-primary-accent))]'}`}>
+                                    {item.name}
+                                </p>
+                            </div>
+                        </button>
+                    )
+                })}
             </div>
         </div>
     );
@@ -869,7 +986,26 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
                               {activeTab === 'episodes' && showEpisodesTab && <div className="flex items-center gap-2"><BlurToggle /><EpisodeViewToggle /></div>}
                           </div>
                           <div key={activeTab} className={`transition-opacity duration-300 ${isSeasonTransitioning && activeTab === 'episodes' ? 'opacity-0' : 'opacity-100'}`}>
-                               {activeTab === 'episodes' && showEpisodesTab && (<div className={`transition-opacity duration-300 ${isPageTransitioning ? 'opacity-0' : 'opacity-100'}`}><div key={localEpisodeViewStyle} className="animate-cinematic-fade-in"><EpisodeListContent episodesToShow={paginatedEpisodes} isBlurred={isBlurred} view={localEpisodeViewStyle} /></div><PaginationControls /></div>)}
+                               {activeTab === 'episodes' && showEpisodesTab && (
+                                <div className={`transition-opacity duration-300 ${isPageTransitioning ? 'opacity-0' : 'opacity-100'}`}>
+                                    {episodeError ? (
+                                        <div className="text-center p-4 bg-[rgb(var(--surface-2))] rounded-lg">
+                                            <p className="font-semibold text-[rgb(var(--color-danger))] mb-3">Error loading episodes</p>
+                                            <p className="text-sm text-[rgb(var(--text-muted))] mb-4">{episodeError}</p>
+                                            <button onClick={fetchSeasonEpisodes} className="px-4 py-2 bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))] rounded-lg font-semibold hover:bg-[rgb(var(--color-primary-hover))] transition-colors text-sm">
+                                                Retry
+                                            </button>
+                                        </div>
+                                    ) : (
+                                      <>
+                                        <div key={localEpisodeViewStyle} className="animate-cinematic-fade-in">
+                                          <EpisodeListContent episodesToShow={paginatedEpisodes} isBlurred={isBlurred} view={localEpisodeViewStyle} />
+                                        </div>
+                                        <PaginationControls />
+                                      </>
+                                    )}
+                                </div>
+                               )}
                                {activeTab === 'trailers' && showTrailersTab && <TrailerList />}
                           </div>
                       </div>
