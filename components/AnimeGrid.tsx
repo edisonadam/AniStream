@@ -1,5 +1,6 @@
 
-import React from 'react';
+
+import React, { useRef, useCallback } from 'react';
 import AnimeCard from './AnimeCard';
 import type { Anime, Filter } from '../types';
 import AnimeCardSkeleton from './AnimeCardSkeleton';
@@ -10,31 +11,63 @@ interface AnimeGridProps {
   title: string;
   filters: Filter;
   isLoading: boolean;
+  onLoadMore: () => void;
+  hasMore: boolean;
+  isLoadingMore: boolean;
 }
 
-const AnimeGrid: React.FC<AnimeGridProps> = ({ onAnimeSelect, animeList, title, filters, isLoading }) => {
+const AnimeGrid: React.FC<AnimeGridProps> = ({ onAnimeSelect, animeList, title, filters, isLoading, onLoadMore, hasMore, isLoadingMore }) => {
   const hasActiveFilters = Object.values(filters).some(v => {
     if (Array.isArray(v)) return v.length > 0;
     return !!v;
   });
+
+  const observer = useRef<IntersectionObserver>();
+  const lastElementRef = useCallback(node => {
+    if (isLoading || isLoadingMore) return;
+    if (observer.current) observer.current.disconnect();
+    observer.current = new IntersectionObserver(entries => {
+        if (entries[0].isIntersecting && hasMore) {
+            onLoadMore();
+        }
+    });
+    if (node) observer.current.observe(node);
+  }, [isLoading, isLoadingMore, hasMore, onLoadMore]);
+
 
   return (
     <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <h2 className="text-3xl font-bold mb-8 text-[rgb(var(--text-primary))]" style={{ textShadow: `0 0 8px rgb(var(--shadow-color) / 0.5)` }}>
         {title}
       </h2>
-      {isLoading ? (
+      {isLoading && animeList.length === 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
           {Array.from({ length: 12 }).map((_, index) => (
             <AnimeCardSkeleton key={index} />
           ))}
         </div>
       ) : animeList.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
-          {animeList.map((anime) => (
-            <AnimeCard key={anime.id} anime={anime} onSelect={onAnimeSelect} />
-          ))}
-        </div>
+        <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
+              {animeList.map((anime) => (
+                <AnimeCard key={anime.id} anime={anime} onSelect={onAnimeSelect} />
+              ))}
+            </div>
+
+            <div ref={lastElementRef} style={{ height: '1px' }} />
+
+            {isLoadingMore && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6 mt-6">
+                    {Array.from({ length: 6 }).map((_, index) => <AnimeCardSkeleton key={index} />)}
+                </div>
+            )}
+            
+            {!hasMore && animeList.length > 0 && (
+                <div className="text-center text-[rgb(var(--text-muted))] pt-12 text-lg">
+                    <p>You've reached the end!</p>
+                </div>
+            )}
+        </>
       ) : (
         <div className="text-center text-[rgb(var(--text-muted))] p-12 text-lg bg-[rgb(var(--surface-2))/0.5] rounded-2xl">
             <p className="text-2xl mb-2">🎬</p>

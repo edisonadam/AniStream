@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useCallback } from 'react';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
@@ -32,6 +33,7 @@ const App: React.FC = () => {
   const [animeList, setAnimeList] = useState<Anime[]>([]);
   const [topAnimeList, setTopAnimeList] = useState<Anime[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   const [filters, setFilters] = useState<Filter>(() => {
@@ -39,6 +41,9 @@ const App: React.FC = () => {
     return savedFilters ? JSON.parse(savedFilters) : {};
   });
   
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+
   const [genreMap, setGenreMap] = useState<Record<string, number>>({});
   const { isLoggedIn } = useAuth();
   const { watchLaterList } = useWatchLater();
@@ -91,17 +96,23 @@ const App: React.FC = () => {
     fetchGenreMap();
   }, []);
 
-  // Centralized data fetching logic based on filters
+  // Centralized data fetching logic based on filters and page
   useEffect(() => {
     const fetchAnime = async () => {
-      setIsLoading(true);
+      if (!hasMore || (filters.genres && filters.genres.length > 0 && Object.keys(genreMap).length === 0)) {
+        if (page === 1) setIsLoading(false);
+        return;
+      }
+      
+      if (page === 1) {
+        setIsLoading(true);
+      } else {
+        setIsLoadingMore(true);
+      }
       setError(null);
 
-      if (filters.genres && filters.genres.length > 0 && Object.keys(genreMap).length === 0) {
-        return; 
-      }
-
       const params = new URLSearchParams({ limit: '25' });
+      params.append('page', page.toString());
       let endpoint = 'https://api.jikan.moe/v4/top/anime';
       let isSearchOrFilter = false;
 
@@ -177,17 +188,12 @@ const App: React.FC = () => {
             };
           });
 
-        // FIX: Conditionally filter out junk types ONLY when not performing a search or filter.
-        // This allows searches to return all relevant types.
         if (!isSearchOrFilter) {
           mappedData = mappedData.filter((anime: Anime) => anime.type && ANIME_TYPES.includes(anime.type));
         }
         
-        // Apply content restriction and post-fetch filters
         mappedData = mappedData.filter(anime => {
             if (settings.restrictAdultContent && anime.isAdult) return false;
-            // The type filter is now handled by the API query parameter, so we don't need a redundant client-side check.
-            // if (types && types.length > 0 && (!anime.type || !types.includes(anime.type))) return false;
             if (filters.year && anime.releaseYear) {
                 const startYear = parseInt(filters.year.substring(0, 4));
                 if (anime.releaseYear < startYear || anime.releaseYear > startYear + 9) return false;
@@ -210,21 +216,42 @@ const App: React.FC = () => {
             else if (sort === 'release_date') mappedData.sort((a, b) => (b.releaseYear || 0) - (a.releaseYear || 0));
             else mappedData.sort((a, b) => (b.rating || 0) - (a.rating || 0));
         }
+        
+        if (page === 1) {
+            setAnimeList(mappedData);
+        } else {
+            setAnimeList(prevList => {
+                const existingIds = new Set(prevList.map(a => a.id));
+                const newItems = mappedData.filter(a => !existingIds.has(a.id));
+                return [...prevList, ...newItems];
+            });
+        }
+        setHasMore(data.pagination?.has_next_page ?? false);
 
-        setAnimeList(mappedData);
-        if(!isSearchOrFilter) {
+        if(!isSearchOrFilter && page === 1) {
           setTopAnimeList(mappedData);
         }
 
       } catch (e) {
         setError(e instanceof Error ? e.message : 'An unknown error occurred.');
       } finally {
-        setIsLoading(false);
+        if (page === 1) {
+            setIsLoading(false);
+        } else {
+            setIsLoadingMore(false);
+        }
       }
     };
     
     fetchAnime();
-  }, [filters, genreMap, settings.restrictAdultContent]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters, page, genreMap, settings.restrictAdultContent]);
+
+  const loadMore = useCallback(() => {
+    if (!isLoading && !isLoadingMore && hasMore) {
+        setPage(prevPage => prevPage + 1);
+    }
+  }, [isLoading, isLoadingMore, hasMore]);
 
   const handleSelectAnime = (anime: Anime) => {
     setSelectedAnime(anime);
@@ -235,7 +262,17 @@ const App: React.FC = () => {
   const handleGoHome = () => {
     setSelectedAnime(null);
     setView('home');
-    setFilters({});
+    setFilters(currentFilters => {
+        const emptyFilters = {};
+        if (Object.keys(currentFilters).length > 0) {
+            setAnimeList([]);
+            setPage(1);
+            setHasMore(true);
+            sessionStorage.removeItem('anistream-filters');
+            return emptyFilters;
+        }
+        return currentFilters;
+    });
   };
 
   const handleShowWatchLater = () => {
@@ -248,8 +285,15 @@ const App: React.FC = () => {
   }
   
   const handleApplyFilters = (newFilters: Filter) => {
-      setFilters(newFilters);
       sessionStorage.setItem('anistream-filters', JSON.stringify(newFilters));
+      setFilters(currentFilters => {
+          if (JSON.stringify(currentFilters) !== JSON.stringify(newFilters)) {
+              setAnimeList([]);
+              setPage(1);
+              setHasMore(true);
+          }
+          return newFilters;
+      });
       setView('home');
       closeSidebar();
   }
@@ -259,8 +303,15 @@ const App: React.FC = () => {
     if (filters.sort) { // Preserve sorting preference
         newFilters.sort = filters.sort;
     }
-    setFilters(newFilters);
     sessionStorage.setItem('anistream-filters', JSON.stringify(newFilters));
+    setFilters(currentFilters => {
+        if (JSON.stringify(currentFilters) !== JSON.stringify(newFilters)) {
+            setAnimeList([]);
+            setPage(1);
+            setHasMore(true);
+        }
+        return newFilters;
+    });
     setIsSearchOpen(false);
     setView('home');
     setSelectedAnime(null);
@@ -317,7 +368,16 @@ const App: React.FC = () => {
         {isHomePage && isLoggedIn && <ContinueWatching allAnime={topAnimeList} onShowWatchlist={handleShowWatchLater} onSelectAnime={handleSelectAnime} />}
         
         {error && <div className="text-center p-12 text-[rgb(var(--color-danger))]">{error}</div>}
-        {!error && <AnimeGrid animeList={listToDisplay} onAnimeSelect={handleSelectAnime} title={getGridTitle()} filters={filters} isLoading={isLoading} />}
+        {!error && <AnimeGrid 
+            animeList={listToDisplay} 
+            onAnimeSelect={handleSelectAnime} 
+            title={getGridTitle()} 
+            filters={filters} 
+            isLoading={isLoading} 
+            onLoadMore={loadMore}
+            hasMore={hasMore}
+            isLoadingMore={isLoadingMore}
+        />}
       </>
     );
   };
