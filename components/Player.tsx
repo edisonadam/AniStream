@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import type { Anime, Season, Episode, VideoServer, EpisodeViewStyle, User } from '../types';
-import { ChevronLeftIcon, StarIcon, ChevronRightIcon, ViewGridIcon, ViewListIcon, ViewCarouselIcon, EyeIcon, EyeOffIcon, RewindIcon, FastForwardIcon, RefreshCwIcon, ShareIcon, CloseIcon } from './icons/Icons';
+import { ChevronLeftIcon, StarIcon, ChevronRightIcon, ViewGridIcon, ViewListIcon, ViewCarouselIcon, EyeIcon, EyeOffIcon, RewindIcon, FastForwardIcon, RefreshCwIcon, ShareIcon, CloseIcon, DownloadIcon } from './icons/Icons';
 import AnimeCard from './AnimeCard';
 import Comments from './Comments';
 import { buildSourceUrl } from '../api';
@@ -619,6 +619,13 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
     setIsShareModalOpen(false);
   };
 
+  const handleDownloadTorrent = () => {
+    if (!playerAnime) return;
+    const query = encodeURIComponent(playerAnime.title);
+    const torrentSearchUrl = `https://nyaa.si/?f=0&c=0_0&q=${query}`;
+    window.open(torrentSearchUrl, '_blank', 'noopener,noreferrer');
+  };
+
   const headerEpisodeText = mediaIds.mediaType === 'tv' ? `S${currentSeason} E${currentEpisode}` : (playerAnime?.totalEpisodes ?? 0) > 1 ? `Episode ${currentEpisode}` : 'Movie';
 
   const SeasonNavigator = () => {
@@ -947,8 +954,11 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
                         </div>
                         <div className="flex items-center gap-2">
                           {playerAnime.isAdult && <span className="flex-shrink-0 px-3 py-1 text-sm font-bold rounded-full bg-red-600 text-white">+18</span>}
+                          <button onClick={handleDownloadTorrent} title="Download Torrent" className="p-2 rounded-full bg-[rgb(var(--surface-3))] text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--color-primary-hover))] hover:text-white transition-colors" aria-label="Download Torrent">
+                            <DownloadIcon />
+                          </button>
                           {user && (
-                              <button onClick={() => setIsShareModalOpen(true)} className="p-2 rounded-full bg-[rgb(var(--surface-3))] text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--color-primary-hover))] hover:text-white transition-colors" aria-label="Share with a friend">
+                              <button onClick={() => setIsShareModalOpen(true)} title="Share with a friend" className="p-2 rounded-full bg-[rgb(var(--surface-3))] text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--color-primary-hover))] hover:text-white transition-colors" aria-label="Share with a friend">
                                 <ShareIcon />
                               </button>
                           )}
