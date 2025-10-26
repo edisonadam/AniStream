@@ -1,9 +1,10 @@
 
+
 import React, { useState } from 'react';
 import type { Anime } from '../types';
 import { useWatchLater } from '../hooks/useWatchLater';
 import { useAuth } from '../hooks/useAuth';
-import { PlusIcon, CheckIcon, DotsVerticalIcon } from './icons/Icons';
+import { PlusIcon, CheckIcon, DotsVerticalIcon, StarIcon } from './icons/Icons';
 
 interface AnimeCardProps {
   anime: Anime;
@@ -64,6 +65,12 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect }) => {
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
 
       <div className="absolute top-2 left-2 flex flex-col gap-1.5 z-10">
+        {anime.rating && anime.rating > 0 && (
+            <div className="flex items-center gap-1 px-2 py-0.5 text-xs font-bold rounded-full bg-black/60 text-yellow-400 backdrop-blur-md">
+                <StarIcon className="w-3 h-3" />
+                <span>{anime.rating.toFixed(1)}</span>
+            </div>
+        )}
         {anime.isAdult && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/50 text-white backdrop-blur-md">+18</span>}
         {anime.type && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/50 text-white backdrop-blur-md">{anime.type.toUpperCase()}</span>}
         {anime.hasSub && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/50 text-white backdrop-blur-md">SUB</span>}

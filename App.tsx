@@ -1,5 +1,8 @@
 
 
+
+
+
 import React, { useState, useEffect, useCallback } from 'react';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
@@ -21,6 +24,8 @@ import { ANIME_TYPES } from './constants';
 
 type View = 'home' | 'player' | 'list' | 'profile';
 
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -32,8 +37,10 @@ const App: React.FC = () => {
   
   const [animeList, setAnimeList] = useState<Anime[]>([]);
   const [topAnimeList, setTopAnimeList] = useState<Anime[]>([]);
+  const [beginnerAnimeList, setBeginnerAnimeList] = useState<Anime[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isLoadingBeginner, setIsLoadingBeginner] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
   const [filters, setFilters] = useState<Filter>(() => {
@@ -96,6 +103,86 @@ const App: React.FC = () => {
     fetchGenreMap();
   }, []);
 
+  // New useEffect for beginner friendly anime
+  useEffect(() => {
+    const beginnerAnimeIds = [38000, 30276, 1535, 11061, 16498, 5114, 31964, 40748]; // Demon Slayer, One-Punch Man, Death Note, HxH, AoT, FMAB, MHA, JJK
+    
+    const fetchBeginnerAnime = async () => {
+      setIsLoadingBeginner(true);
+      try {
+        const animeData = [];
+        for (const id of beginnerAnimeIds) {
+          try {
+            let res = await fetch(`https://api.jikan.moe/v4/anime/${id}`);
+            if (res.status === 429) {
+              await sleep(1000); // Wait 1 second on rate limit
+              res = await fetch(`https://api.jikan.moe/v4/anime/${id}`);
+            }
+
+            if (!res.ok) {
+              console.warn(`Skipping beginner anime ID ${id} due to fetch error: ${res.status}`);
+              continue; // Skip this anime if it fails
+            }
+            
+            const result = await res.json();
+            animeData.push(result);
+            await sleep(400); // Stagger requests to be safe with Jikan API rate limits (~3/sec)
+          } catch (e) {
+            console.warn(`Skipping beginner anime ID ${id} due to an exception:`, e);
+          }
+        }
+        
+        const mappedData: Anime[] = animeData
+          .map(result => result.data)
+          .filter(item => item) // Filter out null/undefined if any request failed
+          .map((item: any): Anime => {
+            let totalMinutes = 0;
+            const hourMatch = item.duration?.match(/(\d+)\s*hr/);
+            const minMatch = item.duration?.match(/(\d+)\s*min/);
+            if (hourMatch?.[1]) totalMinutes += parseInt(hourMatch[1], 10) * 60;
+            if (minMatch?.[1]) totalMinutes += parseInt(minMatch[1], 10);
+            
+            let avgEpDuration: number | null = null;
+            if (item.duration && item.duration.includes('per ep')) {
+              const epMinMatch = item.duration.match(/(\d+)\s*min/);
+              if (epMinMatch && epMinMatch[1]) {
+                avgEpDuration = parseInt(epMinMatch[1], 10);
+              }
+            }
+
+            return {
+              id: item.mal_id,
+              title: item.title_english || item.title,
+              thumbnail: item.images.jpg.large_image_url,
+              bannerImage: item.images.jpg.large_image_url,
+              synopsis: item.synopsis || 'No synopsis available.',
+              genres: item.genres.map((g: any) => g.name),
+              releaseYear: item.year,
+              status: item.status === 'Finished Airing' ? 'Completed' : item.status === 'Currently Airing' ? 'Ongoing' : 'Upcoming',
+              totalEpisodes: item.episodes,
+              rating: item.score,
+              type: item.type,
+              studio: item.studios.length > 0 ? item.studios[0].name : 'Unknown',
+              hasSub: true,
+              hasDub: !!item.title_english,
+              runtime: totalMinutes > 0 ? totalMinutes : null,
+              avgEpisodeDuration: avgEpDuration,
+              isAdult: item.rating === 'Rx - Hentai',
+            };
+          });
+        
+        setBeginnerAnimeList(mappedData);
+        
+      } catch (e) {
+        console.error("An unexpected error occurred while fetching beginner anime", e);
+      } finally {
+        setIsLoadingBeginner(false);
+      }
+    };
+
+    fetchBeginnerAnime();
+  }, []);
+
   // Centralized data fetching logic based on filters and page
   useEffect(() => {
     const fetchAnime = async () => {
@@ -146,7 +233,13 @@ const App: React.FC = () => {
       }
 
       try {
-        const response = await fetch(`${endpoint}?${params.toString()}`);
+        let response = await fetch(`${endpoint}?${params.toString()}`);
+
+        if (response.status === 429) {
+            await sleep(1500); // Wait for rate limit and retry once
+            response = await fetch(`${endpoint}?${params.toString()}`);
+        }
+        
         if (!response.ok) throw new Error('Failed to fetch anime data from Jikan API.');
         
         const data = await response.json();
@@ -190,6 +283,17 @@ const App: React.FC = () => {
 
         if (!isSearchOrFilter) {
           mappedData = mappedData.filter((anime: Anime) => anime.type && ANIME_TYPES.includes(anime.type));
+          
+          // Filter out sequels for the homepage/trending view to only show root seasons.
+          // This logic groups anime by a "franchise" name to show only one entry per series.
+          const franchiseMap = new Map<string, Anime>();
+          mappedData.forEach(anime => {
+              const franchiseTitle = anime.title.replace(/:\s.*|\sSeason\s\d+|\sPart\s\d+|\s\d(nd|rd|th)\sSeason/i, '').trim();
+              if (!franchiseMap.has(franchiseTitle)) {
+                  franchiseMap.set(franchiseTitle, anime);
+              }
+          });
+          mappedData = Array.from(franchiseMap.values());
         }
         
         mappedData = mappedData.filter(anime => {
@@ -411,34 +515,50 @@ const App: React.FC = () => {
       if (filters.query) return `Search Results for "${filters.query}"`;
       if (filters.genres && filters.genres.length > 0) return `${filters.genres.join(', ')} Anime`;
       if (Object.values(filters).some(v => Array.isArray(v) ? v.length > 0 : !!v)) return "Filtered Results";
-      return "Top Anime";
+      return "Trending";
   }
   
   const isHomePage = !Object.values(filters).some(v => Array.isArray(v) ? v.length > 0 : !!v) && view === 'home';
 
   const renderContent = () => {
     if (view === 'player' && selectedAnime) {
-      return <Player anime={selectedAnime} onGoBack={handleGoHome} onSelectRelated={handleSelectAnime} allAnime={animeList} />;
+      return <Player anime={selectedAnime} onGoBack={handleGoHome} onSelectRelated={handleSelectAnime} allAnime={[...animeList, ...beginnerAnimeList]} />;
     }
 
     if (view === 'profile') {
-        return <ProfilePage onGoBack={handleGoHome} allAnime={animeList} onSelectAnime={handleSelectAnime}/>
+        return <ProfilePage onGoBack={handleGoHome} allAnime={[...animeList, ...topAnimeList, ...beginnerAnimeList]} onSelectAnime={handleSelectAnime}/>
     }
     
     const listToDisplay = view === 'list' ? watchLaterList : animeList;
 
+    const mainGridTitle = getGridTitle();
+
     return (
       <>
         {isHomePage && <FeaturedCarousel animeList={topAnimeList.slice(0, 5)} onAnimeSelect={handleSelectAnime} isLoading={isLoading} />}
-        {isHomePage && isLoggedIn && <ContinueWatching allAnime={topAnimeList} onShowWatchlist={handleShowWatchLater} onSelectAnime={handleSelectAnime} />}
+        {isHomePage && isLoggedIn && <ContinueWatching allAnime={[...topAnimeList, ...beginnerAnimeList]} onShowWatchlist={handleShowWatchLater} onSelectAnime={handleSelectAnime} />}
+        
+        {isHomePage && (
+            <AnimeGrid 
+                animeList={beginnerAnimeList} 
+                onAnimeSelect={handleSelectAnime} 
+                title="Perfect for Beginners" 
+                filters={{}} 
+                isLoading={isLoadingBeginner} 
+                onLoadMore={() => {}}
+                hasMore={false}
+                isLoadingMore={false}
+            />
+        )}
         
         {error && <div className="text-center p-12 text-[rgb(var(--color-danger))]">{error}</div>}
+        
         {!error && <AnimeGrid 
             animeList={listToDisplay} 
             onAnimeSelect={handleSelectAnime} 
-            title={getGridTitle()} 
+            title={mainGridTitle} 
             filters={filters} 
-            isLoading={isLoading} 
+            isLoading={isLoading && listToDisplay.length === 0} 
             onLoadMore={loadMore}
             hasMore={hasMore}
             isLoadingMore={isLoadingMore}

@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import type { Anime, Season, Episode, VideoServer, EpisodeViewStyle, User } from '../types';
 import { ChevronLeftIcon, StarIcon, ChevronRightIcon, ViewGridIcon, ViewListIcon, ViewCarouselIcon, EyeIcon, EyeOffIcon, RewindIcon, FastForwardIcon, RefreshCwIcon, ShareIcon, CloseIcon, DownloadIcon, SparklesIcon } from './icons/Icons';
@@ -1222,26 +1221,44 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
                 </div>
             </div>
         )}
-        <section className="container mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-            <div className="mb-6"><button onClick={onGoBack} className="flex items-center space-x-2 text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] transition-colors group"><ChevronLeftIcon className="w-6 h-6 transform group-hover:-translate-x-1 transition-transform" /><span>Back to Browse</span></button></div>
-            <div className="player-grid-container">
-                <div className="player-main-column">
-                    <div className="flex items-center justify-between gap-4">
-                        <div className="flex-1 min-w-0">
-                            <h1 className={`text-3xl md:text-5xl font-bold text-[rgb(var(--text-primary))] transition-opacity duration-300 ${isSeasonTransitioning ? 'opacity-0' : 'opacity-100'}`} style={{ textShadow: `0 0 10px rgb(var(--shadow-color) / 0.5)` }}>{displayTitle}</h1>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {playerAnime.isAdult && <span className="flex-shrink-0 px-3 py-1 text-sm font-bold rounded-full bg-red-600 text-white">+18</span>}
-                          <button onClick={handleDownloadTorrent} title="Download Torrent" className="p-2 rounded-full bg-[rgb(var(--surface-3))] text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--color-primary-hover))] hover:text-white transition-colors" aria-label="Download Torrent">
-                            <DownloadIcon />
-                          </button>
-                          {user && (
-                              <button onClick={() => setIsShareModalOpen(true)} title="Share with a friend" className="p-2 rounded-full bg-[rgb(var(--surface-3))] text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--color-primary-hover))] hover:text-white transition-colors" aria-label="Share with a friend">
-                                <ShareIcon />
-                              </button>
-                          )}
-                        </div>
+
+        <div className="relative w-full h-80 md:h-96 lg:h-[32rem] -mx-4 sm:-mx-6 lg:-mx-8">
+            <div className="absolute inset-0 overflow-hidden">
+                <img src={playerAnime.bannerImage} alt={`${playerAnime.title} banner`} className="w-full h-full object-cover object-center" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent" />
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-[rgb(var(--bg-gradient-via))] from-30% to-transparent" />
+        </div>
+
+        <section className="container mx-auto px-4 sm:px-6 lg:px-8 pt-8 -mt-40 md:-mt-48 lg:-mt-[16rem] relative z-10">
+            <div className="relative z-10">
+                <div className="mb-6">
+                    <button onClick={onGoBack} className="flex items-center space-x-2 text-[rgb(var(--text-primary))] bg-[rgb(var(--surface-1))/60] backdrop-blur-sm px-4 py-2 rounded-lg hover:bg-[rgb(var(--surface-2))] transition-colors group">
+                        <ChevronLeftIcon className="w-6 h-6 transform group-hover:-translate-x-1 transition-transform" />
+                        <span>Back to Browse</span>
+                    </button>
+                </div>
+                <div className="flex items-end justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                         <h1 className={`text-4xl md:text-6xl font-bold text-white transition-opacity duration-300 ${isSeasonTransitioning ? 'opacity-0' : 'opacity-100'}`} style={{ textShadow: '0 3px 8px rgba(0,0,0,0.9)' }}>{displayTitle}</h1>
                     </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {playerAnime.isAdult && <span className="flex-shrink-0 px-3 py-1 text-sm font-bold rounded-full bg-red-600 text-white">+18</span>}
+                      <button onClick={handleDownloadTorrent} title="Download Torrent" className="p-2 rounded-full bg-[rgb(var(--surface-3))/0.7] backdrop-blur-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--color-primary-hover))] hover:text-white transition-colors" aria-label="Download Torrent">
+                        <DownloadIcon />
+                      </button>
+                      {user && (
+                          <button onClick={() => setIsShareModalOpen(true)} title="Share with a friend" className="p-2 rounded-full bg-[rgb(var(--surface-3))/0.7] backdrop-blur-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--color-primary-hover))] hover:text-white transition-colors" aria-label="Share with a friend">
+                            <ShareIcon />
+                          </button>
+                      )}
+                    </div>
+                </div>
+            </div>
+
+            <div className="player-grid-container mt-6">
+                <div className="player-main-column">
+                    {playerAnime.type === 'Movie' && <span className="mb-4 inline-block px-4 py-1.5 text-base font-bold rounded-full bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))] shadow-lg shadow-[rgb(var(--shadow-color))/0.4]">Movie</span>}
                     
                     {!mediaIds.tmdb && !isLoadingNavigator ? (
                       <div className="aspect-video relative my-4"><NoStreamSourceMessage /></div>
@@ -1339,7 +1356,14 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
                         </div>
                         <div className="flex flex-wrap gap-2 mb-4">{playerAnime.genres.map(g => <span key={g} className="px-3 py-1 text-xs font-semibold rounded-full bg-[rgb(var(--color-primary))/0.3] text-[rgb(var(--text-on-accent))]">{g}</span>)}</div><p className="text-[rgb(var(--text-secondary))] mb-4 text-sm max-h-32 overflow-y-auto">{playerAnime.synopsis}</p>
                         <div className="flex items-center gap-4 border-y border-[rgb(var(--border-color))] py-4 my-4"><span className="font-semibold text-[rgb(var(--text-primary))]">Your Rating:</span><div className="flex items-center gap-1">{[...Array(10)].map((_, i) => { const r = i + 1; return <button key={r} onClick={() => rateAnime(playerAnime.id, r)} className="group transition-transform hover:scale-125"><StarIcon className={`w-6 h-6 transition-colors ${r <= (currentRating || 0) ? 'text-[rgb(var(--color-warning))]' : 'text-[rgb(var(--text-muted))] group-hover:text-[rgb(var(--color-warning))]/50'}`} /></button>; })}</div></div>
-                        <div className="text-sm space-y-2 text-[rgb(var(--text-muted))]">{playerAnime.releaseYear && <p><span className="font-semibold text-[rgb(var(--text-primary))]">Release:</span> {playerAnime.releaseYear}</p>}<p><span className="font-semibold text-[rgb(var(--text-primary))]">Status:</span> {playerAnime.status}</p>{playerAnime.rating && <p><span className="font-semibold text-[rgb(var(--text-primary))]">Score:</span> {playerAnime.rating}/10</p>}{playerAnime.runtime && playerAnime.type === 'Movie' && <p><span className="font-semibold text-[rgb(var(--text-primary))]">Duration:</span> {formatDuration(playerAnime.runtime)}</p>}{averageRuntime && playerAnime.type !== 'Movie' && <p><span className="font-semibold text-[rgb(var(--text-primary))]">Avg. Duration:</span> {formatDuration(averageRuntime)}</p>}</div>
+                        <div className="text-sm space-y-2 text-[rgb(var(--text-muted))]">
+                            {seasons.length > 0 && playerAnime.type !== 'Movie' && <p><span className="font-semibold text-[rgb(var(--text-primary))]">Total Seasons:</span> {seasons.length}</p>}
+                            {playerAnime.releaseYear && <p><span className="font-semibold text-[rgb(var(--text-primary))]">Release:</span> {playerAnime.releaseYear}</p>}
+                            <p><span className="font-semibold text-[rgb(var(--text-primary))]">Status:</span> {playerAnime.status}</p>
+                            {playerAnime.rating && <p><span className="font-semibold text-[rgb(var(--text-primary))]">Score:</span> {playerAnime.rating}/10</p>}
+                            {playerAnime.runtime && playerAnime.type === 'Movie' && <p><span className="font-semibold text-[rgb(var(--text-primary))]">Duration:</span> {formatDuration(playerAnime.runtime)}</p>}
+                            {averageRuntime && playerAnime.type !== 'Movie' && <p><span className="font-semibold text-[rgb(var(--text-primary))]">Avg. Duration:</span> {formatDuration(averageRuntime)}</p>}
+                        </div>
                     </div>
                     <Comments anime={playerAnime} />
                     {relatedAnime.length > 0 && <div className="mt-12"><h3 className="text-2xl font-bold mb-6 text-[rgb(var(--text-primary))]">Related Anime</h3><div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">{relatedAnime.map(relAnime => <AnimeCard key={relAnime.id} anime={relAnime} onSelect={onSelectRelated} />)}</div></div>}
