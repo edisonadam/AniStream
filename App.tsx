@@ -326,6 +326,71 @@ const App: React.FC = () => {
     }
   };
 
+  const handleSurpriseMe = async () => {
+    let retries = 5;
+    while (retries > 0) {
+      try {
+        const response = await fetch('https://api.jikan.moe/v4/random/anime');
+        if (!response.ok) throw new Error(`Failed to fetch a random anime (status: ${response.status}).`);
+        
+        const { data: item } = await response.json();
+        
+        if (!item?.mal_id) {
+          retries--;
+          continue;
+        }
+
+        let totalMinutes = 0;
+        const hourMatch = item.duration?.match(/(\d+)\s*hr/);
+        const minMatch = item.duration?.match(/(\d+)\s*min/);
+        if (hourMatch?.[1]) totalMinutes += parseInt(hourMatch[1], 10) * 60;
+        if (minMatch?.[1]) totalMinutes += parseInt(minMatch[1], 10);
+        
+        let avgEpDuration: number | null = null;
+        if (item.duration && item.duration.includes('per ep')) {
+          const epMinMatch = item.duration.match(/(\d+)\s*min/);
+          if (epMinMatch && epMinMatch[1]) {
+            avgEpDuration = parseInt(epMinMatch[1], 10);
+          }
+        }
+
+        const randomAnime: Anime = {
+          id: item.mal_id,
+          title: item.title_english || item.title,
+          thumbnail: item.images.jpg.large_image_url,
+          bannerImage: item.images.jpg.large_image_url,
+          synopsis: item.synopsis || 'No synopsis available.',
+          genres: item.genres.map((g: any) => g.name),
+          releaseYear: item.year,
+          status: item.status === 'Finished Airing' ? 'Completed' : item.status === 'Currently Airing' ? 'Ongoing' : 'Upcoming',
+          totalEpisodes: item.episodes,
+          rating: item.score,
+          type: item.type,
+          studio: item.studios.length > 0 ? item.studios[0].name : 'Unknown',
+          hasSub: true,
+          hasDub: !!item.title_english,
+          runtime: totalMinutes > 0 ? totalMinutes : null,
+          avgEpisodeDuration: avgEpDuration,
+          isAdult: item.rating === 'Rx - Hentai',
+        };
+        
+        if (settings.restrictAdultContent && randomAnime.isAdult) {
+          retries--;
+          continue;
+        }
+
+        handleSelectAnime(randomAnime);
+        return;
+
+      } catch (e) {
+        console.error(e);
+        setError(e instanceof Error ? e.message : 'An unknown error occurred while fetching a random anime.');
+        return;
+      }
+    }
+    console.warn("Could not find a suitable random anime after multiple attempts.");
+  };
+
   const handleEscKey = useCallback((event: KeyboardEvent) => {
     if (event.key === 'Escape') {
       if (isSidebarOpen) closeSidebar();
@@ -401,6 +466,7 @@ const App: React.FC = () => {
         onShowWatchLater={handleShowWatchLater}
         onShowProfile={handleShowProfile}
         onLogoClick={handleGoHome}
+        onSurpriseMe={handleSurpriseMe}
       />
       {isAuthModalOpen && <AuthModal onClose={() => setIsAuthModalOpen(false)} />}
       {isSearchOpen && <SearchOverlay onClose={() => setIsSearchOpen(false)} onAnimeSelect={handleSelectAnime} onSearchSubmit={handleSearchSubmit} />}

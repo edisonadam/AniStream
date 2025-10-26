@@ -1,9 +1,10 @@
 
+
 import React, { useState, useEffect, ReactNode } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import type { Filter } from '../types';
 // FIX: Removed a stale comment about an unused icon.
-import { CloseIcon, SettingsIcon, ChevronDownIcon, TvIcon, ClockIcon, CalendarIcon, SortAscIcon, LanguageIcon, SunIcon, MoonIcon } from './icons/Icons';
+import { CloseIcon, SettingsIcon, ChevronDownIcon, TvIcon, ClockIcon, CalendarIcon, SortAscIcon, LanguageIcon, SunIcon, MoonIcon, SparklesIcon } from './icons/Icons';
 import { GENRES, ANIME_TYPES, ANIME_STATUSES, YEAR_OPTIONS, LANGUAGE_OPTIONS, COLOR_PRESETS } from '../constants';
 import Logo from './Logo';
 import { useSettings } from '../hooks/useSettings';
@@ -16,6 +17,7 @@ interface SidebarProps {
   onShowWatchLater: () => void;
   onShowProfile: () => void;
   onLogoClick: () => void;
+  onSurpriseMe: () => void;
 }
 
 const initialFilters: Filter = {
@@ -48,7 +50,7 @@ const FilterAccordion: React.FC<{ title: string; icon: ReactNode; children: Reac
     )
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onApplyFilters, currentFilters, onShowWatchLater, onShowProfile, onLogoClick }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onApplyFilters, currentFilters, onShowWatchLater, onShowProfile, onLogoClick, onSurpriseMe }) => {
   const { user, logout } = useAuth();
   const [draftFilters, setDraftFilters] = useState<Filter>({ ...initialFilters, ...currentFilters });
   const { settings, updateSettings } = useSettings();
@@ -102,6 +104,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onApplyFilters, curr
       action();
       onClose();
   }
+
+  const handleSurpriseClick = () => {
+    onSurpriseMe();
+    onClose();
+  };
   
   const handleLogout = () => {
     logout();
@@ -140,6 +147,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onApplyFilters, curr
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
+          <button
+            onClick={handleSurpriseClick}
+            className="w-full flex items-center justify-center gap-3 py-3 text-center bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))] rounded-lg font-semibold hover:bg-[rgb(var(--color-primary-hover))] transition-all duration-300 transform hover:scale-105 shadow-lg shadow-[rgb(var(--shadow-color))/0.3]"
+          >
+            <SparklesIcon />
+            <span>Surprise Me!</span>
+          </button>
           
           <div>
             <h3 className="text-lg font-semibold text-[rgb(var(--color-primary-accent))] mb-3 px-2">Genres</h3>

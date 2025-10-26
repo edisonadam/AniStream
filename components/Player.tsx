@@ -1,16 +1,19 @@
 
+
 import React, { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import type { Anime, Season, Episode, VideoServer, EpisodeViewStyle, User } from '../types';
-import { ChevronLeftIcon, StarIcon, ChevronRightIcon, ViewGridIcon, ViewListIcon, ViewCarouselIcon, EyeIcon, EyeOffIcon, RewindIcon, FastForwardIcon, RefreshCwIcon, ShareIcon, CloseIcon, DownloadIcon } from './icons/Icons';
+import { ChevronLeftIcon, StarIcon, ChevronRightIcon, ViewGridIcon, ViewListIcon, ViewCarouselIcon, EyeIcon, EyeOffIcon, RewindIcon, FastForwardIcon, RefreshCwIcon, ShareIcon, CloseIcon, DownloadIcon, SparklesIcon } from './icons/Icons';
 import AnimeCard from './AnimeCard';
 import Comments from './Comments';
-import { buildSourceUrl } from '../api';
 import { useSettings } from '../hooks/useSettings';
 import { useContinueWatching } from '../hooks/useContinueWatching';
 import { useProfileData } from '../hooks/useProfileData';
 import { useAuth } from '../hooks/useAuth';
 import { VIDEO_SERVERS, VIDSRC_DOMAINS } from '../constants';
+import AdBanner from './AdBanner';
+import { GoogleGenAI } from '@google/genai';
 
+declare const Hls: any;
 
 const TMDB_API_KEY = '0f463393529890c7bf7e801f907981f8';
 const EPISODES_PER_PAGE = 100;
@@ -54,6 +57,92 @@ const formatDuration = (minutes: number | null): string => {
   return `${hours}h ${remainingMinutes}m`;
 };
 
+const buildSourceUrl = (
+    server: VideoServer,
+    mediaType: 'tv' | 'movie' | null,
+    tmdbId: number | null,
+    season?: number,
+    episode?: number,
+    vidsrcDomain?: string,
+    autoplayNext?: boolean
+): string | null => {
+    if (!mediaType || !tmdbId) return null;
+
+    switch (server) {
+        case 'embed-api': { 
+            const url = new URL('https://player.embed-api.stream/');
+            url.searchParams.set('id', tmdbId.toString());
+            if (mediaType === 'tv') {
+                if (season === undefined || episode === undefined) return null;
+                url.searchParams.set('s', season.toString());
+                url.searchParams.set('e', episode.toString());
+            }
+            if (autoplayNext) {
+                url.searchParams.set('autoplay', '1');
+            }
+            return url.toString();
+        }
+        case 'vidsrc': { 
+            const domain = vidsrcDomain || 'vsrc.su';
+            let baseUrl = '';
+            if (mediaType === 'movie') {
+                baseUrl = `https://${domain}/embed/movie/${tmdbId}`;
+            } else if (mediaType === 'tv') {
+                if (season === undefined || episode === undefined) return null;
+                baseUrl = `https://${domain}/embed/tv/${tmdbId}/${season}-${episode}`;
+            } else {
+                return null;
+            }
+
+            const params = new URLSearchParams();
+            if (autoplayNext) {
+                params.set('autoplay', '1');
+                if (mediaType === 'tv') {
+                    params.set('autonext', '1');
+                }
+            }
+            
+            const queryString = params.toString();
+            return queryString ? `${baseUrl}?${queryString}` : baseUrl;
+        }
+        case 'vidsrc-pk': { 
+            let baseUrl = '';
+            if (mediaType === 'movie') {
+                baseUrl = `https://embed.vidsrc.pk/movie/${tmdbId}`;
+            } else if (mediaType === 'tv') {
+                if (season === undefined || episode === undefined) return null;
+                baseUrl = `https://embed.vidsrc.pk/tv/${tmdbId}/${season}-${episode}`;
+            } else {
+                return null;
+            }
+
+            const params = new URLSearchParams();
+            if (autoplayNext) {
+                params.set('autoplay', '1');
+                if (mediaType === 'tv') {
+                    params.set('autonext', '1');
+                }
+            }
+
+            const queryString = params.toString();
+            return queryString ? `${baseUrl}?${queryString}` : baseUrl;
+        }
+        default: {
+            const url = new URL('https://player.embed-api.stream/');
+            url.searchParams.set('id', tmdbId.toString());
+             if (mediaType === 'tv') {
+                if (season === undefined || episode === undefined) return null;
+                url.searchParams.set('s', season.toString());
+                url.searchParams.set('e', episode.toString());
+            }
+            if (autoplayNext) {
+                url.searchParams.set('autoplay', '1');
+            }
+            return url.toString();
+        }
+    }
+};
+
 const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => {
   const [playerAnime, setPlayerAnime] = useState<Anime | null>(null);
   const [relatedAnime, setRelatedAnime] = useState<Anime[]>([]);
@@ -74,7 +163,12 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
   const [currentEpisode, setCurrentEpisode] = useState<number>(1);
   
   const [mediaIds, setMediaIds] = useState<MediaIds>({ tmdb: null, imdb: null, mediaType: null });
-  const [sourceUrl, setSourceUrl] = useState<string | null>(null);
+  
+  // States for new streaming logic
+  const [sourceUrl, setSourceUrl] = useState<string | null>(null); // For iframe fallback
+  const [streamUrl, setStreamUrl] = useState<string | null>(null); // For direct HLS/MP4 stream
+  const [isLoadingStream, setIsLoadingStream] = useState(false);
+  const [streamError, setStreamError] = useState<string | null>(null);
   
   const [isPlayerFading, setIsPlayerFading] = useState(false);
   const [activeTab, setActiveTab] = useState<'episodes' | 'trailers'>('episodes');
@@ -102,6 +196,11 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
   
   const episodeRefs = useRef<Map<number, HTMLButtonElement | null>>(new Map());
   const isNavigatingWithArrows = useRef(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const [surpriseMessage, setSurpriseMessage] = useState<string | null>(null);
+  const [isSurpriseLoading, setIsSurpriseLoading] = useState(false);
+  const [surpriseError, setSurpriseError] = useState<string | null>(null);
 
   const isBlurred = localBlur === null ? settings.blurEpisodeThumbnails : localBlur;
 
@@ -159,6 +258,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
   const selectEpisode = useCallback((epNum: number) => {
     if (currentEpisode === epNum) return;
     setIsPlayerFading(true);
+    setStreamUrl(null); setSourceUrl(null); setStreamError(null);
     const newPage = Math.ceil(epNum / EPISODES_PER_PAGE);
     if (newPage !== episodePage) {
         setIsPageTransitioning(true);
@@ -175,6 +275,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
   const selectSeason = useCallback((seasonNum: number, startEpisode = 1) => {
     if (currentSeason === seasonNum || isSeasonTransitioning) return;
     setIsPlayerFading(true);
+    setStreamUrl(null); setSourceUrl(null); setStreamError(null);
     setIsSeasonTransitioning(true);
     setTimeout(() => {
         setCurrentSeason(seasonNum);
@@ -301,32 +402,44 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
             }
             if (!foundTmdbId && baseAnimeForTmdb.title) {
                 const searchMediaType = fullAnimeData.type === 'Movie' ? 'movie' : 'tv';
-                const cleanQueryTitle = baseAnimeForTmdb.title.replace(/(season|part)\s\d+/i, '').trim();
+                
+                const allTitles = [
+                    baseAnimeForTmdb.title,
+                    ...(item.titles?.map((t: any) => t.title) || [])
+                ];
 
-                const searchParams = new URLSearchParams({
-                    api_key: TMDB_API_KEY,
-                    query: cleanQueryTitle,
-                });
+                const uniqueTitlesToSearch = [...new Set(allTitles.map(t => t.replace(/(season|part)\s\d+/i, '').trim()))];
 
-                if (baseAnimeForTmdb.year) {
-                    if (searchMediaType === 'tv') {
-                        searchParams.append('first_air_date_year', baseAnimeForTmdb.year.toString());
-                    } else {
-                        searchParams.append('year', baseAnimeForTmdb.year.toString());
+                for (const title of uniqueTitlesToSearch) {
+                    if (foundTmdbId) break;
+
+                    const searchParams = new URLSearchParams({
+                        api_key: TMDB_API_KEY,
+                        query: title,
+                    });
+
+                    if (baseAnimeForTmdb.year) {
+                        if (searchMediaType === 'tv') {
+                            searchParams.append('first_air_date_year', baseAnimeForTmdb.year.toString());
+                        } else {
+                            searchParams.append('year', baseAnimeForTmdb.year.toString());
+                        }
                     }
-                }
-                
-                const searchRes = await fetch(`https://api.themoviedb.org/3/search/${searchMediaType}?${searchParams.toString()}`);
-                
-                if (searchRes.ok) { 
-                    const searchData = await searchRes.json();
-                    const lowerCleanQueryTitle = cleanQueryTitle.toLowerCase();
-                    const exactMatch = searchData.results.find((r: any) => (r.name || r.title)?.toLowerCase() === lowerCleanQueryTitle);
-                    const match = exactMatch || searchData.results[0]; 
-                    if (match) { 
-                        foundTmdbId = match.id; 
-                        foundMediaType = searchMediaType; 
-                    } 
+                    
+                    const searchRes = await fetch(`https://api.themoviedb.org/3/search/${searchMediaType}?${searchParams.toString()}`);
+                    
+                    if (searchRes.ok) { 
+                        const searchData = await searchRes.json();
+                        if (searchData.results.length > 0) {
+                            const lowerTitle = title.toLowerCase();
+                            const exactMatch = searchData.results.find((r: any) => (r.name || r.title)?.toLowerCase() === lowerTitle);
+                            const match = exactMatch || searchData.results[0]; 
+                            if (match) { 
+                                foundTmdbId = match.id; 
+                                foundMediaType = searchMediaType; 
+                            }
+                        } 
+                    }
                 }
             }
 
@@ -387,20 +500,90 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
     }
   }, [playerAnime, currentSeason, seasons, mediaIds.mediaType]);
 
-  useEffect(() => {
-    const url = buildSourceUrl(settings.videoServer, mediaIds.mediaType, mediaIds.tmdb, currentSeason, currentEpisode, settings.vidsrcDomain, settings.autoplayNext);
-    setSourceUrl(url);
-    if (url) { const timer = setTimeout(() => setIsPlayerFading(false), 300); return () => clearTimeout(timer); }
-    if (playerAnime) {
-        let progress = 0;
-        if (mediaIds.mediaType === 'tv' && seasons.length > 0) {
-            const total = seasons.reduce((acc, s) => acc + s.episode_count, 0);
-            const watched = seasons.filter(s => s.season_number < currentSeason).reduce((acc, s) => acc + s.episode_count, 0) + currentEpisode;
-            if(total > 0) progress = (watched / total) * 100;
-        } else if (mediaIds.mediaType === 'movie') { progress = 100; }
-        updateProgress(playerAnime.id, currentSeason, currentEpisode, progress);
-    }
-  }, [settings.videoServer, settings.vidsrcDomain, settings.autoplayNext, mediaIds, currentSeason, currentEpisode, playerAnime, seasons, updateProgress]);
+    useEffect(() => {
+        const fetchStreamAndProgress = async () => {
+            if (!playerAnime?.id || !mediaIds.tmdb) return;
+
+            setIsLoadingStream(true);
+            setStreamError(null);
+            setStreamUrl(null);
+            setSourceUrl(null);
+
+            let foundStream = false;
+            const providers = ['gogoanime', 'zoro'];
+
+            for (const provider of providers) {
+                if (foundStream) break;
+                try {
+                    const searchRes = await fetch(`https://api.consumet.org/anime/${provider}/${encodeURIComponent(playerAnime.title)}`);
+                    if (!searchRes.ok) continue;
+
+                    const searchData = await searchRes.json();
+                    const animeResult = searchData.results[0];
+                    if (!animeResult) continue;
+
+                    const infoRes = await fetch(`https://api.consumet.org/anime/${provider}/info?id=${animeResult.id}`);
+                    const infoData = await infoRes.json();
+                    
+                    let targetEpisode;
+                    if (mediaIds.mediaType === 'movie') {
+                        targetEpisode = infoData.episodes?.[0];
+                    } else {
+                        let absoluteEpisodeNumber = currentEpisode;
+                        if (sortedSeasons.length > 0) {
+                            const currentSeasonIndex = sortedSeasons.findIndex(s => s.season_number === currentSeason);
+                            if (currentSeasonIndex > 0) {
+                                absoluteEpisodeNumber = sortedSeasons.slice(0, currentSeasonIndex).reduce((acc, season) => acc + season.episode_count, 0) + currentEpisode;
+                            }
+                        }
+                        targetEpisode = infoData.episodes?.find((ep: any) => ep.number === absoluteEpisodeNumber);
+                    }
+
+                    if (!targetEpisode) continue;
+
+                    const watchUrl = provider === 'zoro'
+                        ? `https://api.consumet.org/anime/zoro/watch?episodeId=${targetEpisode.id}&server=vidstreaming`
+                        : `https://api.consumet.org/anime/gogoanime/watch/${targetEpisode.id}`;
+
+                    const streamRes = await fetch(watchUrl);
+                    const streamData = await streamRes.json();
+                    
+                    const source = streamData.sources?.find((s: any) => s.quality === 'default' || s.quality === 'auto') || streamData.sources?.[streamData.sources.length - 1];
+                    
+                    if (source?.url && (source.url.includes('.m3u8') || source.url.includes('.mp4'))) {
+                        setStreamUrl(source.url);
+                        foundStream = true;
+                    }
+                } catch (e) {
+                    console.error(`Error with provider ${provider}:`, e);
+                }
+            }
+
+            if (!foundStream) {
+                const iframeUrl = buildSourceUrl(settings.videoServer, mediaIds.mediaType, mediaIds.tmdb, currentSeason, currentEpisode, settings.vidsrcDomain, settings.autoplayNext);
+                if (iframeUrl) {
+                    setSourceUrl(iframeUrl);
+                } else {
+                    setStreamError('Could not find any valid stream source.');
+                }
+            }
+
+            setIsLoadingStream(false);
+            setIsPlayerFading(false);
+            
+            if (playerAnime) {
+                let progress = 0;
+                if (mediaIds.mediaType === 'tv' && seasons.length > 0) {
+                    const total = seasons.reduce((acc, s) => acc + s.episode_count, 0);
+                    const watched = seasons.filter(s => s.season_number < currentSeason).reduce((acc, s) => acc + s.episode_count, 0) + currentEpisode;
+                    if(total > 0) progress = (watched / total) * 100;
+                } else if (mediaIds.mediaType === 'movie') { progress = 100; }
+                updateProgress(playerAnime.id, currentSeason, currentEpisode, progress);
+            }
+        };
+
+        fetchStreamAndProgress();
+    }, [playerAnime, currentSeason, currentEpisode, mediaIds.tmdb, mediaIds.mediaType, settings.videoServer, settings.vidsrcDomain, settings.autoplayNext, seasons, sortedSeasons, updateProgress]);
 
   // Effect to save current player state to session storage
   useEffect(() => {
@@ -448,6 +631,56 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
         if (!isLoading) setIsSeasonTransitioning(false);
     }
   }, [fetchSeasonEpisodes, mediaIds.mediaType, mediaIds.tmdb, currentSeason, isLoading]);
+  
+  useEffect(() => {
+    if (!streamUrl || !videoRef.current) return;
+
+    const video = videoRef.current;
+    let hls: any;
+
+    if (typeof Hls === 'undefined') {
+      console.error("HLS.js not loaded");
+      if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = streamUrl;
+      }
+      return;
+    }
+
+    if (Hls.isSupported() && streamUrl.includes('.m3u8')) {
+      hls = new Hls();
+      hls.loadSource(streamUrl);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        video.play().catch(e => console.error("Autoplay prevented:", e));
+      });
+      hls.on(Hls.Events.ERROR, function (event: any, data: any) {
+        if (data.fatal) {
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              console.error('HLS.js: fatal network error, trying to recover');
+              hls.startLoad();
+              break;
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              console.error('HLS.js: fatal media error, trying to recover');
+              hls.recoverMediaError();
+              break;
+            default:
+              hls.destroy();
+              break;
+          }
+        }
+      });
+    } else {
+      video.src = streamUrl;
+      video.play().catch(e => console.error("Autoplay prevented:", e));
+    }
+
+    return () => {
+      if (hls) {
+        hls.destroy();
+      }
+    };
+  }, [streamUrl]);
 
   // Unified trailer fetching for movies and TV shows
   useEffect(() => {
@@ -624,6 +857,36 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
     const query = encodeURIComponent(playerAnime.title);
     const torrentSearchUrl = `https://nyaa.si/?f=0&c=0_0&q=${query}`;
     window.open(torrentSearchUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleSurpriseMe = async () => {
+    if (!playerAnime) return;
+
+    setIsSurpriseLoading(true);
+    setSurpriseError(null);
+    setSurpriseMessage(null);
+    
+    try {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const prompt = `Generate a short, surprising, and fun message about the anime titled "${playerAnime.title}". It could be a little-known fact, a funny one-line summary, a creative tagline, or a joke related to its genre. Keep it under 200 characters and make it exciting!`;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+        });
+
+        setSurpriseMessage(response.text);
+    } catch (e) {
+        console.error("Gemini API call failed", e);
+        setSurpriseError("Oops! Couldn't generate a surprise right now. Please try again later.");
+    } finally {
+        setIsSurpriseLoading(false);
+    }
+  };
+
+  const closeSurprise = () => {
+    setSurpriseMessage(null);
+    setSurpriseError(null);
   };
 
   const headerEpisodeText = mediaIds.mediaType === 'tv' ? `S${currentSeason} E${currentEpisode}` : (playerAnime?.totalEpisodes ?? 0) > 1 ? `Episode ${currentEpisode}` : 'Movie';
@@ -844,8 +1107,8 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
 
   const NoStreamSourceMessage = () => (
     <div className="w-full h-full flex flex-col items-center justify-center text-center p-4 bg-black rounded-xl">
-      <p className="text-xl font-semibold text-[rgb(var(--text-primary))] mb-2">Streaming Not Available</p>
-      <p className="text-[rgb(var(--text-muted))]">Could not find a streaming source for this title.</p>
+      <p className="text-xl font-semibold text-[rgb(var(--text-primary))] mb-2">Source Not Found</p>
+      <p className="text-[rgb(var(--text-muted))]">Could not find this title in our streaming databases.</p>
     </div>
   );
   
@@ -924,6 +1187,20 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
 
   return (
     <div className="animate-cinematic-fade-in">
+        {(isSurpriseLoading || surpriseMessage || surpriseError) && (
+            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center animate-cinematic-fade-in" onClick={closeSurprise}>
+                <div className="bg-gradient-to-br from-[rgb(var(--surface-2))] to-[rgb(var(--surface-3))] border border-[rgb(var(--border-color))] rounded-2xl shadow-2xl shadow-[rgb(var(--shadow-color))/0.5] w-full max-w-sm m-4 p-6 relative transform transition-all animate-subtle-fade-in-up text-center" onClick={e => e.stopPropagation()}>
+                    <button onClick={closeSurprise} className="absolute top-3 right-3 text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))]"><CloseIcon /></button>
+                    <div className="flex justify-center text-[rgb(var(--color-primary-accent))] mb-4">
+                        <SparklesIcon className="w-10 h-10" />
+                    </div>
+                    <h3 className="text-xl font-bold mb-4 text-[rgb(var(--text-primary))]">Surprise!</h3>
+                    {isSurpriseLoading && <p className="text-[rgb(var(--text-muted))] animate-pulse">Generating a surprise...</p>}
+                    {surpriseError && <p className="text-[rgb(var(--color-danger))]">{surpriseError}</p>}
+                    {surpriseMessage && <p className="text-[rgb(var(--text-secondary))] text-lg leading-relaxed">"{surpriseMessage}"</p>}
+                </div>
+            </div>
+        )}
         {isShareModalOpen && (
             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center animate-cinematic-fade-in" onClick={() => setIsShareModalOpen(false)}>
                 <div className="bg-[rgb(var(--surface-2))] border border-[rgb(var(--border-color))] rounded-2xl shadow-2xl w-full max-w-sm m-4 p-6 relative" onClick={e => e.stopPropagation()}>
@@ -970,17 +1247,41 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
                     ) : (
                       <>
                         <div className={`aspect-video bg-black rounded-xl overflow-hidden shadow-2xl shadow-[rgb(var(--bg-gradient-start))/0.5] relative my-4 transition-opacity duration-300 ${isPlayerFading ? 'opacity-0' : 'opacity-100'}`}>
-                          {sourceUrl ? <iframe key={sourceUrl} src={sourceUrl} className="absolute top-0 left-0 w-full h-full border-0" allowFullScreen title={`Player for ${playerAnime.title}`}></iframe> : <div className="w-full h-full flex flex-col items-center justify-center text-center p-4"><p className="text-xl font-semibold text-[rgb(var(--text-primary))] mb-2">Player Error</p><p className="text-[rgb(var(--text-muted))]">{error || "Could not generate source."}</p></div>}
-                          {skipMessage && (
+                           {isLoadingStream && (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 bg-black">
+                                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[rgb(var(--color-primary))]"></div>
+                                    <p className="text-xl font-semibold text-[rgb(var(--text-primary))] mt-4">Loading Stream...</p>
+                                    <p className="text-[rgb(var(--text-muted))]">Searching for the best source, please wait.</p>
+                                </div>
+                            )}
+                            
+                            {streamUrl && !isLoadingStream && (
+                                <video ref={videoRef} controls autoPlay className="w-full h-full" key={streamUrl}></video>
+                            )}
+
+                            {sourceUrl && !streamUrl && !isLoadingStream && (
+                                <iframe key={sourceUrl} src={sourceUrl} className="absolute top-0 left-0 w-full h-full border-0" allowFullScreen title={`Player for ${playerAnime.title}`}></iframe>
+                            )}
+                            
+                            {streamError && !sourceUrl && !isLoadingStream && (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 bg-black">
+                                    <p className="text-xl font-semibold text-[rgb(var(--color-danger))] mb-2">Could Not Load Stream</p>
+                                    <p className="text-[rgb(var(--text-muted))]">{streamError}</p>
+                                    {settings.videoServer !== 'embed-api' && <p className="text-sm text-[rgb(var(--text-muted))] mt-2">Trying fallback server...</p>}
+                                </div>
+                            )}
+
+                            {skipMessage && (
                               <div className="absolute inset-0 flex items-center justify-center bg-black/50 pointer-events-none">
                                   <div className="bg-[rgb(var(--surface-1))/0.8] text-white text-lg font-bold px-6 py-3 rounded-lg backdrop-blur-sm animate-cinematic-fade-in">
                                       {skipMessage}
                                   </div>
                               </div>
-                          )}
+                            )}
                         </div>
                         <div className="bg-[rgb(var(--surface-2))/0.5] rounded-xl p-3 flex flex-col sm:flex-row justify-between items-center gap-4"><div className="flex-1 min-w-0">{mediaIds.mediaType === 'tv' && seasons.length > 0 ? <div className="flex items-center justify-center sm:justify-start gap-2"><button onClick={handlePrevEpisode} disabled={isFirstEpisodeOverall} className="p-2 rounded-full bg-[rgb(var(--surface-3))/0.6] hover:bg-[rgb(var(--surface-4))] disabled:opacity-50 disabled:hover:bg-[rgb(var(--surface-3))/0.6] transition-colors"><ChevronLeftIcon className="w-5 h-5" /></button><p className="text-[rgb(var(--color-primary-accent))] font-semibold text-lg text-center w-28 tabular-nums">{headerEpisodeText}</p><button onClick={handleNextEpisode} disabled={isLastEpisodeOverall} className="p-2 rounded-full bg-[rgb(var(--surface-3))/0.6] hover:bg-[rgb(var(--surface-4))] disabled:opacity-50 disabled:hover:bg-[rgb(var(--surface-3))/0.6] transition-colors"><ChevronRightIcon className="w-5 h-5" /></button></div> : <p className="text-[rgb(var(--color-primary-accent))] font-semibold text-lg text-center sm:text-left">{headerEpisodeText}</p>}</div><div className="flex items-center flex-wrap justify-center gap-2"><div className="flex items-center bg-[rgb(var(--surface-3))] rounded-full p-1">{servers.map(server => <button key={server.id} onClick={() => selectServer(server.id as VideoServer)} className={`px-4 py-1.5 text-sm rounded-full transition-all ${settings.videoServer === server.id ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>{server.name}</button>)}</div>{settings.videoServer === 'vidsrc' && <select value={settings.vidsrcDomain} onChange={e => updateSettings({ vidsrcDomain: e.target.value })} className="bg-[rgb(var(--surface-3))] rounded-full py-2 px-3 text-sm text-[rgb(var(--text-secondary))] font-semibold border-0 focus:ring-2 focus:ring-[rgb(var(--border-focus))]" aria-label="Select Vidsrc domain">{VIDSRC_DOMAINS.map(domain => <option key={domain} value={domain}>{domain}</option>)}</select>}</div></div>
                         <PlaybackControls />
+                        { !settings.adsDisabled && <AdBanner /> }
                       </>
                     )}
 
@@ -1023,7 +1324,19 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
                 </div>
                 <div className="player-side-column">
                      <div className="bg-[rgb(var(--surface-2))/0.5] rounded-2xl p-6">
-                        <h2 className="text-2xl font-bold text-[rgb(var(--text-primary))] mb-4">Synopsis</h2><div className="flex flex-wrap gap-2 mb-4">{playerAnime.genres.map(g => <span key={g} className="px-3 py-1 text-xs font-semibold rounded-full bg-[rgb(var(--color-primary))/0.3] text-[rgb(var(--text-on-accent))]">{g}</span>)}</div><p className="text-[rgb(var(--text-secondary))] mb-4 text-sm max-h-32 overflow-y-auto">{playerAnime.synopsis}</p>
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-2xl font-bold text-[rgb(var(--text-primary))]">Synopsis</h2>
+                            <button
+                                onClick={handleSurpriseMe}
+                                disabled={isSurpriseLoading}
+                                className="flex items-center gap-2 px-3 py-2 bg-[rgb(var(--surface-3))] rounded-lg font-semibold text-[rgb(var(--color-primary-accent))] hover:bg-[rgb(var(--color-primary-hover))] hover:text-white transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-wait"
+                                title="Get a fun fact or tagline about this anime!"
+                            >
+                                <SparklesIcon />
+                                <span>Surprise Me!</span>
+                            </button>
+                        </div>
+                        <div className="flex flex-wrap gap-2 mb-4">{playerAnime.genres.map(g => <span key={g} className="px-3 py-1 text-xs font-semibold rounded-full bg-[rgb(var(--color-primary))/0.3] text-[rgb(var(--text-on-accent))]">{g}</span>)}</div><p className="text-[rgb(var(--text-secondary))] mb-4 text-sm max-h-32 overflow-y-auto">{playerAnime.synopsis}</p>
                         <div className="flex items-center gap-4 border-y border-[rgb(var(--border-color))] py-4 my-4"><span className="font-semibold text-[rgb(var(--text-primary))]">Your Rating:</span><div className="flex items-center gap-1">{[...Array(10)].map((_, i) => { const r = i + 1; return <button key={r} onClick={() => rateAnime(playerAnime.id, r)} className="group transition-transform hover:scale-125"><StarIcon className={`w-6 h-6 transition-colors ${r <= (currentRating || 0) ? 'text-[rgb(var(--color-warning))]' : 'text-[rgb(var(--text-muted))] group-hover:text-[rgb(var(--color-warning))]/50'}`} /></button>; })}</div></div>
                         <div className="text-sm space-y-2 text-[rgb(var(--text-muted))]">{playerAnime.releaseYear && <p><span className="font-semibold text-[rgb(var(--text-primary))]">Release:</span> {playerAnime.releaseYear}</p>}<p><span className="font-semibold text-[rgb(var(--text-primary))]">Status:</span> {playerAnime.status}</p>{playerAnime.rating && <p><span className="font-semibold text-[rgb(var(--text-primary))]">Score:</span> {playerAnime.rating}/10</p>}{playerAnime.runtime && playerAnime.type === 'Movie' && <p><span className="font-semibold text-[rgb(var(--text-primary))]">Duration:</span> {formatDuration(playerAnime.runtime)}</p>}{averageRuntime && playerAnime.type !== 'Movie' && <p><span className="font-semibold text-[rgb(var(--text-primary))]">Avg. Duration:</span> {formatDuration(averageRuntime)}</p>}</div>
                     </div>
