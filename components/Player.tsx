@@ -488,7 +488,8 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
         }
     };
     fetchAnimeDetails();
-  }, [anime.id, getContinueWatchingInfo]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anime.id]);
 
   useEffect(() => { if (playerAnime) logToHistory(playerAnime); }, [playerAnime, logToHistory]);
 

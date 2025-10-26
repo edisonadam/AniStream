@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import type { Anime } from '../types';
 import { CloseIcon, SearchIcon } from './icons/Icons';
@@ -139,8 +140,8 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose, onAnimeSelect, o
                         <div className="relative flex-shrink-0 w-12 h-16 bg-[rgb(var(--surface-3))] rounded-md overflow-hidden">
                             <img src={anime.thumbnail} alt={anime.title} className="w-full h-full object-cover" />
                             <div className="absolute top-1 left-1 flex flex-col items-start gap-1 z-10">
-                                {anime.isAdult && <span className="px-1 py-0.5 text-[9px] font-bold rounded-sm bg-red-600/90 text-white backdrop-blur-sm">+18</span>}
-                                {anime.type && <span className="px-1 py-0.5 text-[9px] font-bold rounded-sm bg-[rgb(var(--color-secondary-accent))/0.8] text-white backdrop-blur-sm">{anime.type.toUpperCase()}</span>}
+                                {anime.isAdult && <span className="px-1 py-0.5 text-[9px] font-bold rounded-sm bg-black/50 text-white backdrop-blur-md">+18</span>}
+                                {anime.type && <span className="px-1 py-0.5 text-[9px] font-bold rounded-sm bg-black/50 text-white backdrop-blur-md">{anime.type.toUpperCase()}</span>}
                             </div>
                         </div>
                         <div className="flex-1 min-w-0">
