@@ -94,7 +94,6 @@ export interface Settings {
     forceDesktopMode: boolean;
     episodeViewStyle: EpisodeViewStyle;
     blurEpisodeThumbnails: boolean;
-    adsDisabled: boolean;
     restrictAdultContent: boolean;
 }
 

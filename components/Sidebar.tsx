@@ -215,16 +215,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onApplyFilters, curr
                 </div>
              )}
             <div className="flex justify-between items-center p-2 bg-[rgb(var(--surface-2))/0.5] rounded-md">
-                <span className="text-sm font-semibold text-[rgb(var(--text-secondary))]">Disable Ads</span>
-                <button
-                    onClick={() => updateSettings({ adsDisabled: !settings.adsDisabled })}
-                    className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${settings.adsDisabled ? 'bg-[rgb(var(--color-primary))]' : 'bg-[rgb(var(--surface-4))]'}`}
-                    aria-label={`Ads are currently ${settings.adsDisabled ? 'disabled' : 'enabled'}`}
-                >
-                    <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${settings.adsDisabled ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
-            </div>
-            <div className="flex justify-between items-center p-2 bg-[rgb(var(--surface-2))/0.5] rounded-md">
                 <span className="text-sm font-semibold text-[rgb(var(--text-secondary))]">Theme</span>
                 <button
                     onClick={() => updateSettings({ theme: settings.theme === 'light' ? 'dark' : 'light' })}

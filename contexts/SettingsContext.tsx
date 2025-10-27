@@ -12,7 +12,6 @@ const defaultSettings: Settings = {
   forceDesktopMode: false,
   episodeViewStyle: 'default',
   blurEpisodeThumbnails: true,
-  adsDisabled: false,
   restrictAdultContent: true,
 };
 
