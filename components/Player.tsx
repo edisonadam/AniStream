@@ -1222,15 +1222,12 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
             </div>
         )}
 
-        <div className="relative w-full h-80 md:h-96 lg:h-[32rem] -mx-4 sm:-mx-6 lg:-mx-8">
-            <div className="absolute inset-0 overflow-hidden">
-                <img src={playerAnime.bannerImage} alt={`${playerAnime.title} banner`} className="w-full h-full object-cover object-center" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent" />
-            </div>
-            <div className="absolute inset-0 bg-gradient-to-t from-[rgb(var(--bg-gradient-via))] from-30% to-transparent" />
+        <div className="relative w-full h-[250px] md:h-[400px]">
+            <img src={playerAnime.bannerImage} alt={`${playerAnime.title} banner`} className="w-full h-full object-cover object-center" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[rgb(var(--bg-gradient-via))] to-transparent" />
         </div>
 
-        <section className="container mx-auto px-4 sm:px-6 lg:px-8 pt-8 -mt-40 md:-mt-48 lg:-mt-[16rem] relative z-10">
+        <section className="container mx-auto px-4 sm:px-6 lg:px-8 pt-8 -mt-24 md:-mt-48 relative z-10">
             <div className="relative z-10">
                 <div className="mb-6">
                     <button onClick={onGoBack} className="flex items-center space-x-2 text-[rgb(var(--text-primary))] bg-[rgb(var(--surface-1))/60] backdrop-blur-sm px-4 py-2 rounded-lg hover:bg-[rgb(var(--surface-2))] transition-colors group">
