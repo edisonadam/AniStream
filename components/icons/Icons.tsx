@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 
 export const HamburgerIcon: React.FC = () => (
@@ -132,6 +133,13 @@ export const ChevronDownIcon: React.FC<{ className?: string }> = ({ className = 
     </svg>
 );
 
+// FIX: Add missing ChevronUpIcon to solve import error in DownloadModal.tsx.
+export const ChevronUpIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7"></path>
+    </svg>
+);
+
 export const LanguageIcon: React.FC = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="m5 8 6 6" />
@@ -140,6 +148,12 @@ export const LanguageIcon: React.FC = () => (
       <path d="M7 2h1" />
       <path d="m22 22-5-10-5 10" />
       <path d="M14 18h6" />
+    </svg>
+);
+
+export const BuildingIcon: React.FC = () => (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m-1 4h1m5-8h1m-1 4h1m-1 4h1M5 21V10.134A1 1 0 015.618 9.24l5-2.5a1 1 0 011.028.028l4.744 2.372a1 1 0 01.61.926V21" />
     </svg>
 );
 

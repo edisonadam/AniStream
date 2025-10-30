@@ -94,14 +94,18 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose, onAnimeSelect, o
 
   return (
     <div 
-      className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex justify-center items-start pt-24 sm:pt-32 animate-fade-in-fast" 
+      className="fixed inset-0 bg-black/70 backdrop-blur-lg z-50 flex justify-center items-start pt-24 sm:pt-32 animate-cinematic-fade-in" 
       onClick={onClose}
     >
       <div 
-        className="relative bg-[rgb(var(--surface-2))/0.8] border border-[rgb(var(--border-color))] rounded-2xl w-[90%] max-w-2xl transform transition-all shadow-2xl shadow-[rgb(var(--shadow-color))/0.5]" 
+        className="relative bg-[rgb(var(--surface-2))/0.6] backdrop-blur-2xl border border-white/10 rounded-3xl w-[90%] max-w-2xl transform transition-all shadow-2xl shadow-[rgb(var(--shadow-color))/0.5]" 
         onClick={e => e.stopPropagation()}
       >
+        <button onClick={onClose} className="absolute top-4 right-4 text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))] z-10" aria-label="Close search">
+          <CloseIcon />
+        </button>
         <div className="relative p-4">
+          <div className="absolute inset-y-0 left-0 pl-8 flex items-center pointer-events-none text-[rgb(var(--text-muted))]"><SearchIcon /></div>
           <input
             type="text"
             autoFocus
@@ -109,10 +113,15 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose, onAnimeSelect, o
             onChange={e => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Search for an anime..."
-            className="w-full bg-[rgb(var(--surface-input))/0.6] border-2 border-[rgb(var(--border-color))] rounded-full py-3 pl-12 pr-12 text-lg text-[rgb(var(--text-primary))] placeholder-[rgb(var(--text-muted))] focus:ring-[rgb(var(--border-focus))] focus:border-[rgb(var(--border-focus))]"
+            className="w-full bg-[rgb(var(--surface-input))/0.2] border-2 border-white/10 rounded-full py-3 pl-12 pr-12 text-lg text-[rgb(var(--text-primary))] placeholder-[rgb(var(--text-muted))] focus:ring-2 focus:ring-[rgb(var(--border-focus))] focus:shadow-[0_0_15px_rgb(var(--shadow-color)/0.8)]"
           />
-          <div className="absolute inset-y-0 left-0 pl-8 flex items-center pointer-events-none text-[rgb(var(--text-muted))]"><SearchIcon /></div>
-          <button onClick={onClose} className="absolute inset-y-0 right-0 pr-8 flex items-center text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))]"><CloseIcon/></button>
+           <button 
+              onClick={() => query.trim() && onSearchSubmit(query.trim())}
+              className="absolute inset-y-0 right-0 pr-8 flex items-center text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))]"
+              aria-label="Submit search"
+            >
+              <SearchIcon/>
+            </button>
         </div>
         
         <div className="p-4 pt-0 max-h-[60vh] overflow-y-auto">
@@ -121,7 +130,7 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose, onAnimeSelect, o
               <>
                 <li className="px-3 pt-2 pb-1 text-sm text-[rgb(var(--text-muted))] font-semibold">Trending Searches</li>
                 {DEFAULT_SEARCH_SUGGESTIONS.map(title => (
-                   <li key={title} onClick={() => onSearchSubmit(title)} className="p-3 rounded-lg cursor-pointer hover:bg-[rgb(var(--color-primary))/0.3] transition-colors text-[rgb(var(--text-secondary))] font-medium">
+                   <li key={title} onClick={() => onSearchSubmit(title)} className="p-3 rounded-xl cursor-pointer hover:bg-[rgb(var(--color-primary))/0.3] transition-colors text-[rgb(var(--text-secondary))] font-medium">
                        {title}
                    </li>
                 ))}
@@ -136,8 +145,8 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose, onAnimeSelect, o
                 <>
                     <li className="px-3 pt-2 pb-1 text-sm text-[rgb(var(--text-muted))] font-semibold">Suggestions</li>
                     {suggestions.map(anime => (
-                    <li key={anime.id} onClick={() => handleSelect(anime)} className="flex items-center gap-4 p-3 rounded-lg cursor-pointer hover:bg-[rgb(var(--color-primary))/0.3] transition-colors">
-                        <div className="relative flex-shrink-0 w-12 h-16 bg-[rgb(var(--surface-3))] rounded-md overflow-hidden">
+                    <li key={anime.id} onClick={() => handleSelect(anime)} className="flex items-center gap-4 p-3 rounded-xl cursor-pointer hover:bg-[rgb(var(--color-primary))/0.3] transition-colors">
+                        <div className="relative flex-shrink-0 w-12 h-16 bg-[rgb(var(--surface-3))] rounded-lg overflow-hidden">
                             <img src={anime.thumbnail} alt={anime.title} className="w-full h-full object-cover" />
                             <div className="absolute top-1 left-1 flex flex-col items-start gap-1 z-10">
                                 {anime.isAdult && <span className="px-1 py-0.5 text-[9px] font-bold rounded-sm bg-black/50 text-white backdrop-blur-md">+18</span>}

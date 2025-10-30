@@ -76,10 +76,11 @@ export type Filter = {
   year?: string;
   sort?: 'popularity' | 'alphabetical' | 'release_date';
   language?: 'Sub' | 'Dub' | 'Raw' | '';
+  studio?: string;
 };
 
 export type Theme = 'light' | 'dark';
-export type ColorPreset = 'neon-purple' | 'indigo-flare' | 'cyber-blue' | 'sunset-orange';
+export type ColorPreset = 'neon-purple' | 'indigo-flare' | 'cyber-cyan' | 'sunset-orange';
 export type VideoServer = 'embed-api' | 'vidsrc' | 'vidsrc-pk';
 export type EpisodeViewStyle = 'default' | 'compact' | 'grid';
 

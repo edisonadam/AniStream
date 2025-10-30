@@ -1,8 +1,3 @@
-
-
-
-
-
 import React, { useState, useEffect, useCallback } from 'react';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
@@ -306,6 +301,9 @@ const App: React.FC = () => {
               if (filters.language === 'Sub' && !anime.hasSub) return false;
               if (filters.language === 'Dub' && !anime.hasDub) return false;
             }
+            if (filters.studio && anime.studio) {
+                if (anime.studio.toLowerCase() !== filters.studio.toLowerCase()) return false;
+            }
             if(query && !isSearchOrFilter) {
                 const lowerQuery = query.toLowerCase();
                 const titleMatch = anime.title.toLowerCase().includes(lowerQuery);
@@ -357,11 +355,11 @@ const App: React.FC = () => {
     }
   }, [isLoading, isLoadingMore, hasMore]);
 
-  const handleSelectAnime = (anime: Anime) => {
+  const handleSelectAnime = useCallback((anime: Anime) => {
     setSelectedAnime(anime);
     setView('player');
     window.scrollTo(0, 0);
-  };
+  }, []);
 
   const handleGoHome = () => {
     setSelectedAnime(null);
@@ -401,6 +399,19 @@ const App: React.FC = () => {
       setView('home');
       closeSidebar();
   }
+
+  const handleSortChange = (newSort: Filter['sort']) => {
+    const newFilters = { ...filters, sort: newSort };
+    sessionStorage.setItem('anistream-filters', JSON.stringify(newFilters));
+    setFilters(currentFilters => {
+        if (currentFilters.sort !== newSort) {
+            setAnimeList([]);
+            setPage(1);
+            setHasMore(true);
+        }
+        return newFilters;
+    });
+  };
 
   const handleSearchSubmit = (query: string) => {
     const newFilters: Filter = { query: query.trim() };
@@ -562,6 +573,7 @@ const App: React.FC = () => {
             onLoadMore={loadMore}
             hasMore={hasMore}
             isLoadingMore={isLoadingMore}
+            onSortChange={handleSortChange}
         />}
       </>
     );

@@ -1,6 +1,4 @@
-
-
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useEffect } from 'react';
 import AnimeCard from './AnimeCard';
 import type { Anime, Filter } from '../types';
 import AnimeCardSkeleton from './AnimeCardSkeleton';
@@ -14,32 +12,90 @@ interface AnimeGridProps {
   onLoadMore: () => void;
   hasMore: boolean;
   isLoadingMore: boolean;
+  onSortChange?: (sort: Filter['sort']) => void;
 }
 
-const AnimeGrid: React.FC<AnimeGridProps> = ({ onAnimeSelect, animeList, title, filters, isLoading, onLoadMore, hasMore, isLoadingMore }) => {
+const AnimeGrid: React.FC<AnimeGridProps> = ({ onAnimeSelect, animeList, title, filters, isLoading, onLoadMore, hasMore, isLoadingMore, onSortChange }) => {
   const hasActiveFilters = Object.values(filters).some(v => {
     if (Array.isArray(v)) return v.length > 0;
     return !!v;
   });
 
-  const observer = useRef<IntersectionObserver>();
-  const lastElementRef = useCallback(node => {
+  const lastElementRef = useRef<HTMLDivElement>(null);
+  const gridContainerRef = useRef<HTMLDivElement>(null);
+
+  // Effect for infinite scrolling using IntersectionObserver (for user scrolling)
+  useEffect(() => {
     if (isLoading || isLoadingMore) return;
-    if (observer.current) observer.current.disconnect();
-    observer.current = new IntersectionObserver(entries => {
+
+    const observer = new IntersectionObserver(
+      (entries) => {
         if (entries[0].isIntersecting && hasMore) {
-            onLoadMore();
+          onLoadMore();
         }
-    });
-    if (node) observer.current.observe(node);
-  }, [isLoading, isLoadingMore, hasMore, onLoadMore]);
+      },
+      { rootMargin: '400px' } // Load content when it's 400px away from the viewport for a smoother experience
+    );
+
+    const currentElement = lastElementRef.current;
+    if (currentElement) {
+      observer.observe(currentElement);
+    }
+
+    return () => {
+      if (currentElement) {
+        observer.unobserve(currentElement);
+      }
+    };
+  }, [onLoadMore, hasMore, isLoading, isLoadingMore]);
+
+  // Effect to automatically load more content if the viewport isn't full,
+  // which often happens after applying filters that reduce the item count.
+  useEffect(() => {
+    const fillViewport = () => {
+      // Don't run if we are already loading, have no more items, or the ref is not attached.
+      if (isLoading || isLoadingMore || !hasMore || !gridContainerRef.current) {
+        return;
+      }
+      
+      // Check if the bottom of the grid is above the bottom of the viewport.
+      const rect = gridContainerRef.current.getBoundingClientRect();
+      if (rect.bottom > 0 && rect.bottom < window.innerHeight) {
+        onLoadMore();
+      }
+    };
+
+    // Use a timeout to allow the DOM to render the new items before checking.
+    // The dependency on `animeList` will cause this to re-run if more items are loaded,
+    // creating a loop until the viewport is full or we run out of items.
+    const timer = setTimeout(fillViewport, 300);
+
+    return () => clearTimeout(timer);
+  }, [animeList, hasMore, isLoading, isLoadingMore, onLoadMore]);
 
 
   return (
     <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <h2 className="text-3xl font-bold mb-8 text-[rgb(var(--text-primary))]" style={{ textShadow: `0 0 8px rgb(var(--shadow-color) / 0.5)` }}>
-        {title}
-      </h2>
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
+        <h2 className="text-3xl font-bold text-[rgb(var(--text-primary))]" style={{ textShadow: `0 0 8px rgb(var(--shadow-color) / 0.5)` }}>
+          {title}
+        </h2>
+        {onSortChange && (
+          <div className="flex items-center gap-2 self-end sm:self-center">
+            <label htmlFor="sort-by" className="text-sm font-semibold text-[rgb(var(--text-muted))]">Sort by:</label>
+            <select
+              id="sort-by"
+              value={filters.sort || 'popularity'}
+              onChange={(e) => onSortChange(e.target.value as Filter['sort'])}
+              className="bg-[rgb(var(--surface-2))] border border-[rgb(var(--border-color))] rounded-lg px-3 py-1.5 text-sm text-[rgb(var(--text-primary))] focus:ring-1 focus:ring-[rgb(var(--border-focus))] focus:border-[rgb(var(--border-focus))] transition-all"
+            >
+              <option value="popularity">Popularity</option>
+              <option value="release_date">Newest</option>
+              <option value="alphabetical">A-Z</option>
+            </select>
+          </div>
+        )}
+      </div>
       {isLoading && animeList.length === 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
           {Array.from({ length: 12 }).map((_, index) => (
@@ -48,9 +104,11 @@ const AnimeGrid: React.FC<AnimeGridProps> = ({ onAnimeSelect, animeList, title, 
         </div>
       ) : animeList.length > 0 ? (
         <>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
-              {animeList.map((anime) => (
-                <AnimeCard key={anime.id} anime={anime} onSelect={onAnimeSelect} />
+            <div ref={gridContainerRef} className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
+              {animeList.map((anime, index) => (
+                <div key={anime.id} className="animate-subtle-fade-in-up" style={{ animationDelay: `${index * 100}ms` }}>
+                    <AnimeCard anime={anime} onSelect={onAnimeSelect} />
+                </div>
               ))}
             </div>
 

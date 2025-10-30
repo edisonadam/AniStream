@@ -54,19 +54,19 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
         {/* Profile Header */}
         <div className="text-center">
             {isEditingProfile ? (
-                <form onSubmit={handleProfileSave} className="max-w-sm mx-auto space-y-4 bg-[rgb(var(--surface-3))] p-6 rounded-xl">
+                <form onSubmit={handleProfileSave} className="max-w-sm mx-auto space-y-4 bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl p-6 rounded-2xl border border-white/10">
                     <h3 className="text-lg font-bold">Edit Profile</h3>
                     <div>
                         <label className="block text-sm text-left font-medium text-[rgb(var(--text-secondary))] mb-1">Username</label>
-                        <input type="text" value={editUsername} onChange={e => setEditUsername(e.target.value)} className="w-full bg-[rgb(var(--surface-input))] border border-[rgb(var(--border-color))] rounded-lg px-3 py-2 text-[rgb(var(--text-primary))] focus:ring-[rgb(var(--border-focus))] focus:border-[rgb(var(--border-focus))] transition-all" />
+                        <input type="text" value={editUsername} onChange={e => setEditUsername(e.target.value)} className="w-full bg-[rgb(var(--surface-input))/0.2] border border-white/10 rounded-xl px-3 py-2 text-[rgb(var(--text-primary))] focus:ring-2 focus:ring-[rgb(var(--border-focus))] focus:border-[rgb(var(--border-focus))] transition-all" />
                     </div>
                      <div>
                         <label className="block text-sm text-left font-medium text-[rgb(var(--text-secondary))] mb-1">Avatar URL</label>
-                        <input type="text" value={editAvatar} onChange={e => setEditAvatar(e.target.value)} className="w-full bg-[rgb(var(--surface-input))] border border-[rgb(var(--border-color))] rounded-lg px-3 py-2 text-[rgb(var(--text-primary))] focus:ring-[rgb(var(--border-focus))] focus:border-[rgb(var(--border-focus))] transition-all" />
+                        <input type="text" value={editAvatar} onChange={e => setEditAvatar(e.target.value)} className="w-full bg-[rgb(var(--surface-input))/0.2] border border-white/10 rounded-xl px-3 py-2 text-[rgb(var(--text-primary))] focus:ring-2 focus:ring-[rgb(var(--border-focus))] focus:border-[rgb(var(--border-focus))] transition-all" />
                     </div>
                     <div className="flex gap-2 justify-center">
-                        <button type="button" onClick={() => setIsEditingProfile(false)} className="px-4 py-2 bg-[rgb(var(--surface-4))] rounded-lg font-semibold hover:bg-[rgb(var(--surface-3))]">Cancel</button>
-                        <button type="submit" className="px-4 py-2 bg-[rgb(var(--color-primary))] rounded-lg font-semibold hover:bg-[rgb(var(--color-primary-hover))]">Save</button>
+                        <button type="button" onClick={() => setIsEditingProfile(false)} className="px-4 py-2 bg-white/10 rounded-full font-semibold hover:bg-white/20">Cancel</button>
+                        <button type="submit" className="px-4 py-2 bg-[rgb(var(--color-primary))] rounded-full font-semibold hover:bg-[rgb(var(--color-primary-hover))]">Save</button>
                     </div>
                 </form>
             ) : (
@@ -74,8 +74,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
                     <img src={user?.avatar} alt={user?.username} className="w-24 h-24 rounded-full mx-auto mb-4 ring-4 ring-[rgb(var(--color-primary))]/50" />
                     <h2 className="text-3xl font-bold">{user?.username}</h2>
                     <div className="mt-4 flex gap-2 justify-center">
-                        <button onClick={() => setIsEditingProfile(true)} className="px-4 py-2 bg-[rgb(var(--surface-3))] rounded-lg font-semibold hover:bg-[rgb(var(--surface-4))]">Edit Profile</button>
-                        <button onClick={logout} className="px-4 py-2 bg-[rgb(var(--color-danger))]/20 text-[rgb(var(--color-danger))] rounded-lg font-semibold hover:bg-[rgb(var(--color-danger))]/40">Logout</button>
+                        <button onClick={() => setIsEditingProfile(true)} className="px-4 py-2 bg-white/10 rounded-full font-semibold hover:bg-white/20">Edit Profile</button>
+                        <button onClick={logout} className="px-4 py-2 bg-[rgb(var(--color-danger))]/20 text-[rgb(var(--color-danger))] rounded-full font-semibold hover:bg-[rgb(var(--color-danger))]/40">Logout</button>
                     </div>
                 </>
             )}
@@ -94,19 +94,19 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
             {friends.length > 0 ? (
                 <div className="space-y-3">
                     {friends.map(friend => (
-                        <div key={friend.username} className="flex items-center justify-between bg-[rgb(var(--surface-2))] p-3 rounded-lg">
+                        <div key={friend.username} className="flex items-center justify-between bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl p-3 rounded-2xl border border-white/10">
                             <div className="flex items-center gap-4">
                                 <img src={friend.avatar} alt={friend.username} className="w-12 h-12 rounded-full" />
                                 <span className="font-bold text-[rgb(var(--text-primary))]">{friend.username}</span>
                             </div>
-                            <button onClick={() => removeFriend(friend.username)} className="p-2 rounded-full bg-[rgb(var(--surface-3))] text-[rgb(var(--text-muted))] hover:bg-[rgb(var(--color-danger))]/80 hover:text-white transition-colors">
+                            <button onClick={() => removeFriend(friend.username)} className="p-2 rounded-full bg-white/10 text-[rgb(var(--text-muted))] hover:bg-[rgb(var(--color-danger))]/80 hover:text-white transition-colors">
                                 <CloseIcon/>
                             </button>
                         </div>
                     ))}
                 </div>
             ) : (
-                <div className="text-center p-12 bg-[rgb(var(--surface-2))] rounded-xl">
+                <div className="text-center p-12 bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl rounded-2xl border border-white/10">
                     <p className="text-lg text-[rgb(var(--text-muted))]">You haven't added any friends yet.</p>
                     <p className="text-sm text-[rgb(var(--text-muted))] mt-2">You can add friends from the comments section on any anime!</p>
                 </div>
@@ -117,7 +117,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
     const SettingsTabContent = () => (
       <div className="max-w-2xl mx-auto space-y-8">
         {/* Appearance Settings */}
-        <div className="bg-[rgb(var(--surface-2))] p-6 rounded-xl">
+        <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 p-6 rounded-2xl">
           <h3 className="text-xl font-bold mb-4 text-[rgb(var(--color-primary-accent))]">Appearance</h3>
           <div className="space-y-4">
              <div className="flex justify-between items-center">
@@ -131,11 +131,11 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
                 <label className="font-semibold text-[rgb(var(--text-secondary))]">Color Preset</label>
                 <div className="grid grid-cols-2 gap-2">
                     {COLOR_PRESETS.map(preset => (
-                        <button key={preset.id} onClick={() => updateSettings({ colorPreset: preset.id })} className={`w-full p-2 rounded-lg text-left font-semibold transition-colors ${settings.colorPreset === preset.id ? 'bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))] ring-2 ring-offset-2 ring-offset-[rgb(var(--surface-2))] ring-[rgb(var(--color-primary))]' : 'bg-[rgb(var(--surface-3))] hover:bg-[rgb(var(--surface-4))]'}`}>{preset.name}</button>
+                        <button key={preset.id} onClick={() => updateSettings({ colorPreset: preset.id })} className={`w-full p-2 rounded-xl text-left font-semibold transition-colors ${settings.colorPreset === preset.id ? 'bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))] ring-2 ring-offset-2 ring-offset-[rgb(var(--surface-2))] ring-[rgb(var(--color-primary))]' : 'bg-white/5 hover:bg-white/10'}`}>{preset.name}</button>
                     ))}
                 </div>
             </div>
-            <div className="flex flex-col pt-4 border-t border-[rgb(var(--border-color))]/50">
+            <div className="flex flex-col pt-4 border-t border-white/10">
                 <div className="flex justify-between items-center">
                     <label className="font-semibold text-[rgb(var(--text-secondary))]">Force desktop mode</label>
                     <button onClick={() => updateSettings({ forceDesktopMode: !settings.forceDesktopMode })} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${settings.forceDesktopMode ? 'bg-[rgb(var(--color-primary))]' : 'bg-[rgb(var(--surface-4))]'}`}>
@@ -148,7 +148,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
         </div>
 
         {/* Playback Settings */}
-        <div className="bg-[rgb(var(--surface-2))] p-6 rounded-xl">
+        <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 p-6 rounded-2xl">
           <h3 className="text-xl font-bold mb-4 text-[rgb(var(--color-primary-accent))]">Playback & Content</h3>
            <div className="space-y-4">
             <div className="flex flex-col">
@@ -166,31 +166,31 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
               </div>
               {!isLoggedIn && <p className="text-sm text-[rgb(var(--text-muted))] mt-1">You must be logged in to change this setting.</p>}
             </div>
-             <div className="flex justify-between items-center pt-4 border-t border-[rgb(var(--border-color))]/50">
+             <div className="flex justify-between items-center pt-4 border-t border-white/10">
                 <label className="font-semibold text-[rgb(var(--text-secondary))]">Autoplay Next Episode</label>
                 <button onClick={() => updateSettings({ autoplayNext: !settings.autoplayNext })} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${settings.autoplayNext ? 'bg-[rgb(var(--color-primary))]' : 'bg-[rgb(var(--surface-4))]'}`}>
                     <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${settings.autoplayNext ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
             </div>
-            <div className="flex justify-between items-center pt-4 border-t border-[rgb(var(--border-color))]/50">
+            <div className="flex justify-between items-center pt-4 border-t border-white/10">
                 <label className="font-semibold text-[rgb(var(--text-secondary))]">Auto Skip Intro</label>
                 <button onClick={() => updateSettings({ autoSkipIntro: !settings.autoSkipIntro })} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${settings.autoSkipIntro ? 'bg-[rgb(var(--color-primary))]' : 'bg-[rgb(var(--surface-4))]'}`}>
                     <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${settings.autoSkipIntro ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
             </div>
-            <div className="flex justify-between items-center pt-4 border-t border-[rgb(var(--border-color))]/50">
+            <div className="flex justify-between items-center pt-4 border-t border-white/10">
                 <label className="font-semibold text-[rgb(var(--text-secondary))]">Auto Skip Outro</label>
                 <button onClick={() => updateSettings({ autoSkipOutro: !settings.autoSkipOutro })} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${settings.autoSkipOutro ? 'bg-[rgb(var(--color-primary))]' : 'bg-[rgb(var(--surface-4))]'}`}>
                     <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${settings.autoSkipOutro ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
             </div>
-             <div className="flex justify-between items-center pt-4 border-t border-[rgb(var(--border-color))]/50">
+             <div className="flex justify-between items-center pt-4 border-t border-white/10">
                 <label className="font-semibold text-[rgb(var(--text-secondary))]">Blur Episode Thumbnails</label>
                 <button onClick={() => updateSettings({ blurEpisodeThumbnails: !settings.blurEpisodeThumbnails })} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${settings.blurEpisodeThumbnails ? 'bg-[rgb(var(--color-primary))]' : 'bg-[rgb(var(--surface-4))]'}`}>
                     <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${settings.blurEpisodeThumbnails ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
             </div>
-            <div className="flex flex-col sm:flex-row justify-between items-center pt-4 border-t border-[rgb(var(--border-color))]/50">
+            <div className="flex flex-col sm:flex-row justify-between items-center pt-4 border-t border-white/10">
                 <label className="font-semibold text-[rgb(var(--text-secondary))] mb-2 sm:mb-0">Default Video Server</label>
                 <div className="flex items-center bg-[rgb(var(--surface-3))] rounded-full p-1">
                     {VIDEO_SERVERS.map(server => (
@@ -198,7 +198,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
                     ))}
                 </div>
             </div>
-             <div className="flex flex-col sm:flex-row justify-between items-center pt-4 border-t border-[rgb(var(--border-color))]/50">
+             <div className="flex flex-col sm:flex-row justify-between items-center pt-4 border-t border-white/10">
                 <label className="font-semibold text-[rgb(var(--text-secondary))] mb-2 sm:mb-0">Default Episode View</label>
                 <div className="flex items-center bg-[rgb(var(--surface-3))] rounded-full p-1">
                     <button onClick={() => updateSettings({ episodeViewStyle: 'default' })} className={`px-4 py-1.5 text-sm capitalize rounded-full transition-all ${settings.episodeViewStyle === 'default' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>{`Default`}</button>
@@ -207,13 +207,13 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
                 </div>
             </div>
             {settings.videoServer === 'vidsrc' && (
-                <div className="flex flex-col sm:flex-row justify-between items-center pt-4 border-t border-[rgb(var(--border-color))]/50">
+                <div className="flex flex-col sm:flex-row justify-between items-center pt-4 border-t border-white/10">
                     <label htmlFor="vidsrc-domain-select" className="font-semibold text-[rgb(var(--text-secondary))] mb-2 sm:mb-0">Dub Server Domain</label>
                     <select
                         id="vidsrc-domain-select"
                         value={settings.vidsrcDomain}
                         onChange={(e) => updateSettings({ vidsrcDomain: e.target.value })}
-                        className="w-full sm:w-auto bg-[rgb(var(--surface-input))] border border-[rgb(var(--border-color))] rounded-lg px-3 py-2 text-[rgb(var(--text-primary))] focus:ring-[rgb(var(--border-focus))] focus:border-[rgb(var(--border-focus))] transition-all"
+                        className="w-full sm:w-auto bg-[rgb(var(--surface-input))/0.2] border border-white/10 rounded-xl px-3 py-2 text-[rgb(var(--text-primary))] focus:ring-2 focus:ring-[rgb(var(--border-focus))] focus:border-[rgb(var(--border-focus))] transition-all"
                     >
                         {VIDSRC_DOMAINS.map(domain => (
                             <option key={domain} value={domain}>{domain}</option>
@@ -225,11 +225,11 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
         </div>
         
         {/* Data Management */}
-         <div className="bg-[rgb(var(--surface-2))] p-6 rounded-xl">
+         <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 p-6 rounded-2xl">
             <h3 className="text-xl font-bold mb-4 text-[rgb(var(--color-danger))]">Data Management</h3>
             <div className="space-y-2">
                 <p className="text-sm text-[rgb(var(--text-muted))]">This will permanently delete your viewing history and ratings.</p>
-                <button onClick={handleClearData} className="px-4 py-2 bg-[rgb(var(--color-danger))]/20 text-[rgb(var(--color-danger))] rounded-lg font-semibold hover:bg-[rgb(var(--color-danger))]/40">Clear My Data</button>
+                <button onClick={handleClearData} className="px-4 py-2 bg-[rgb(var(--color-danger))]/20 text-[rgb(var(--color-danger))] rounded-xl font-semibold hover:bg-[rgb(var(--color-danger))]/40">Clear My Data</button>
             </div>
          </div>
       </div>
@@ -251,7 +251,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
                 <span>Back to Browse</span>
             </button>
             
-            <div className="flex justify-center border-b border-[rgb(var(--border-color))] mb-8">
+            <div className="flex justify-center border-b border-white/10 mb-8">
                 <button onClick={() => setActiveTab('profile')} className={`px-6 py-3 text-lg font-semibold transition-colors ${activeTab === 'profile' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>{`Profile`}</button>
                 <button onClick={() => setActiveTab('friends')} className={`px-6 py-3 text-lg font-semibold transition-colors ${activeTab === 'friends' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>{`Friends`}</button>
                 <button onClick={() => setActiveTab('settings')} className={`px-6 py-3 text-lg font-semibold transition-colors ${activeTab === 'settings' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>{`Settings`}</button>

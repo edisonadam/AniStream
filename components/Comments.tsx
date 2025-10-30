@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Comment as CommentType, Anime } from '../types';
 import { useAuth } from '../hooks/useAuth';
@@ -31,17 +32,17 @@ const CommentForm: React.FC<{
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder={placeholder}
-        className="w-full bg-[rgb(var(--surface-input))/0.6] border border-[rgb(var(--border-color))] rounded-lg p-3 text-[rgb(var(--text-primary))] focus:ring-[rgb(var(--border-focus))] focus:border-[rgb(var(--border-focus))] transition-all"
+        className="w-full bg-[rgb(var(--surface-input))/0.2] border border-white/10 rounded-2xl p-3 text-[rgb(var(--text-primary))] focus:ring-2 focus:ring-[rgb(var(--border-focus))] focus:border-[rgb(var(--border-focus))] transition-all"
         rows={2}
         autoFocus={autoFocus}
       ></textarea>
       <div className="flex justify-end items-center gap-2 mt-2">
         {onCancel && (
-            <button type="button" onClick={onCancel} className="px-3 py-1.5 bg-[rgb(var(--surface-4))] text-[rgb(var(--text-secondary))] rounded-lg font-semibold hover:bg-[rgb(var(--surface-3))] transition-colors text-sm">
+            <button type="button" onClick={onCancel} className="px-4 py-2 bg-white/10 text-[rgb(var(--text-secondary))] rounded-full font-semibold hover:bg-white/20 transition-colors text-sm">
                 Cancel
             </button>
         )}
-        <button type="submit" className="px-4 py-2 bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))] rounded-lg font-semibold hover:bg-[rgb(var(--color-primary-hover))] transition-colors text-sm">
+        <button type="submit" className="px-4 py-2 bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))] rounded-full font-semibold hover:bg-[rgb(var(--color-primary-hover))] transition-colors text-sm">
             {cta}
         </button>
       </div>
@@ -131,10 +132,10 @@ const Comments: React.FC<CommentsProps> = ({ anime }) => {
     const friendAdded = isFriend(comment.user.username);
     
     return (
-        <div key={comment.id} className="flex items-start space-x-4">
-            <img src={comment.user.avatar} alt={comment.user.username} className="w-10 h-10 rounded-full bg-[rgb(var(--color-primary))/0.3]" />
+        <div key={comment.id} className="flex items-start space-x-3">
+            <img src={comment.user.avatar} alt={comment.user.username} className="w-10 h-10 rounded-full bg-[rgb(var(--color-primary))/0.3] mt-1 flex-shrink-0" />
             <div className="flex-1">
-                <div className="bg-[rgb(var(--surface-3))/0.4] rounded-lg p-3">
+                <div className="bg-[rgb(var(--surface-3))/0.5] rounded-3xl rounded-tl-lg p-4">
                     <div className="flex items-baseline space-x-2">
                         <p className="font-semibold text-[rgb(var(--color-primary-accent))]">{comment.user.username}</p>
                         <p className="text-xs text-[rgb(var(--text-muted))]">{new Date(comment.timestamp).toLocaleString()}</p>
@@ -145,7 +146,7 @@ const Comments: React.FC<CommentsProps> = ({ anime }) => {
                     </p>
                 </div>
                 {isLoggedIn && user?.username !== comment.user.username && (
-                    <div className="flex items-center gap-4 mt-2 pl-1">
+                    <div className="flex items-center gap-4 mt-2 pl-2">
                         <button onClick={() => setReplyingTo(comment.id)} className="flex items-center gap-1 text-xs font-semibold text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))]">
                             <MessageCircleIcon /> Reply
                         </button>
@@ -176,10 +177,10 @@ const Comments: React.FC<CommentsProps> = ({ anime }) => {
   return (
     <div className="mt-12">
       <h3 className="text-2xl font-bold mb-4 text-[rgb(var(--text-primary))]">Comments</h3>
-      <div className="bg-[rgb(var(--surface-2))/0.5] rounded-2xl p-6">
+      <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl rounded-3xl p-6">
         {isLoggedIn && user ? (
-          <div className="mb-6 flex items-start space-x-4">
-            <img src={user.avatar} alt={user.username} className="w-10 h-10 rounded-full bg-[rgb(var(--color-primary))/0.3]" />
+          <div className="mb-6 flex items-start space-x-3">
+            <img src={user.avatar} alt={user.username} className="w-10 h-10 rounded-full bg-[rgb(var(--color-primary))/0.3] flex-shrink-0" />
             <div className="flex-1">
                 <CommentForm onSubmit={(text) => handlePostComment(text)} cta="Post Comment" placeholder="Add a comment..." />
             </div>
@@ -187,7 +188,7 @@ const Comments: React.FC<CommentsProps> = ({ anime }) => {
         ) : (
           <p className="text-center text-[rgb(var(--text-muted))] mb-6">Please log in to post a comment.</p>
         )}
-        <div className="space-y-4">
+        <div className="space-y-6">
           {comments.length > 0 ? topLevelComments.map(comment => renderComment(comment)) : (
             <p className="text-center text-gray-500">No comments yet. Be the first!</p>
           )}

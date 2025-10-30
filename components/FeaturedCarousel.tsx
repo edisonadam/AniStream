@@ -106,8 +106,8 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
                 <div className="h-10 md:h-16 bg-[rgb(var(--surface-3))] rounded-lg w-3/4"></div>
                 <div className="h-6 bg-[rgb(var(--surface-3))] rounded-md w-1/2"></div>
                 <div className="flex items-center gap-3">
-                    <div className="h-12 bg-[rgb(var(--surface-4))] rounded-lg w-36"></div>
-                    <div className="h-12 bg-[rgb(var(--surface-4))] rounded-lg w-48"></div>
+                    <div className="h-12 bg-[rgb(var(--surface-4))] rounded-full w-36"></div>
+                    <div className="h-12 bg-[rgb(var(--surface-4))] rounded-full w-48"></div>
                 </div>
             </div>
         </section>
@@ -141,36 +141,38 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
       <div className="absolute inset-0 bg-gradient-to-r from-black/50 to-transparent w-1/2 z-10"></div>
 
       {/* Content */}
-      <div className="absolute bottom-10 md:bottom-20 left-4 md:left-12 text-white max-w-xl z-20">
-        <div key={currentIndex} className="animate-subtle-fade-in-up">
-          <h2 className="text-4xl md:text-6xl font-bold mb-3 drop-shadow-2xl" style={{textShadow: '0 4px 20px rgba(0,0,0,0.9)'}}>
-            {currentSlide.title}
-          </h2>
-          <div className="flex items-center flex-wrap gap-x-4 gap-y-2 mb-4 text-[rgb(var(--text-secondary))]" style={{textShadow: '0 2px 8px rgba(0,0,0,0.7)'}}>
-              {currentSlide.isAdult && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/50 text-white backdrop-blur-md">+18</span>}
-              {currentSlide.type && <span className="font-semibold">{currentSlide.type}</span>}
-              {currentSlide.rating && (
-                  <div className="flex items-center gap-1.5">
-                      <StarIcon className="w-5 h-5 text-[rgb(var(--color-warning))]" />
-                      <span className="font-semibold">{currentSlide.rating.toFixed(1)}</span>
-                  </div>
-              )}
-              <p className="hidden sm:block">{currentSlide.genres.slice(0, 3).join(' • ')}</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <button onClick={() => onAnimeSelect(currentSlide)} className="flex items-center gap-2 px-5 py-3 bg-[rgb(var(--color-primary))] text-white rounded-lg font-semibold hover:bg-[rgb(var(--color-primary-hover))] transition-transform duration-300 hover:scale-105 shadow-lg shadow-[rgb(var(--shadow-color))/0.4] hover:shadow-[rgb(var(--shadow-color))/0.6]">
-              <InfoIcon />
-              <span>More Info</span>
-            </button>
-            {isLoggedIn && (
-              <button
-                onClick={() => !inWatchLater && addToWatchLater(currentSlide)}
-                disabled={inWatchLater}
-                className="flex items-center gap-2 px-5 py-3 bg-[rgb(var(--surface-3))/0.6] text-white rounded-lg font-semibold hover:bg-[rgb(var(--surface-4))] transition-colors backdrop-blur-sm disabled:opacity-70 disabled:cursor-not-allowed">
-                {inWatchLater ? <CheckIcon/> : <PlusIcon/>}
-                <span>{inWatchLater ? 'Added' : 'Add to Watchlist'}</span>
+      <div className="absolute bottom-10 md:bottom-20 left-4 md:left-12 text-white max-w-2xl z-20">
+        <div className="bg-black/20 backdrop-blur-lg p-6 md:p-8 rounded-3xl border border-white/10 shadow-2xl shadow-black/30">
+          <div key={currentIndex} className="animate-subtle-fade-in-up">
+            <h2 className="text-4xl md:text-6xl font-bold mb-3 drop-shadow-2xl" style={{textShadow: '0 4px 20px rgba(0,0,0,0.9)'}}>
+              {currentSlide.title}
+            </h2>
+            <div className="flex items-center flex-wrap gap-x-4 gap-y-2 mb-4 text-[rgb(var(--text-secondary))]" style={{textShadow: '0 2px 8px rgba(0,0,0,0.7)'}}>
+                {currentSlide.isAdult && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/50 text-white backdrop-blur-md">+18</span>}
+                {currentSlide.type && <span className="font-semibold">{currentSlide.type}</span>}
+                {currentSlide.rating && (
+                    <div className="flex items-center gap-1.5">
+                        <StarIcon className="w-5 h-5 text-[rgb(var(--color-warning))]" />
+                        <span className="font-semibold">{currentSlide.rating.toFixed(1)}</span>
+                    </div>
+                )}
+                <p className="hidden sm:block">{currentSlide.genres.slice(0, 3).join(' • ')}</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button onClick={() => onAnimeSelect(currentSlide)} className="flex items-center gap-2 px-5 py-3 bg-[rgb(var(--color-primary))] text-white rounded-full font-semibold hover:bg-[rgb(var(--color-primary-hover))] transition-transform duration-300 hover:scale-105 shadow-lg shadow-[rgb(var(--shadow-color))/0.4] hover:shadow-[rgb(var(--shadow-color))/0.6]">
+                <InfoIcon />
+                <span>More Info</span>
               </button>
-            )}
+              {isLoggedIn && (
+                <button
+                  onClick={() => !inWatchLater && addToWatchLater(currentSlide)}
+                  disabled={inWatchLater}
+                  className="flex items-center gap-2 px-5 py-3 bg-white/10 text-white rounded-full font-semibold hover:bg-white/20 transition-colors backdrop-blur-sm disabled:opacity-70 disabled:cursor-not-allowed">
+                  {inWatchLater ? <CheckIcon/> : <PlusIcon/>}
+                  <span>{inWatchLater ? 'Added' : 'Add to Watchlist'}</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>

@@ -62,7 +62,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
   }
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-40 bg-[rgb(var(--surface-1)/0.5)] backdrop-blur-sm shadow-lg shadow-[rgb(var(--shadow-color)/0.2)]">
+    <header className="fixed top-0 left-0 right-0 z-40 bg-[rgb(var(--surface-2))/0.6] backdrop-blur-2xl border-b border-white/10">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           <div className="flex items-center space-x-4">
@@ -71,21 +71,21 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
           </div>
 
           <div className="flex items-center space-x-2 sm:space-x-4 ml-4">
-            <button onClick={onSearchClick} className="p-2 rounded-full text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] hover:bg-[rgb(var(--surface-2))] transition-all" aria-label="Search"><SearchIcon /></button>
+            <button onClick={onSearchClick} className="p-2.5 rounded-full text-[rgb(var(--text-secondary))] bg-white/5 hover:text-[rgb(var(--color-primary-accent))] hover:bg-white/10 transition-all" aria-label="Search"><SearchIcon /></button>
             
             {isLoggedIn && user ? (
               <>
                 <div className="relative" ref={notificationRef}>
-                  <button onClick={handleNotificationToggle} className="p-2 rounded-full text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] hover:bg-[rgb(var(--surface-2))] transition-all" aria-label="View notifications">
+                  <button onClick={handleNotificationToggle} className="p-2.5 rounded-full text-[rgb(var(--text-secondary))] bg-white/5 hover:text-[rgb(var(--color-primary-accent))] hover:bg-white/10 transition-all" aria-label="View notifications">
                     <BellIcon />
-                    {unreadCount > 0 && <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-[rgb(var(--color-primary))] ring-2 ring-[rgb(var(--surface-1))]"></span>}
+                    {unreadCount > 0 && <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-[rgb(var(--color-primary))] ring-2 ring-[rgb(var(--surface-1))]"></span>}
                   </button>
                   {isNotificationOpen && (
-                    <div className="origin-top-right absolute right-0 mt-2 w-72 sm:w-96 rounded-md shadow-lg bg-[rgb(var(--surface-2))] ring-1 ring-black ring-opacity-5">
-                      <div className="p-2 font-semibold text-[rgb(var(--text-primary))] border-b border-[rgb(var(--border-color))]">Notifications</div>
+                    <div className="origin-top-right absolute right-0 mt-2 w-72 sm:w-96 rounded-2xl shadow-lg bg-[rgb(var(--surface-2))/0.7] backdrop-blur-xl border border-white/10 ring-1 ring-black ring-opacity-5">
+                      <div className="p-3 font-semibold text-[rgb(var(--text-primary))] border-b border-white/10">Notifications</div>
                       <div className="py-1 max-h-96 overflow-y-auto">
                         {notifications.length > 0 ? notifications.map(n => (
-                          <button key={n.id} onClick={() => handleNotificationItemClick(n)} className={`block w-full text-left px-4 py-3 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] ${!n.read ? 'bg-[rgb(var(--color-primary))/0.1]' : ''}`}>
+                          <button key={n.id} onClick={() => handleNotificationItemClick(n)} className={`block w-full text-left px-4 py-3 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] transition-colors ${!n.read ? 'bg-[rgb(var(--color-primary))/0.1]' : ''}`}>
                             <div className="flex items-start gap-3">
                                 {n.relatedUser && <img src={n.relatedUser.avatar} alt={n.relatedUser.username} className="w-8 h-8 rounded-full flex-shrink-0"/>}
                                 <div className="flex-1">
@@ -107,22 +107,22 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
 
                 <div className="relative" ref={profileRef}>
                   <button onClick={() => setIsProfileOpen(!isProfileOpen)} className="p-1 rounded-full text-[rgb(var(--text-secondary))] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[rgb(var(--surface-1))] focus:ring-[rgb(var(--color-primary))]">
-                    <img src={user.avatar} alt={user.username} className="w-8 h-8 rounded-full bg-[rgb(var(--color-primary)/0.5)]" />
+                    <img src={user.avatar} alt={user.username} className="w-9 h-9 rounded-full bg-[rgb(var(--color-primary)/0.5)]" />
                   </button>
                   {isProfileOpen && (
-                    <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-[rgb(var(--surface-2))] ring-1 ring-black ring-opacity-5">
+                    <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-2xl shadow-lg bg-[rgb(var(--surface-2))/0.7] backdrop-blur-xl border border-white/10 ring-1 ring-black ring-opacity-5">
                       <div className="py-1" role="menu">
-                        <div className="px-4 py-2 text-sm text-[rgb(var(--text-primary))] font-semibold border-b border-[rgb(var(--border-color))]">{user.username}</div>
-                        <button onClick={() => handleProfileLink(onShowProfile)} className="block w-full text-left px-4 py-2 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))]">Profile & Settings</button>
-                        <button onClick={() => handleProfileLink(onShowWatchLater)} className="block w-full text-left px-4 py-2 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))]">Watch Later</button>
-                        <button onClick={handleLogout} className="block w-full text-left px-4 py-2 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))]">Logout</button>
+                        <div className="px-4 py-2 text-sm text-[rgb(var(--text-primary))] font-semibold border-b border-white/10">{user.username}</div>
+                        <button onClick={() => handleProfileLink(onShowProfile)} className="block w-full text-left px-4 py-2 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] transition-colors">Profile & Settings</button>
+                        <button onClick={() => handleProfileLink(onShowWatchLater)} className="block w-full text-left px-4 py-2 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] transition-colors">Watch Later</button>
+                        <button onClick={handleLogout} className="block w-full text-left px-4 py-2 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] transition-colors">Logout</button>
                       </div>
                     </div>
                   )}
                 </div>
               </>
             ) : (
-              <button onClick={onLoginClick} className="px-4 py-2 bg-[rgb(var(--color-primary))] rounded-lg text-sm font-semibold hover:bg-[rgb(var(--color-primary-hover))] text-[rgb(var(--text-on-primary))] transition-colors shadow-lg shadow-[rgb(var(--shadow-color)/0.3)]">Login</button>
+              <button onClick={onLoginClick} className="px-5 py-2.5 bg-[rgb(var(--color-primary))] rounded-full text-sm font-semibold hover:bg-[rgb(var(--color-primary-hover))] text-[rgb(var(--text-on-primary))] transition-colors shadow-lg shadow-[rgb(var(--shadow-color))/0.3]">Login</button>
             )}
           </div>
         </div>

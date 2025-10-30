@@ -3,7 +3,7 @@ import type { Settings, Theme, ColorPreset } from '../types';
 
 const defaultSettings: Settings = {
   theme: 'dark',
-  colorPreset: 'neon-purple',
+  colorPreset: 'cyber-cyan',
   autoplayNext: true,
   autoSkipIntro: false,
   autoSkipOutro: false,

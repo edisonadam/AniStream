@@ -9,7 +9,9 @@ import { useContinueWatching } from '../hooks/useContinueWatching';
 import { useProfileData } from '../hooks/useProfileData';
 import { useAuth } from '../hooks/useAuth';
 import { VIDEO_SERVERS, VIDSRC_DOMAINS } from '../constants';
+import { buildSourceUrl } from '../api';
 import { GoogleGenAI } from '@google/genai';
+import DownloadModal from './DownloadModal';
 
 declare const Hls: any;
 
@@ -28,6 +30,31 @@ interface MediaIds {
   imdb: string | null;
   mediaType: 'tv' | 'movie' | null;
 }
+
+const fetchWithRetry = async (url: string, retries = 1, delay = 1500): Promise<Response> => {
+    for (let i = 0; i <= retries; i++) {
+        try {
+            const response = await fetch(url);
+            // If we get a rate limit error and we have retries left, wait and continue
+            if (response.status === 429 && i < retries) {
+                await new Promise(resolve => setTimeout(resolve, delay));
+                continue;
+            }
+            return response;
+        } catch (error) {
+            // If a network error occurs and we have retries left, wait and continue
+            if (i < retries) {
+                await new Promise(resolve => setTimeout(resolve, delay));
+                continue;
+            }
+            // If it's the last retry, throw the error
+            throw error;
+        }
+    }
+    // This should not be reachable if retries >= 0, but is a fallback
+    throw new Error("fetchWithRetry failed after multiple retries");
+};
+
 
 const parseSeasonFromTitle = (title: string): number | null => {
     if (!title) return null;
@@ -53,92 +80,6 @@ const formatDuration = (minutes: number | null): string => {
     return `${hours}h`;
   }
   return `${hours}h ${remainingMinutes}m`;
-};
-
-const buildSourceUrl = (
-    server: VideoServer,
-    mediaType: 'tv' | 'movie' | null,
-    tmdbId: number | null,
-    season?: number,
-    episode?: number,
-    vidsrcDomain?: string,
-    autoplayNext?: boolean
-): string | null => {
-    if (!mediaType || !tmdbId) return null;
-
-    switch (server) {
-        case 'embed-api': { 
-            const url = new URL('https://player.embed-api.stream/');
-            url.searchParams.set('id', tmdbId.toString());
-            if (mediaType === 'tv') {
-                if (season === undefined || episode === undefined) return null;
-                url.searchParams.set('s', season.toString());
-                url.searchParams.set('e', episode.toString());
-            }
-            if (autoplayNext) {
-                url.searchParams.set('autoplay', '1');
-            }
-            return url.toString();
-        }
-        case 'vidsrc': { 
-            const domain = vidsrcDomain || 'vsrc.su';
-            let baseUrl = '';
-            if (mediaType === 'movie') {
-                baseUrl = `https://${domain}/embed/movie/${tmdbId}`;
-            } else if (mediaType === 'tv') {
-                if (season === undefined || episode === undefined) return null;
-                baseUrl = `https://${domain}/embed/tv/${tmdbId}/${season}-${episode}`;
-            } else {
-                return null;
-            }
-
-            const params = new URLSearchParams();
-            if (autoplayNext) {
-                params.set('autoplay', '1');
-                if (mediaType === 'tv') {
-                    params.set('autonext', '1');
-                }
-            }
-            
-            const queryString = params.toString();
-            return queryString ? `${baseUrl}?${queryString}` : baseUrl;
-        }
-        case 'vidsrc-pk': { 
-            let baseUrl = '';
-            if (mediaType === 'movie') {
-                baseUrl = `https://embed.vidsrc.pk/movie/${tmdbId}`;
-            } else if (mediaType === 'tv') {
-                if (season === undefined || episode === undefined) return null;
-                baseUrl = `https://embed.vidsrc.pk/tv/${tmdbId}/${season}-${episode}`;
-            } else {
-                return null;
-            }
-
-            const params = new URLSearchParams();
-            if (autoplayNext) {
-                params.set('autoplay', '1');
-                if (mediaType === 'tv') {
-                    params.set('autonext', '1');
-                }
-            }
-
-            const queryString = params.toString();
-            return queryString ? `${baseUrl}?${queryString}` : baseUrl;
-        }
-        default: {
-            const url = new URL('https://player.embed-api.stream/');
-            url.searchParams.set('id', tmdbId.toString());
-             if (mediaType === 'tv') {
-                if (season === undefined || episode === undefined) return null;
-                url.searchParams.set('s', season.toString());
-                url.searchParams.set('e', episode.toString());
-            }
-            if (autoplayNext) {
-                url.searchParams.set('autoplay', '1');
-            }
-            return url.toString();
-        }
-    }
 };
 
 const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => {
@@ -184,6 +125,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
   const [skipMessage, setSkipMessage] = useState('');
   
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
   const [failedImages, setFailedImages] = useState<Set<string | number>>(new Set());
 
   const { settings, updateSettings } = useSettings();
@@ -334,14 +276,14 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
         setFailedImages(new Set()); // Reset failed images on new anime
 
         try {
-            const fullDetailsRes = await fetch(`https://api.jikan.moe/v4/anime/${anime.id}/full`);
+            const fullDetailsRes = await fetchWithRetry(`https://api.jikan.moe/v4/anime/${anime.id}/full`);
             if (!fullDetailsRes.ok) throw new Error('Failed to fetch main details.');
             const item = (await fullDetailsRes.json()).data;
             if (!item) throw new Error('No detailed data found for this anime.');
             const fullAnimeData: Anime = { id: item.mal_id, title: item.title_english || item.title, thumbnail: item.images.jpg.large_image_url, bannerImage: item.images.jpg.large_image_url, synopsis: item.synopsis || 'No synopsis available.', genres: item.genres.map((g: any) => g.name), releaseYear: item.year, status: item.status === 'Finished Airing' ? 'Completed' : item.status === 'Currently Airing' ? 'Ongoing' : 'Upcoming', totalEpisodes: item.episodes, rating: item.score, type: item.type, studio: item.studios.length > 0 ? item.studios[0].name : 'Unknown', hasSub: anime.hasSub, hasDub: anime.hasDub, runtime: anime.runtime, isAdult: item.rating === 'Rx - Hentai', avgEpisodeDuration: anime.avgEpisodeDuration };
             setPlayerAnime(fullAnimeData); setDisplayTitle(fullAnimeData.title);
             
-            const relationsRes = await fetch(`https://api.jikan.moe/v4/anime/${anime.id}/relations`);
+            const relationsRes = await fetchWithRetry(`https://api.jikan.moe/v4/anime/${anime.id}/relations`);
             let relationsData: any[] = [];
             if (relationsRes.ok) {
                 relationsData = (await relationsRes.json()).data;
@@ -385,7 +327,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
                 setSeriesParts([fullAnimeData]);
             }
 
-            const recommendationsRes = await fetch(`https://api.jikan.moe/v4/anime/${anime.id}/recommendations`);
+            const recommendationsRes = await fetchWithRetry(`https://api.jikan.moe/v4/anime/${anime.id}/recommendations`);
             if (recommendationsRes.ok) {
                 const recommendationsData = await recommendationsRes.json();
                 setRelatedAnime((recommendationsData.data || []).slice(0, 6).map((rec: any) => ({ id: rec.entry.mal_id, title: rec.entry.title, thumbnail: rec.entry.images.jpg.large_image_url, bannerImage: rec.entry.images.jpg.large_image_url, synopsis: '', genres: [], releaseYear: null, status: 'Ongoing', totalEpisodes: null, rating: null, type: null, studio: '', hasSub: true, hasDub: false, runtime: null, isAdult: false, avgEpisodeDuration: null })));
@@ -393,7 +335,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
 
             let foundTmdbId: number | null = null;
             let foundMediaType: 'tv' | 'movie' | null = fullAnimeData.type === 'Movie' ? 'movie' : 'tv';
-            const externalLinksRes = await fetch(`https://api.jikan.moe/v4/anime/${anime.id}/external`);
+            const externalLinksRes = await fetchWithRetry(`https://api.jikan.moe/v4/anime/${anime.id}/external`);
             if (externalLinksRes.ok) {
                  const tmdbLink = (await externalLinksRes.json()).data.find((l: any) => l.name === 'TheMovieDB');
                  if (tmdbLink?.url) { const [, type, id] = tmdbLink.url.match(/(tv|movie)\/(\d+)/) || []; if (id && (type === 'tv' || type === 'movie')) { foundTmdbId = parseInt(id, 10); foundMediaType = type; } }
@@ -518,7 +460,19 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
                     if (!searchRes.ok) continue;
 
                     const searchData = await searchRes.json();
-                    const animeResult = searchData.results[0];
+                    if (!searchData.results || searchData.results.length === 0) continue;
+                    
+                    let animeResult;
+                    const lowerTitle = playerAnime.title.toLowerCase();
+                    const exactTitleMatch = searchData.results.find((r: any) => r.title.toLowerCase() === lowerTitle);
+                    
+                    if (provider === 'gogoanime') {
+                        const yearMatch = searchData.results.find((r: any) => r.releaseDate == playerAnime.releaseYear?.toString());
+                        animeResult = exactTitleMatch || yearMatch || searchData.results[0];
+                    } else { // for zoro and others
+                        animeResult = exactTitleMatch || searchData.results[0];
+                    }
+
                     if (!animeResult) continue;
 
                     const infoRes = await fetch(`https://api.consumet.org/anime/${provider}/info?id=${animeResult.id}`);
@@ -851,13 +805,6 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
     setIsShareModalOpen(false);
   };
 
-  const handleDownloadTorrent = () => {
-    if (!playerAnime) return;
-    const query = encodeURIComponent(playerAnime.title);
-    const torrentSearchUrl = `https://nyaa.si/?f=0&c=0_0&q=${query}`;
-    window.open(torrentSearchUrl, '_blank', 'noopener,noreferrer');
-  };
-
   const handleSurpriseMe = async () => {
     if (!playerAnime) return;
 
@@ -1138,7 +1085,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
     );
 
     return (
-        <div className="bg-[rgb(var(--surface-2))/0.5] rounded-xl p-3 my-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="bg-[rgb(var(--surface-2))/0.5] backdrop-blur-md rounded-xl p-3 my-4 flex flex-col sm:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-2">
                 <ControlButton onClick={() => handleSkip('intro')} disabled={!timestamps.intro || isLoadingTimestamps}>
                     <RewindIcon />
@@ -1188,7 +1135,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
     <div className="animate-cinematic-fade-in">
         {(isSurpriseLoading || surpriseMessage || surpriseError) && (
             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center animate-cinematic-fade-in" onClick={closeSurprise}>
-                <div className="bg-gradient-to-br from-[rgb(var(--surface-2))] to-[rgb(var(--surface-3))] border border-[rgb(var(--border-color))] rounded-2xl shadow-2xl shadow-[rgb(var(--shadow-color))/0.5] w-full max-w-sm m-4 p-6 relative transform transition-all animate-subtle-fade-in-up text-center" onClick={e => e.stopPropagation()}>
+                <div className="bg-gradient-to-br from-[rgb(var(--surface-2))/0.8] to-[rgb(var(--surface-3))/0.8] backdrop-blur-xl border border-[rgb(var(--border-color))] rounded-2xl shadow-2xl shadow-[rgb(var(--shadow-color))/0.5] w-full max-w-sm m-4 p-6 relative transform transition-all animate-subtle-fade-in-up text-center" onClick={e => e.stopPropagation()}>
                     <button onClick={closeSurprise} className="absolute top-3 right-3 text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))]"><CloseIcon /></button>
                     <div className="flex justify-center text-[rgb(var(--color-primary-accent))] mb-4">
                         <SparklesIcon className="w-10 h-10" />
@@ -1202,7 +1149,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
         )}
         {isShareModalOpen && (
             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center animate-cinematic-fade-in" onClick={() => setIsShareModalOpen(false)}>
-                <div className="bg-[rgb(var(--surface-2))] border border-[rgb(var(--border-color))] rounded-2xl shadow-2xl w-full max-w-sm m-4 p-6 relative" onClick={e => e.stopPropagation()}>
+                <div className="bg-[rgb(var(--surface-2))/0.8] backdrop-blur-xl border border-[rgb(var(--border-color))] rounded-2xl shadow-2xl w-full max-w-sm m-4 p-6 relative" onClick={e => e.stopPropagation()}>
                     <button onClick={() => setIsShareModalOpen(false)} className="absolute top-3 right-3 text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))]"><CloseIcon /></button>
                     <h3 className="text-xl font-bold mb-4 text-[rgb(var(--text-primary))]">Share with a friend</h3>
                     {friends.length > 0 ? (
@@ -1221,6 +1168,15 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
             </div>
         )}
 
+        {isDownloadModalOpen && playerAnime && (
+            <DownloadModal
+                anime={playerAnime}
+                episodes={episodes}
+                season={currentSeason}
+                onClose={() => setIsDownloadModalOpen(false)}
+            />
+        )}
+        
         <div className="relative w-full h-[250px] md:h-[400px]">
             <img src={playerAnime.bannerImage} alt={`${playerAnime.title} banner`} className="w-full h-full object-cover object-center" />
             <div className="absolute inset-0 bg-gradient-to-t from-[rgb(var(--bg-gradient-via))] to-transparent" />
@@ -1240,7 +1196,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       {playerAnime.isAdult && <span className="flex-shrink-0 px-3 py-1 text-sm font-bold rounded-full bg-red-600 text-white">+18</span>}
-                      <button onClick={handleDownloadTorrent} title="Download Torrent" className="p-2 rounded-full bg-[rgb(var(--surface-3))/0.7] backdrop-blur-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--color-primary-hover))] hover:text-white transition-colors" aria-label="Download Torrent">
+                      <button onClick={() => setIsDownloadModalOpen(true)} title="Download Options" className="p-2 rounded-full bg-[rgb(var(--surface-3))/0.7] backdrop-blur-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--color-primary-hover))] hover:text-white transition-colors" aria-label="Download Options">
                           <DownloadIcon />
                       </button>
                       {user && (
@@ -1293,7 +1249,36 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
                               </div>
                             )}
                         </div>
-                        <div className="bg-[rgb(var(--surface-2))/0.5] rounded-xl p-3 flex flex-col sm:flex-row justify-between items-center gap-4"><div className="flex-1 min-w-0">{mediaIds.mediaType === 'tv' && seasons.length > 0 ? <div className="flex items-center justify-center sm:justify-start gap-2"><button onClick={handlePrevEpisode} disabled={isFirstEpisodeOverall} className="p-2 rounded-full bg-[rgb(var(--surface-3))/0.6] hover:bg-[rgb(var(--surface-4))] disabled:opacity-50 disabled:hover:bg-[rgb(var(--surface-3))/0.6] transition-colors"><ChevronLeftIcon className="w-5 h-5" /></button><p className="text-[rgb(var(--color-primary-accent))] font-semibold text-lg text-center w-28 tabular-nums">{headerEpisodeText}</p><button onClick={handleNextEpisode} disabled={isLastEpisodeOverall} className="p-2 rounded-full bg-[rgb(var(--surface-3))/0.6] hover:bg-[rgb(var(--surface-4))] disabled:opacity-50 disabled:hover:bg-[rgb(var(--surface-3))/0.6] transition-colors"><ChevronRightIcon className="w-5 h-5" /></button></div> : <p className="text-[rgb(var(--color-primary-accent))] font-semibold text-lg text-center sm:text-left">{headerEpisodeText}</p>}</div><div className="flex items-center flex-wrap justify-center gap-2"><div className="flex items-center bg-[rgb(var(--surface-3))] rounded-full p-1">{servers.map(server => <button key={server.id} onClick={() => selectServer(server.id as VideoServer)} className={`px-4 py-1.5 text-sm rounded-full transition-all ${settings.videoServer === server.id ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>{server.name}</button>)}</div>{settings.videoServer === 'vidsrc' && <select value={settings.vidsrcDomain} onChange={e => updateSettings({ vidsrcDomain: e.target.value })} className="bg-[rgb(var(--surface-3))] rounded-full py-2 px-3 text-sm text-[rgb(var(--text-secondary))] font-semibold border-0 focus:ring-2 focus:ring-[rgb(var(--border-focus))]" aria-label="Select Vidsrc domain">{VIDSRC_DOMAINS.map(domain => <option key={domain} value={domain}>{domain}</option>)}</select>}</div></div>
+                        <div className="bg-[rgb(var(--surface-2))/0.5] backdrop-blur-md rounded-xl p-3 flex flex-col sm:flex-row justify-between items-center gap-4">
+                            <div className="flex-1 min-w-0">
+                                {mediaIds.mediaType === 'tv' && seasons.length > 0 ? (
+                                <div className="flex items-center justify-center sm:justify-start gap-2">
+                                    <button onClick={handlePrevEpisode} disabled={isFirstEpisodeOverall} className="p-2 rounded-full bg-[rgb(var(--surface-3))/0.6] hover:bg-[rgb(var(--surface-4))] disabled:opacity-50 disabled:hover:bg-[rgb(var(--surface-3))/0.6] transition-colors"><ChevronLeftIcon className="w-5 h-5" /></button>
+                                    <p className="text-[rgb(var(--color-primary-accent))] font-semibold text-lg text-center w-28 tabular-nums">{headerEpisodeText}</p>
+                                    <button onClick={handleNextEpisode} disabled={isLastEpisodeOverall} className="p-2 rounded-full bg-[rgb(var(--surface-3))/0.6] hover:bg-[rgb(var(--surface-4))] disabled:opacity-50 disabled:hover:bg-[rgb(var(--surface-3))/0.6] transition-colors"><ChevronRightIcon className="w-5 h-5" /></button>
+                                </div>
+                                ) : (
+                                <p className="text-[rgb(var(--color-primary-accent))] font-semibold text-lg text-center sm:text-left">{headerEpisodeText}</p>
+                                )}
+                            </div>
+                            <div className="flex items-center flex-wrap justify-center gap-2">
+                                <div className="flex items-center bg-[rgb(var(--surface-3))] rounded-full p-1">
+                                    {servers.map(server => (
+                                        <button
+                                            key={server.id}
+                                            onClick={() => selectServer(server.id as VideoServer)}
+                                            className={`px-4 py-1.5 text-sm rounded-full transition-all ${
+                                                settings.videoServer === server.id 
+                                                    ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' 
+                                                    : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'
+                                            }`}
+                                        >
+                                            {server.name}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
                         <PlaybackControls />
                       </>
                     )}
@@ -1336,7 +1321,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated }) => 
                     )}
                 </div>
                 <div className="player-side-column">
-                     <div className="bg-[rgb(var(--surface-2))/0.5] rounded-2xl p-6">
+                     <div className="bg-[rgb(var(--surface-2))/0.5] backdrop-blur-md rounded-2xl p-6">
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-2xl font-bold text-[rgb(var(--text-primary))]">Synopsis</h2>
                             <button

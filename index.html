@@ -1,21 +1,27 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark" data-color-preset="neon-purple">
+<html lang="en" data-theme="dark" data-color-preset="cyber-cyan">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ANISTREAM - Your Anime Universe</title>
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#9333ea">
+    <meta name="theme-color" content="#0ea5e9">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-      :root, :root[data-color-preset="neon-purple"] {
-        /* Base Colors */
-        --color-primary-hue: 265;
-        --color-secondary-hue: 174;
-        --color-tertiary-hue: 243;
-        
-        /* THEME: Neon Purple */
+      :root, :root[data-color-preset="cyber-cyan"] {
+        /* THEME: Cyber Cyan (New Default) */
+        --color-primary: 14 165 233; /* sky-500 */
+        --color-primary-hover: 8 145 178; /* cyan-600 */
+        --color-primary-accent: 56 189 248; /* sky-400 */
+        --color-secondary-accent: 16 185 129; /* emerald-500 */
+        --color-tertiary-accent: 192 132 252; /* purple-400 */
+        --shadow-color: 14 165 233; /* sky-500 */
+        --logo-glow-1: #00ffff;
+        --logo-glow-2: #38bdf8;
+      }
+
+      :root[data-color-preset="neon-purple"] {
         --color-primary: 147 51 234; /* purple-600 */
         --color-primary-hover: 126 34 206; /* purple-700 */
         --color-primary-accent: 192 132 252; /* purple-400 */
@@ -27,7 +33,6 @@
       }
       
       :root[data-color-preset="indigo-flare"] {
-        /* THEME: Indigo Flare */
         --color-primary: 79 70 229; /* indigo-600 */
         --color-primary-hover: 67 56 202; /* indigo-700 */
         --color-primary-accent: 129 140 248; /* indigo-400 */
@@ -38,18 +43,6 @@
         --logo-glow-2: #818cf8;
       }
 
-      :root[data-color-preset="cyber-blue"] {
-        /* THEME: Cyber Blue */
-        --color-primary: 37 99 235; /* blue-600 */
-        --color-primary-hover: 29 78 216; /* blue-700 */
-        --color-primary-accent: 96 165 250; /* blue-400 */
-        --color-secondary-accent: 22 163 74; /* green-600 */
-        --color-tertiary-accent: 217 70 239; /* fuchsia-500 */
-        --shadow-color: 59 130 246; /* blue-500 */
-        --logo-glow-1: #3b82f6;
-        --logo-glow-2: #60a5fa;
-      }
-      
       :root[data-color-preset="sunset-orange"] {
         /* THEME: Sunset Orange */
         --color-primary: 234 88 12; /* orange-600 */
@@ -62,28 +55,28 @@
         --logo-glow-2: #fb923c;
       }
 
-      /* Dark Mode Palette */
+      /* Dark Mode Palette - Liquid Glass */
       :root[data-theme="dark"] {
         --color-danger: 239 68 68;
         --color-warning: 251 191 36;
-        --text-primary: 241 245 249;
+        --text-primary: 234 234 234; /* #eaeaea */
         --text-secondary: 209 213 219;
         --text-muted: 156 163 175;
         --text-on-primary: 255 255 255;
         --text-on-accent: 243 232 255;
-        --bg-gradient-start: 59 7 100;
-        --bg-gradient-via: 15 23 42;
+        --bg-gradient-start: 10 10 15;
+        --bg-gradient-via: 5 5 10;
         --bg-gradient-end: 0 0 0;
-        --surface-1: 15 23 42;
-        --surface-2: 30 41 59;
-        --surface-3: 51 65 85;
-        --surface-4: 71 85 105;
+        --surface-1: 15 15 20; /* Darker base */
+        --surface-2: 30 30 40; /* Glass BG */
+        --surface-3: 45 45 55;
+        --surface-4: 60 60 70;
         --surface-input: 51 65 85;
         --border-color: 51 65 85;
         --border-focus: var(--color-primary);
         --scrollbar-thumb: rgb(var(--color-primary-hover));
         --scrollbar-thumb-hover: rgb(var(--color-primary));
-        --scrollbar-track: #0F172A;
+        --scrollbar-track: #0A0A0F;
       }
       
       /* Light Mode Palette (Ocean Blue) */
@@ -108,8 +101,6 @@
         --scrollbar-thumb: rgb(var(--color-primary-hover));
         --scrollbar-thumb-hover: rgb(var(--color-primary));
         --scrollbar-track: #e0f2fe; /* sky-100 */
-
-        /* Adjust logo glow for light mode */
         --logo-glow-1: transparent;
         --logo-glow-2: transparent;
       }
@@ -124,7 +115,7 @@
       html {
         scroll-behavior: smooth;
       }
-      button, a, input[type="checkbox"], input[type="radio"], select {
+      button, a, input, select {
         transition: all 0.2s ease-out;
       }
       @keyframes cinematic-fade-in {
@@ -132,14 +123,15 @@
         to { opacity: 1; filter: blur(0px); }
       }
       .animate-cinematic-fade-in {
-        animation: cinematic-fade-in 0.6s ease-out forwards;
+        animation: cinematic-fade-in 0.8s ease-out forwards;
       }
       @keyframes subtle-fade-in-up {
-        from { opacity: 0; transform: translateY(30px); }
-        to { opacity: 1; transform: translateY(0); }
+        from { opacity: 0; transform: translateY(20px) scale(0.98); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
       }
       .animate-subtle-fade-in-up {
-        animation: subtle-fade-in-up 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+        animation: subtle-fade-in-up 0.6s cubic-bezier(0.45, 0, 0.55, 1) forwards;
+        animation-fill-mode: both;
       }
       @keyframes ken-burns-slow {
         0% { transform: scale(1) translate(0, 0); }
@@ -166,13 +158,11 @@
         }
 
         .desktop-mode .player-side-column {
-          /* 80px for header, 48px for top padding */
           max-height: calc(100vh - 80px - 48px);
           overflow-y: auto;
-          padding-right: 8px; /* Space for scrollbar */
+          padding-right: 8px;
         }
 
-        /* WebKit scrollbar styling */
         .desktop-mode .player-side-column::-webkit-scrollbar {
           width: 8px;
         }
@@ -187,27 +177,22 @@
           background-color: rgb(var(--surface-3));
         }
 
-        /* Firefox scrollbar styling */
         .desktop-mode .player-side-column {
           scrollbar-width: thin;
           scrollbar-color: rgb(var(--surface-4)) transparent;
         }
       }
 
-      /* Styles for when user forces desktop mode on smaller screens */
       .force-desktop-mode.desktop-mode .player-grid-container {
         grid-template-columns: 1fr 420px;
       }
-      .force-desktop-mode.desktop-mode .player-grid-container {
-        /* You could adjust the side column width for smaller forced views if needed */
-        /* grid-template-columns: 1fr 320px; */
-      }
+      
       /* Preloader Styles */
       #preloader {
         position: fixed;
         inset: 0;
         z-index: 9999;
-        background-color: #0F172A; /* slate-900, matches dark theme via color */
+        background-color: #000000;
         display: flex;
         flex-direction: column;
         justify-content: center;
@@ -227,11 +212,11 @@
         width: 48px;
         height: 48px;
         border: 4px solid rgb(51 65 85); /* border-slate-700 */
-        border-top-color: #a855f7; /* purple-500 */
+        border-top-color: var(--logo-glow-1, #a855f7);
         border-radius: 50%;
         animation: spin 1s linear infinite;
       }
-      @keyframes spin { to { transform: rotate(300deg); } }
+      @keyframes spin { to { transform: rotate(360deg); } }
     </style>
   <script type="importmap">
 {

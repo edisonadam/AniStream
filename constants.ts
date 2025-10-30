@@ -11,6 +11,32 @@ export const ANIME_TYPES = ['TV', 'Movie', 'OVA', 'Special', 'ONA'];
 export const ANIME_STATUSES = ['Ongoing', 'Completed', 'Upcoming'];
 export const YEAR_OPTIONS = ['2020s', '2010s', '2000s', '1990s'];
 export const LANGUAGE_OPTIONS = ['Sub', 'Dub', 'Raw'];
+export const STUDIO_OPTIONS = [
+    'A-1 Pictures',
+    'Bones',
+    'CloverWorks',
+    'CoMix Wave Films',
+    'David Production',
+    'Doga Kobo',
+    'Gainax',
+    'J.C.Staff',
+    'Kyoto Animation',
+    'Lerche',
+    'Madhouse',
+    'MAPPA',
+    'P.A. Works',
+    'Pierrot',
+    'Production I.G',
+    'Shaft',
+    'Studio Deen',
+    'Studio Ghibli',
+    'Sunrise',
+    'TMS Entertainment',
+    'Toei Animation',
+    'Trigger',
+    'Ufotable',
+    'Wit Studio'
+];
 
 export const DEFAULT_SEARCH_SUGGESTIONS = ["Solo Leveling", "Jujutsu Kaisen", "Chainsaw Man"];
 
@@ -18,9 +44,9 @@ export const POPULAR_TITLES = ['Void Scrambler', 'Galactic Drifters', 'Chronicle
 export const RECENTLY_ADDED = ['Neon Genesis Evangelion', 'Astra Lost in Space'];
 
 export const COLOR_PRESETS: { id: ColorPreset, name: string }[] = [
+    { id: 'cyber-cyan', name: 'Cyber Cyan' },
     { id: 'neon-purple', name: 'Neon Purple' },
     { id: 'indigo-flare', name: 'Indigo Flare' },
-    { id: 'cyber-blue', name: 'Cyber Blue' },
     { id: 'sunset-orange', name: 'Sunset Orange' },
 ];
 

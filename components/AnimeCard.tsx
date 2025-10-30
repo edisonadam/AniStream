@@ -48,7 +48,7 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect }) => {
   }
 
   return (
-    <div className="group relative overflow-hidden rounded-lg shadow-lg cursor-pointer transform transition-all duration-300 hover:shadow-2xl hover:shadow-[rgb(var(--shadow-color))/0.4]"
+    <div className="group relative overflow-hidden rounded-3xl shadow-lg cursor-pointer transform transition-all duration-300 hover:shadow-2xl hover:shadow-[rgb(var(--shadow-color))/0.5]"
       style={{ transition: 'transform 0.3s ease, box-shadow 0.3s ease' }}
       onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-8px) scale(1.03)'; }}
       onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0px) scale(1)'; }}
@@ -77,8 +77,8 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect }) => {
         {anime.hasDub && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/50 text-white backdrop-blur-md">DUB</span>}
       </div>
       
-      {anime.runtime && anime.type === 'Movie' && <span className="absolute bottom-12 right-2 px-2 py-0.5 text-xs font-bold rounded bg-black/70 text-white backdrop-blur-sm z-10">{formatDuration(anime.runtime)}</span>}
-      {anime.avgEpisodeDuration && anime.type !== 'Movie' && <span className="absolute bottom-12 right-2 px-2 py-0.5 text-xs font-bold rounded bg-black/70 text-white backdrop-blur-sm z-10">~{anime.avgEpisodeDuration}m/ep</span>}
+      {anime.runtime && anime.type === 'Movie' && <span className="absolute bottom-12 right-2 px-2 py-0.5 text-xs font-bold rounded-full bg-black/70 text-white backdrop-blur-sm z-10">{formatDuration(anime.runtime)}</span>}
+      {anime.avgEpisodeDuration && anime.type !== 'Movie' && <span className="absolute bottom-12 right-2 px-2 py-0.5 text-xs font-bold rounded-full bg-black/70 text-white backdrop-blur-sm z-10">~{anime.avgEpisodeDuration}m/ep</span>}
 
 
       {isLoggedIn && (
@@ -87,7 +87,7 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect }) => {
                 <DotsVerticalIcon />
             </button>
             {isMenuOpen && (
-                <div className="absolute top-full right-0 mt-1 bg-[rgb(var(--surface-2))] rounded-md shadow-lg p-1 z-10 w-40">
+                <div className="absolute top-full right-0 mt-1 bg-[rgb(var(--surface-2))] rounded-lg shadow-lg p-1 z-10 w-40">
                     <button onClick={handleWatchLaterClick} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] rounded-md">
                         {inWatchLater ? <CheckIcon/> : <PlusIcon/>}
                         <span>{inWatchLater ? 'In Watch Later' : 'Watch Later'}</span>
@@ -106,4 +106,4 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect }) => {
   );
 };
 
-export default AnimeCard;
+export default React.memo(AnimeCard);
