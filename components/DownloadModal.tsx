@@ -12,6 +12,8 @@ interface DownloadModalProps {
 type ModalStep = 'options' | 'pack';
 type Quality = '1080p' | '720p' | '480p';
 
+const EPISODES_PER_PAGE = 25;
+
 // Updated to handle Blobs for real file downloads
 const triggerDownload = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob);
@@ -29,10 +31,11 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 const DownloadModal: React.FC<DownloadModalProps> = ({ anime, episodes, season, onClose }) => {
   const [step, setStep] = useState<ModalStep>('options');
   const [selectedEpisodes, setSelectedEpisodes] = useState<Set<number>>(new Set());
-  const [selectedQuality, setSelectedQuality] = useState<Quality>('1080p');
+  const [selectedQuality, setSelectedQuality] = useState<Quality>('720p');
   const [isZipping, setIsZipping] = useState(false);
   const [zipProgress, setZipProgress] = useState(0);
   const [zipStatus, setZipStatus] = useState('');
+  const [episodePage, setEpisodePage] = useState(1);
 
   useEffect(() => {
     document.body.classList.add('modal-open');
@@ -62,6 +65,13 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ anime, episodes, season, 
     return [...episodes].sort((a, b) => a.episode_number - b.episode_number);
   }, [episodes]);
 
+  const totalEpisodePages = useMemo(() => Math.ceil(sortedEpisodes.length / EPISODES_PER_PAGE), [sortedEpisodes]);
+
+  const paginatedEpisodes = useMemo(() => {
+      const start = (episodePage - 1) * EPISODES_PER_PAGE;
+      return sortedEpisodes.slice(start, start + EPISODES_PER_PAGE);
+  }, [sortedEpisodes, episodePage]);
+
   const handleToggleEpisode = (epNum: number) => {
     setSelectedEpisodes(prev => {
         const newSet = new Set(prev);
@@ -73,7 +83,7 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ anime, episodes, season, 
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-      const allEpisodeNumbers = new Set(episodes.map(ep => ep.episode_number));
+      const allEpisodeNumbers = new Set(sortedEpisodes.map(ep => ep.episode_number));
       setSelectedEpisodes(allEpisodeNumbers);
     } else {
       setSelectedEpisodes(new Set());
@@ -88,9 +98,7 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ anime, episodes, season, 
   
   const handleDownloadSelected = async () => {
     if(selectedEpisodes.size === 0) return;
-    const episodesToDownload = episodes
-        .filter(ep => selectedEpisodes.has(ep.episode_number))
-        .sort((a,b) => a.episode_number - b.episode_number);
+    const episodesToDownload = sortedEpisodes.filter(ep => selectedEpisodes.has(ep.episode_number));
     
     for (const ep of episodesToDownload) {
         handleSingleDownload(ep);
@@ -127,9 +135,9 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ anime, episodes, season, 
   };
   
   const isAllSelected = useMemo(() => {
-    if (episodes.length === 0) return false;
-    return selectedEpisodes.size === episodes.length;
-  }, [selectedEpisodes, episodes]);
+    if (sortedEpisodes.length === 0) return false;
+    return selectedEpisodes.size === sortedEpisodes.length;
+  }, [selectedEpisodes, sortedEpisodes]);
 
   const mockFileSize = (runtime: number | null, quality: Quality) => {
       let baseSize = 150 + Math.random() * 200; // Base for 480p
@@ -143,20 +151,44 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ anime, episodes, season, 
       return `~${baseSize.toFixed(0)} MB`;
   };
 
+  const PaginationControls = () => {
+    if (totalEpisodePages <= 1) return null;
+    return (
+        <div className="flex flex-wrap justify-center items-center gap-2 pt-3">
+            {[...Array(totalEpisodePages)].map((_, i) => {
+                const pageNum = i + 1;
+                return (
+                    <button
+                        key={pageNum}
+                        onClick={() => setEpisodePage(pageNum)}
+                        className={`px-3 py-1.5 text-xs rounded-md font-semibold transition-transform hover:scale-105 ${
+                            episodePage === pageNum
+                                ? 'bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))]'
+                                : 'bg-[rgb(var(--surface-3))] hover:bg-[rgb(var(--surface-4))]'
+                        }`}
+                    >
+                        {pageNum}
+                    </button>
+                );
+            })}
+        </div>
+    );
+  };
+
   const renderOptions = () => (
-    <div className="p-6 relative">
-      <button onClick={onClose} className="absolute top-4 right-4 text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))]"><CloseIcon /></button>
+    <div className="relative">
+      <button onClick={onClose} className="absolute top-0 right-0 text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))]"><CloseIcon /></button>
       <h2 className="text-xl font-bold text-[rgb(var(--text-primary))] mb-1" id="download-modal-title">Download Options</h2>
       <p className="text-sm text-[rgb(var(--text-muted))] mb-6">Choose how you'd like to download this series.</p>
       <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex-1 bg-[rgba(30,30,40,0.6)] p-6 rounded-2xl flex flex-col items-center text-center border border-transparent hover:border-[rgb(var(--color-primary-accent))] transition-all">
+        <div className="flex-1 bg-[rgba(30,30,40,0.6)] p-4 rounded-2xl flex flex-col items-center text-center border border-transparent hover:border-[rgb(var(--color-primary-accent))] transition-all">
           <h3 className="text-lg font-semibold text-[rgb(var(--text-primary))] mb-2">Nyaa (Torrent / Magnet)</h3>
           <p className="text-xs text-[rgb(var(--text-muted))] mb-4 flex-grow">Opens Nyaa page or magnet link in new tab.</p>
           <button onClick={handleNyaaDownload} className="w-full py-2.5 bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))] rounded-xl font-semibold hover:bg-[rgb(var(--color-primary-hover))] transition-all duration-300 shadow-lg shadow-[rgb(var(--shadow-color))/0.3]">
             Open Nyaa Torrent
           </button>
         </div>
-        <div className="flex-1 bg-[rgba(30,30,40,0.6)] p-6 rounded-2xl flex flex-col items-center text-center border border-transparent hover:border-[rgb(var(--color-primary-accent))] transition-all">
+        <div className="flex-1 bg-[rgba(30,30,40,0.6)] p-4 rounded-2xl flex flex-col items-center text-center border border-transparent hover:border-[rgb(var(--color-primary-accent))] transition-all">
           <h3 className="text-lg font-semibold text-[rgb(var(--text-primary))] mb-2">Episode Pack (Ordered)</h3>
           <p className="text-xs text-[rgb(var(--text-muted))] mb-4 flex-grow">Select episodes to download individually or package into one .zip file.</p>
           <button onClick={() => setStep('pack')} className="w-full py-2.5 bg-white/10 rounded-xl font-semibold hover:bg-white/20 transition-colors">
@@ -168,9 +200,9 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ anime, episodes, season, 
   );
 
   const renderEpisodePack = () => (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full p-0">
       {/* Pinned Header */}
-      <div className="flex-shrink-0 p-3 border-b border-white/10 flex justify-between items-center bg-[rgba(20,20,25,0.7)] backdrop-blur-sm z-10">
+      <div className="flex-shrink-0 p-3 border-b border-white/10 flex justify-between items-center bg-[rgba(0,0,0,0.5)] backdrop-blur-sm z-10">
         <button onClick={() => setStep('options')} className="flex items-center gap-1 text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))]">
             <ChevronLeftIcon className="w-5 h-5"/>
             <span className="font-semibold text-sm">Back</span>
@@ -203,9 +235,9 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ anime, episodes, season, 
         </div>
         
         {/* Scrollable Episode List */}
-        <div className="flex-1 overflow-y-auto p-2">
+        <div className="flex-1 overflow-y-auto p-3 episode-list">
           <div className="space-y-1">
-            {sortedEpisodes.map(ep => (
+            {paginatedEpisodes.map(ep => (
               <label key={ep.episode_number} htmlFor={`ep-${ep.episode_number}`} className={`flex items-center gap-2 p-1.5 rounded-lg transition-colors cursor-pointer ${selectedEpisodes.has(ep.episode_number) ? 'bg-[rgb(var(--color-primary))/0.2]' : 'hover:bg-[rgba(255,255,255,0.05)]'}`}>
                 <input id={`ep-${ep.episode_number}`} type="checkbox" checked={selectedEpisodes.has(ep.episode_number)} onChange={() => handleToggleEpisode(ep.episode_number)} className="h-5 w-5 rounded bg-[rgb(var(--surface-4))] border-[rgb(var(--border-color))] text-[rgb(var(--color-primary))] focus:ring-[rgb(var(--color-primary))] flex-shrink-0" />
                 <div className="flex-1 min-w-0">
@@ -216,22 +248,23 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ anime, episodes, season, 
               </label>
             ))}
           </div>
+          <PaginationControls />
         </div>
         
         {/* Pinned Footer */}
-        <div className="flex-shrink-0 border-t border-white/10 bg-[rgba(20,20,25,0.7)] backdrop-blur-sm z-10 p-3">
+        <div className="flex-shrink-0 border-t border-white/10 bg-[rgba(0,0,0,0.5)] backdrop-blur-sm z-10 p-3">
              <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
                 <p className="font-semibold text-sm text-[rgb(var(--text-secondary))]">{selectedEpisodes.size} episode(s) selected</p>
                 <div className="flex gap-2">
                     <button onClick={handleDownloadSelected} disabled={selectedEpisodes.size === 0} className="px-4 py-2 bg-white/10 rounded-xl font-semibold hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed">Direct Download</button>
-                    <button onClick={handleCreateZip} disabled={selectedEpisodes.size === 0} className="px-4 py-2 bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))] rounded-xl font-semibold hover:bg-[rgb(var(--color-primary-hover))] transition-all duration-300 shadow-lg shadow-[rgb(var(--shadow-color))/0.3] disabled:opacity-50 disabled:cursor-not-allowed">Download ZIP</button>
+                    <button onClick={handleCreateZip} disabled={selectedEpisodes.size === 0} className="px-4 py-2 bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))] rounded-xl font-semibold hover:bg-[rgb(var(--color-primary-hover))] transition-all duration-300 shadow-lg shadow-[rgb(var(--shadow-color))/0.3] disabled:opacity-50 disabled:cursor-not-allowed">Create ZIP and Download</button>
                 </div>
             </div>
         </div>
         </>
       ) : (
         <div className="flex-1 flex items-center justify-center p-12 text-center text-[rgb(var(--text-muted))]">
-            <p>Downloads not available. Please try again later.</p>
+            <p>Episode downloads unavailable. Try again later.</p>
         </div>
       )}
     </div>
@@ -239,54 +272,61 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ anime, episodes, season, 
 
   return (
     <>
-      <div role="dialog" aria-modal="true" aria-labelledby="download-modal-title" className="modal-backdrop animate-cinematic-fade-in" onClick={onClose}>
+      <div role="dialog" aria-modal="true" aria-labelledby="download-modal-title" className="modal-backdrop animate-cinematic-fade-in" onClick={onClose}></div>
         <div 
           onClick={e => e.stopPropagation()}
-          className="modal animate-subtle-fade-in-up"
+          className="modal"
         >
           {step === 'options' ? renderOptions() : renderEpisodePack()}
         </div>
-      </div>
       <style>{`
         .modal-backdrop {
           position: fixed;
           inset: 0;
-          background: rgba(0, 0, 0, 0.85);
-          backdrop-filter: blur(10px);
-          -webkit-backdrop-filter: blur(10px);
+          background: rgba(0, 0, 0, 0.7);
+          backdrop-filter: blur(5px);
+          -webkit-backdrop-filter: blur(5px);
           z-index: 9998;
-          display: flex;
-          justify-content: center;
-          align-items: flex-start;
-          padding: 10vh 2vw 5vh;
         }
         .modal {
-          position: relative;
+          position: fixed;
+          top: 10vh;
+          left: 50%;
+          transform: translateX(-50%);
           width: 90vw;
-          max-width: 640px; /* smaller */
-          height: auto;
-          max-height: 85vh; /* fitted to screen */
-          background: rgba(25, 25, 30, 0.9);
+          max-width: 400px;
+          padding: 16px;
+          max-height: 80vh;
+          background: rgba(0, 0, 0, 0.85);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
           color: rgb(var(--text-primary));
-          border-radius: 1rem;
+          border-radius: 16px;
           border: 1px solid rgba(255, 255, 255, 0.1);
-          box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+          box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 25px rgba(0, 255, 255, 0.2);
           z-index: 9999;
           display: flex;
           flex-direction: column;
           overflow: hidden;
+          animation: fadeInTop 0.3s ease;
         }
+        .episode-list {
+          max-height: 50vh;
+          overflow-y: auto;
+          padding-right: 8px;
+          scrollbar-width: thin;
+          scrollbar-color: rgb(var(--scrollbar-thumb)) rgb(var(--scrollbar-track));
+        }
+        .episode-list::-webkit-scrollbar { width: 8px; }
+        .episode-list::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+        .episode-list::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
+        .episode-list::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
         body.modal-open {
           overflow: hidden;
         }
-        @media (max-width: 768px) {
-          .modal { 
-            width: 95vw; 
-            max-height: 85vh;
-          }
-           .modal-backdrop {
-            padding: 5vh 2.5vw;
-          }
+        @keyframes fadeInTop {
+          from { opacity: 0; transform: translate(-50%, -20px); }
+          to { opacity: 1; transform: translateX(-50%); }
         }
       `}</style>
     </>
