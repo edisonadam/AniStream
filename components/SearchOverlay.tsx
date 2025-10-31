@@ -37,7 +37,8 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose, onAnimeSelect, o
     const debounceTimer = setTimeout(() => {
         const fetchSuggestions = async () => {
             try {
-                const response = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(query)}&limit=7`);
+                const sfwQuery = settings.restrictAdultContent ? '&sfw' : '';
+                const response = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(query)}&limit=7${sfwQuery}`);
                 if (!response.ok) throw new Error('Failed to fetch suggestions.');
                 const data = await response.json();
                 

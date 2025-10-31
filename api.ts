@@ -116,6 +116,9 @@ export const mapJikanToAnime = (item: any): Anime | null => {
             avgEpisodeDuration = parseInt(epMinMatch[1], 10);
         }
     }
+    
+    const ratingString = item.rating || '';
+    const isAdult = ratingString.includes('R - 17+') || ratingString.includes('R+ - Mild Nudity') || ratingString.includes('Rx - Hentai');
 
     return {
         id: item.mal_id,
@@ -136,7 +139,7 @@ export const mapJikanToAnime = (item: any): Anime | null => {
         hasDub: !!item.title_english, // Default assumption
         runtime: totalMinutes > 0 ? totalMinutes : null,
         avgEpisodeDuration: avgEpisodeDuration,
-        isAdult: item.rating === 'Rx - Hentai',
+        isAdult: isAdult,
         malUrl: item.url,
         startDate: item.aired?.from,
         endDate: item.aired?.to,

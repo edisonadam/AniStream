@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import type { Anime } from '../types';
 import { mapJikanToAnime } from '../api';
 import AnimeGrid from './AnimeGrid';
+import { useSettings } from '../hooks/useSettings';
 
 interface SchedulePageProps {
   onAnimeSelect: (anime: Anime) => void;
@@ -34,6 +35,7 @@ const SchedulePage: React.FC<SchedulePageProps> = ({ onAnimeSelect }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const { settings } = useSettings();
 
     useEffect(() => {
         const fetchSeasonsList = async () => {
@@ -57,12 +59,13 @@ const SchedulePage: React.FC<SchedulePageProps> = ({ onAnimeSelect }) => {
         if (isNewSearch) setIsLoading(true); else setIsLoadingMore(true);
         setError(null);
         
+        const sfwQuery = settings.restrictAdultContent ? '&sfw' : '';
         let url = '';
         if (mode === 'upcoming') {
-            url = `https://api.jikan.moe/v4/seasons/upcoming?page=${pageNum}&limit=25`;
+            url = `https://api.jikan.moe/v4/seasons/upcoming?page=${pageNum}&limit=25${sfwQuery}`;
         } else {
             if (!selectedYear || !selectedSeason) return;
-            url = `https://api.jikan.moe/v4/seasons/${selectedYear}/${selectedSeason}?page=${pageNum}&limit=25`;
+            url = `https://api.jikan.moe/v4/seasons/${selectedYear}/${selectedSeason}?page=${pageNum}&limit=25${sfwQuery}`;
         }
 
         try {
@@ -88,12 +91,12 @@ const SchedulePage: React.FC<SchedulePageProps> = ({ onAnimeSelect }) => {
             setIsLoading(false);
             setIsLoadingMore(false);
         }
-    }, [currentPage, mode, selectedSeason, selectedYear]);
+    }, [currentPage, mode, selectedSeason, selectedYear, settings.restrictAdultContent]);
 
     useEffect(() => {
         fetchSeasonalData(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mode, selectedYear, selectedSeason]);
+    }, [mode, selectedYear, selectedSeason, settings.restrictAdultContent]);
 
     const handleModeChange = (newMode: 'archive' | 'upcoming') => {
         setMode(newMode);

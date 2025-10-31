@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Filter, Settings, Page } from '../types';
-import { CloseIcon, UsersIcon, BookOpenIcon, GiftIcon, MoonIcon, SunIcon, HomeIcon, TrendingUpIcon, CalendarIcon, HistoryIcon, InfoIcon, AcademicCapIcon } from './icons/Icons';
+import { CloseIcon, UsersIcon, BookOpenIcon, GiftIcon, MoonIcon, SunIcon, HomeIcon, TrendingUpIcon, CalendarIcon, HistoryIcon, InfoIcon, AcademicCapIcon, EyeIcon, EyeOffIcon } from './icons/Icons';
 import Logo from './Logo';
 import { ANIME_TYPES, ANIME_STATUSES, YEAR_OPTIONS, LANGUAGE_OPTIONS, STUDIO_OPTIONS } from '../constants';
 
@@ -133,6 +133,15 @@ const Sidebar: React.FC<SidebarProps> = ({
                         className="w-10 h-10 flex items-center justify-center rounded-full bg-[rgb(var(--surface-3))] text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-4))] hover:text-[rgb(var(--text-primary))] font-semibold text-sm transition-colors"
                     >
                         {settings.displayTitleLanguage === 'english' ? 'EN' : 'JP'}
+                    </button>
+
+                    <button 
+                        onClick={() => updateSettings({ restrictAdultContent: !settings.restrictAdultContent })} 
+                        title={`Turn ${settings.restrictAdultContent ? 'Off' : 'On'} Adult Content Restriction`} 
+                        aria-label={`Turn ${settings.restrictAdultContent ? 'Off' : 'On'} Adult Content Restriction`}
+                        className="p-2.5 rounded-full bg-[rgb(var(--surface-3))] text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-4))] hover:text-[rgb(var(--text-primary))] transition-colors"
+                    >
+                        {settings.restrictAdultContent ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
                     </button>
                 </div>
             </div>

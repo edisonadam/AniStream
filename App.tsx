@@ -109,8 +109,11 @@ const App: React.FC = () => {
         const params = new URLSearchParams({
             page: pageNum.toString(),
             limit: ANIME_PAGE_SIZE.toString(),
-            sfw: settings.restrictAdultContent ? 'true' : 'false'
         });
+
+        if (settings.restrictAdultContent) {
+            params.append('sfw', 'true');
+        }
     
         if (searchFilters.query) params.append('q', searchFilters.query);
         if (searchFilters.genres.length > 0) params.append('genres', searchFilters.genres.join(','));
@@ -198,9 +201,10 @@ const App: React.FC = () => {
         const fetchInitialData = async () => {
             setIsCarouselLoading(true);
             try {
+                const sfwQuery = settings.restrictAdultContent ? '&sfw' : '';
                 const [topRes, seasonNowRes] = await Promise.all([
-                    fetch('https://api.jikan.moe/v4/top/anime?limit=15'),
-                    fetch('https://api.jikan.moe/v4/seasons/now?limit=20'),
+                    fetch(`https://api.jikan.moe/v4/top/anime?limit=15${sfwQuery}`),
+                    fetch(`https://api.jikan.moe/v4/seasons/now?limit=20${sfwQuery}`),
                 ]);
 
                 if (topRes.ok) {
@@ -220,7 +224,7 @@ const App: React.FC = () => {
             }
         };
         fetchInitialData();
-    }, []);
+    }, [settings.restrictAdultContent]);
 
     const hasActiveFilters = useMemo(() => {
         return filters.query || filters.genres.length > 0 || filters.types.length > 0 || filters.statuses.length > 0;

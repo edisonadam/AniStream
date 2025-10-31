@@ -3,6 +3,7 @@ import type { Manga } from '../types';
 import { mapJikanToManga } from '../api';
 import { ChevronLeftIcon } from './icons/Icons';
 import MangaCard from './MangaCard';
+import { useSettings } from '../hooks/useSettings';
 
 // Skeleton for loading
 const MangaCardSkeleton: React.FC = () => (
@@ -25,16 +26,18 @@ const MangaPage: React.FC<MangaPageProps> = ({ onGoBack }) => {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const { settings } = useSettings();
 
   const fetchManga = useCallback(async (pageNum: number, isNewSearch: boolean) => {
     if (isNewSearch) setIsLoading(true); else setIsLoadingMore(true);
     setError(null);
 
     try {
-      let res = await fetch(`https://api.jikan.moe/v4/top/manga?page=${pageNum}&limit=24`);
+      const sfwQuery = settings.restrictAdultContent ? '&sfw' : '';
+      let res = await fetch(`https://api.jikan.moe/v4/top/manga?page=${pageNum}&limit=24${sfwQuery}`);
       if (res.status === 429) {
         await new Promise(resolve => setTimeout(resolve, 1000));
-        res = await fetch(`https://api.jikan.moe/v4/top/manga?page=${pageNum}&limit=24`);
+        res = await fetch(`https://api.jikan.moe/v4/top/manga?page=${pageNum}&limit=24${sfwQuery}`);
       }
       if (!res.ok) throw new Error('Failed to fetch manga from Jikan API.');
 
@@ -51,7 +54,7 @@ const MangaPage: React.FC<MangaPageProps> = ({ onGoBack }) => {
       setIsLoading(false);
       setIsLoadingMore(false);
     }
-  }, []);
+  }, [settings.restrictAdultContent]);
 
   useEffect(() => {
     fetchManga(1, true);

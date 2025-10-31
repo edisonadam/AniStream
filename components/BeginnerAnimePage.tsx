@@ -5,6 +5,7 @@ import AnimeCardSkeleton from './AnimeCardSkeleton';
 import AnimeCard from './AnimeCard';
 import { BEGINNER_ANIME_IDS } from '../constants';
 import { ChevronLeftIcon } from './icons/Icons';
+import { useSettings } from '../hooks/useSettings';
 
 interface BeginnerAnimePageProps {
   onAnimeSelect: (anime: Anime) => void;
@@ -15,6 +16,7 @@ const BeginnerAnimePage: React.FC<BeginnerAnimePageProps> = ({ onAnimeSelect, on
     const [animeList, setAnimeList] = useState<Anime[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const { settings } = useSettings();
 
     useEffect(() => {
         const fetchBeginnerAnime = async () => {
@@ -39,9 +41,13 @@ const BeginnerAnimePage: React.FC<BeginnerAnimePageProps> = ({ onAnimeSelect, on
                     .filter(result => result.status === 'fulfilled' && result.value.data)
                     .map(result => mapJikanToAnime((result as PromiseFulfilledResult<any>).value.data))
                     .filter((anime): anime is Anime => anime !== null);
+                
+                const filteredList = settings.restrictAdultContent
+                    ? successfulAnime.filter(anime => !anime.isAdult)
+                    : successfulAnime;
 
                 // Sort the anime list to match the order in BEGINNER_ANIME_IDS for consistency
-                const animeMap = new Map(successfulAnime.map(a => [a.id, a]));
+                const animeMap = new Map(filteredList.map(a => [a.id, a]));
                 const sortedList = BEGINNER_ANIME_IDS.map(id => animeMap.get(id)).filter((a): a is Anime => a !== undefined);
 
                 setAnimeList(sortedList);
@@ -55,7 +61,7 @@ const BeginnerAnimePage: React.FC<BeginnerAnimePageProps> = ({ onAnimeSelect, on
         };
 
         fetchBeginnerAnime();
-    }, []);
+    }, [settings.restrictAdultContent]);
 
     return (
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-subtle-fade-in-up">

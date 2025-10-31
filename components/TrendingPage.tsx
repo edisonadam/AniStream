@@ -3,6 +3,7 @@ import type { Anime } from '../types';
 import { mapJikanToAnime } from '../api';
 import AnimeCardSkeleton from './AnimeCardSkeleton';
 import AnimeCard from './AnimeCard';
+import { useSettings } from '../hooks/useSettings';
 
 interface TrendingPageProps {
   onAnimeSelect: (anime: Anime) => void;
@@ -12,13 +13,15 @@ const TrendingPage: React.FC<TrendingPageProps> = ({ onAnimeSelect }) => {
     const [trending, setTrending] = useState<Anime[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const { settings } = useSettings();
 
     useEffect(() => {
         const fetchTrending = async () => {
             setIsLoading(true);
             setError(null);
             try {
-                const res = await fetch(`https://api.jikan.moe/v4/top/anime?filter=bypopularity&limit=25`);
+                const sfwQuery = settings.restrictAdultContent ? '&sfw' : '';
+                const res = await fetch(`https://api.jikan.moe/v4/top/anime?filter=bypopularity&limit=25${sfwQuery}`);
                 if (!res.ok) throw new Error('Failed to fetch trending anime.');
                 const data = await res.json();
                 const mapped = data.data.map(mapJikanToAnime).filter(Boolean);
@@ -30,7 +33,7 @@ const TrendingPage: React.FC<TrendingPageProps> = ({ onAnimeSelect }) => {
             }
         };
         fetchTrending();
-    }, []);
+    }, [settings.restrictAdultContent]);
 
     return (
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-subtle-fade-in-up">
