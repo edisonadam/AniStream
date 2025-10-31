@@ -2,10 +2,10 @@ import React, { useState, useMemo } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useSettings } from '../hooks/useSettings';
 import { useProfileData } from '../hooks/useProfileData';
-import { useContinueWatching } from '../hooks/useContinueWatching';
-import { useWatchLater } from '../hooks/useWatchLater';
+import { useWatchProgress } from '../hooks/useWatchProgress';
+import { useWatchlist } from '../hooks/useWatchLater';
 import { ChevronLeftIcon, CloseIcon } from './icons/Icons';
-import type { Anime, ContinueWatchingInfo, ViewingHistoryItem, Rating, User } from '../types';
+import type { Anime, WatchProgressInfo, Rating, User } from '../types';
 import AnimeCard from './AnimeCard';
 import SettingsPage from './SettingsPage'; // Import the new settings page component
 
@@ -15,15 +15,15 @@ interface ProfilePageProps {
     onSelectAnime: (anime: Anime) => void;
 }
 
-type Tab = 'profile' | 'friends' | 'settings';
+type Tab = 'profile-settings' | 'friends';
 
 const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectAnime }) => {
     const { user, updateUser, logout } = useAuth();
-    const { history, ratings, friends, removeFriend } = useProfileData();
-    const { continueWatchingList } = useContinueWatching();
-    const { watchLaterList } = useWatchLater();
+    const { ratings, friends, removeFriend } = useProfileData();
+    const { watchProgressList } = useWatchProgress();
+    const { watchlist } = useWatchlist();
 
-    const [activeTab, setActiveTab] = useState<Tab>('profile');
+    const [activeTab, setActiveTab] = useState<Tab>('profile-settings');
     const [isEditingProfile, setIsEditingProfile] = useState(false);
     const [editUsername, setEditUsername] = useState(user?.username || '');
     const [editAvatar, setEditAvatar] = useState(user?.avatar || '');
@@ -32,24 +32,26 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
         const map = new Map<number, Anime>();
         allAnime.forEach(anime => map.set(anime.id, anime));
         // Add anime from lists that might not be in the initial `allAnime` prop
-        continueWatchingList.forEach(item => { if (!map.has(item.animeId)) map.set(item.animeId, { id: item.animeId, title: 'Loading...' } as Anime); });
-        watchLaterList.forEach(item => { if (!map.has(item.id)) map.set(item.id, item); });
-        history.forEach(item => { if (!map.has(item.animeId)) map.set(item.animeId, { id: item.animeId, title: 'Loading...' } as Anime); });
+        watchProgressList.forEach(item => { if (!map.has(item.animeId)) map.set(item.animeId, { id: item.animeId, title: 'Loading...' } as Anime); });
+        watchlist.forEach(item => { if (!map.has(item.id)) map.set(item.id, item); });
         return map;
-    }, [allAnime, continueWatchingList, watchLaterList, history]);
+    }, [allAnime, watchProgressList, watchlist]);
 
     const userStats = useMemo(() => {
-        const totalAnime = new Set(history.map(h => h.animeId)).size;
+        const totalAnime = watchProgressList.length;
         
-        const totalMinutesWatched = history.reduce((acc, h) => {
-            const anime = animeMap.get(h.animeId);
-            return acc + (anime?.avgEpisodeDuration || 24); // Assume 24 mins if not available
+        // A more accurate calculation would need total episodes per anime, but this is a good estimation.
+        const totalMinutesWatched = watchProgressList.reduce((acc, progress) => {
+            const anime = animeMap.get(progress.animeId);
+            const avgDuration = anime?.avgEpisodeDuration || 24;
+            const episodeCount = (progress.progress / 100) * (anime?.totalEpisodes || 1);
+            return acc + (episodeCount * avgDuration);
         }, 0);
 
         const daysWatched = totalMinutesWatched / 60 / 24;
 
         const averageScore = ratings.length > 0
-            ? ratings.reduce((acc, r) => acc + r.rating, 0) / ratings.length * 10
+            ? ratings.reduce((acc, r) => acc + r.rating, 0) / ratings.length
             : 0;
 
         return {
@@ -57,7 +59,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
             daysWatched: daysWatched.toFixed(1),
             averageScore: averageScore.toFixed(2),
         };
-    }, [history, ratings, animeMap]);
+    }, [watchProgressList, ratings, animeMap]);
 
 
     const handleProfileSave = (e: React.FormEvent) => {
@@ -65,6 +67,10 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
         updateUser({ username: editUsername, avatar: editAvatar });
         setIsEditingProfile(false);
     };
+
+    const continueWatchingList = useMemo(() => {
+        return watchProgressList.filter(item => item.progress > 0 && item.progress < 100);
+    }, [watchProgressList]);
 
     const ProfileTabContent = () => (
       <div className="space-y-12">
@@ -94,7 +100,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
                     <div className="mt-6 flex justify-center gap-4 text-center">
                         <div><p className="text-2xl font-bold">{userStats.totalAnime}</p><p className="text-xs text-[rgb(var(--text-muted))]">Total Anime</p></div>
                         <div><p className="text-2xl font-bold">{userStats.daysWatched}</p><p className="text-xs text-[rgb(var(--text-muted))]">Days Watched</p></div>
-                        <div><p className="text-2xl font-bold">{userStats.averageScore}</p><p className="text-xs text-[rgb(var(--text-muted))]">Average Score</p></div>
+                        <div><p className="text-2xl font-bold">{userStats.averageScore}</p><p className="text-xs text-[rgb(var(--text-muted))]">Mean Score</p></div>
                     </div>
                     <div className="mt-6 flex gap-2 justify-center">
                         <button onClick={() => setIsEditingProfile(true)} className="px-4 py-2 bg-white/10 rounded-full font-semibold hover:bg-white/20">Edit Profile</button>
@@ -104,9 +110,9 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
             )}
         </div>
         
-        <DataSection title="Continue Watching" data={continueWatchingList} renderItem={(item: ContinueWatchingInfo) => animeMap.get(item.animeId) && <AnimeCard anime={animeMap.get(item.animeId)!} onSelect={onSelectAnime} />} />
-        <DataSection title="My Watchlist" data={watchLaterList} renderItem={(item: Anime) => <AnimeCard anime={item} onSelect={onSelectAnime} />} />
-        <DataSection title="Viewing History" data={history} renderItem={(item: ViewingHistoryItem) => animeMap.get(item.animeId) && <AnimeCard anime={animeMap.get(item.animeId)!} onSelect={onSelectAnime} />} />
+        <DataSection title="Continue Watching" data={continueWatchingList} renderItem={(item: WatchProgressInfo) => animeMap.get(item.animeId) && <AnimeCard anime={animeMap.get(item.animeId)!} onSelect={onSelectAnime} />} />
+        <DataSection title="My Watchlist" data={watchlist} renderItem={(item: Anime) => <AnimeCard anime={item} onSelect={onSelectAnime} />} />
+        <DataSection title="Viewing History" data={watchProgressList} renderItem={(item: WatchProgressInfo) => animeMap.get(item.animeId) && <AnimeCard anime={animeMap.get(item.animeId)!} onSelect={onSelectAnime} />} />
         <DataSection title="My Ratings" data={ratings} renderItem={(item: Rating) => animeMap.get(item.animeId) && <AnimeCard anime={animeMap.get(item.animeId)!} onSelect={onSelectAnime} />} />
       </div>
     );
@@ -139,10 +145,21 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
     
     const renderActiveTab = () => {
         switch(activeTab) {
-            case 'profile': return <ProfileTabContent />;
+            case 'profile-settings': return (
+                <>
+                    <ProfileTabContent />
+                    <div className="my-12 border-t border-white/10"></div>
+                    <SettingsPage />
+                </>
+            );
             case 'friends': return <FriendsTabContent />;
-            case 'settings': return <SettingsPage />;
-            default: return <ProfileTabContent />;
+            default: return (
+                <>
+                    <ProfileTabContent />
+                    <div className="my-12 border-t border-white/10"></div>
+                    <SettingsPage />
+                </>
+            );
         }
     }
 
@@ -154,9 +171,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
             </button>
             
             <div className="flex justify-center border-b border-white/10 mb-8">
-                <button onClick={() => setActiveTab('profile')} className={`px-6 py-3 text-lg font-semibold transition-colors ${activeTab === 'profile' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>{`Profile`}</button>
+                <button onClick={() => setActiveTab('profile-settings')} className={`px-6 py-3 text-lg font-semibold transition-colors ${activeTab === 'profile-settings' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>{`Profile & Settings`}</button>
                 <button onClick={() => setActiveTab('friends')} className={`px-6 py-3 text-lg font-semibold transition-colors ${activeTab === 'friends' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>{`Friends`}</button>
-                <button onClick={() => setActiveTab('settings')} className={`px-6 py-3 text-lg font-semibold transition-colors ${activeTab === 'settings' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>{`Settings`}</button>
             </div>
 
             {renderActiveTab()}

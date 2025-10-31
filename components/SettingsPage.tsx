@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useSettings } from '../hooks/useSettings';
-import { useProfileData } from '../hooks/useProfileData';
-import { useWatchLater } from '../hooks/useWatchLater';
+// FIX: `clearHistory` is not provided by `ProfileDataContext`. The history clearing functionality is in `WatchProgressContext`.
+import { useWatchProgress } from '../hooks/useWatchProgress';
+import { useWatchlist } from '../hooks/useWatchLater';
 import { COLOR_PRESETS, VIDEO_SERVERS, VIDSRC_DOMAINS } from '../constants';
 
 const SettingsSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
@@ -49,15 +50,13 @@ const Dropdown: React.FC<{label: string, options: {value: string, label: string}
 
 const SettingsPage: React.FC = () => {
     const { settings, updateSettings, restoreDefaults } = useSettings();
-    const { clearHistory } = useProfileData();
-    const { overwriteWatchLaterList } = useWatchLater();
+    const { clearProgress } = useWatchProgress();
+    const { overwriteWatchlist } = useWatchlist();
 
     const handleClearWatchHistory = () => {
         if (window.confirm("Are you sure? This will clear all local watch history and continue watching progress.")) {
-            // Note: This is a placeholder for clearing continue watching.
-            // A more robust implementation would be in the ContinueWatchingContext.
-            localStorage.removeItem(`continue-watching-${localStorage.getItem('ani-stream-user')}`);
-            clearHistory();
+            // FIX: The function to clear history is `clearProgress` from `useWatchProgress`.
+            clearProgress();
             alert("Watch history cleared.");
         }
     }
@@ -72,7 +71,6 @@ const SettingsPage: React.FC = () => {
                     <span className="text-sm text-right text-[rgb(var(--text-muted))]">{settings.syncThreshold}%</span>
                 </div>
                 <Toggle label="Hide Spoilers" checked={settings.hideSpoilers} onChange={() => updateSettings({ hideSpoilers: !settings.hideSpoilers })} note="Hide episode images, titles, and descriptions." />
-                <RadioGroup label="Watch or Info Page" selected={settings.defaultPageAction} onChange={(v) => updateSettings({ defaultPageAction: v})} options={[{value: 'watch', label: 'Watch'}, {value: 'info', label: 'Info'}]} />
             </SettingsSection>
 
             <SettingsSection title="Appearance">

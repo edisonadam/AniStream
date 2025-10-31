@@ -2,50 +2,50 @@ import React, { createContext, useState, useEffect, ReactNode, useCallback } fro
 import type { Anime } from '../types';
 import { useAuth } from '../hooks/useAuth';
 
-interface WatchLaterContextType {
-  watchLaterList: Anime[];
-  addToWatchLater: (anime: Anime) => void;
-  removeFromWatchLater: (animeId: number) => void;
-  isInWatchLater: (animeId: number) => boolean;
-  overwriteWatchLaterList: (animeList: Anime[]) => void;
+interface WatchlistContextType {
+  watchlist: Anime[];
+  addToWatchlist: (anime: Anime) => void;
+  removeFromWatchlist: (animeId: number) => void;
+  isInWatchlist: (animeId: number) => boolean;
+  overwriteWatchlist: (animeList: Anime[]) => void;
 }
 
-export const WatchLaterContext = createContext<WatchLaterContextType | undefined>(undefined);
+export const WatchlistContext = createContext<WatchlistContextType | undefined>(undefined);
 
-interface WatchLaterProviderProps {
+interface WatchlistProviderProps {
   children: ReactNode;
 }
 
-export const WatchLaterProvider: React.FC<WatchLaterProviderProps> = ({ children }) => {
-  const [watchLaterList, setWatchLaterList] = useState<Anime[]>([]);
+export const WatchlistProvider: React.FC<WatchlistProviderProps> = ({ children }) => {
+  const [watchlist, setWatchlist] = useState<Anime[]>([]);
   const { user } = useAuth();
 
   useEffect(() => {
     if (user) {
       try {
-        const storedList = localStorage.getItem(`watch-later-${user.username}`);
+        const storedList = localStorage.getItem(`watchlist-${user.username}`);
         if (storedList) {
-          setWatchLaterList(JSON.parse(storedList));
+          setWatchlist(JSON.parse(storedList));
         } else {
-          setWatchLaterList([]);
+          setWatchlist([]);
         }
       } catch (error) {
-        console.error("Failed to parse watch later list from localStorage", error);
-        setWatchLaterList([]);
+        console.error("Failed to parse watchlist from localStorage", error);
+        setWatchlist([]);
       }
     } else {
-      setWatchLaterList([]);
+      setWatchlist([]);
     }
   }, [user]);
 
   const persistList = (list: Anime[]) => {
     if (user) {
-      localStorage.setItem(`watch-later-${user.username}`, JSON.stringify(list));
+      localStorage.setItem(`watchlist-${user.username}`, JSON.stringify(list));
     }
   };
 
-  const addToWatchLater = (anime: Anime) => {
-    setWatchLaterList(prevList => {
+  const addToWatchlist = (anime: Anime) => {
+    setWatchlist(prevList => {
       if (prevList.some(item => item.id === anime.id)) {
         return prevList;
       }
@@ -55,26 +55,26 @@ export const WatchLaterProvider: React.FC<WatchLaterProviderProps> = ({ children
     });
   };
 
-  const removeFromWatchLater = (animeId: number) => {
-    setWatchLaterList(prevList => {
+  const removeFromWatchlist = (animeId: number) => {
+    setWatchlist(prevList => {
       const newList = prevList.filter(item => item.id !== animeId);
       persistList(newList);
       return newList;
     });
   };
 
-  const isInWatchLater = useCallback((animeId: number) => {
-    return watchLaterList.some(item => item.id === animeId);
-  }, [watchLaterList]);
+  const isInWatchlist = useCallback((animeId: number) => {
+    return watchlist.some(item => item.id === animeId);
+  }, [watchlist]);
 
-  const overwriteWatchLaterList = (animeList: Anime[]) => {
-    setWatchLaterList(animeList);
+  const overwriteWatchlist = (animeList: Anime[]) => {
+    setWatchlist(animeList);
     persistList(animeList);
   };
 
   return (
-    <WatchLaterContext.Provider value={{ watchLaterList, addToWatchLater, removeFromWatchLater, isInWatchLater, overwriteWatchLaterList }}>
+    <WatchlistContext.Provider value={{ watchlist, addToWatchlist, removeFromWatchlist, isInWatchlist, overwriteWatchlist }}>
       {children}
-    </WatchLaterContext.Provider>
+    </WatchlistContext.Provider>
   );
 };

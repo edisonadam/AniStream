@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import type { Anime, Club, Filter, Notification, Settings, Page } from './types';
 import { useSettings } from './hooks/useSettings';
@@ -25,6 +27,7 @@ import HistoryPage from './components/HistoryPage';
 import NewsPage from './components/NewsPage';
 import MangaPage from './components/MangaPage';
 import BeginnerAnimePage from './components/BeginnerAnimePage';
+import { useWatchProgress } from './hooks/useWatchProgress';
 
 const ANIME_PAGE_SIZE = 25;
 
@@ -54,29 +57,44 @@ const App: React.FC = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [isLoginOpen, setIsLoginOpen] = useState(false);
-    const [isWatchLaterOpen, setIsWatchLaterOpen] = useState(false);
+    const [isWatchlistOpen, setIsWatchlistOpen] = useState(false);
 
     const { settings, updateSettings } = useSettings();
+    const { watchProgressList } = useWatchProgress();
     const appRef = useRef<HTMLDivElement>(null);
     const scrollPositionRef = useRef<number | null>(null);
     const homePageScrollPosition = useRef(0);
-    const prevPageRef = useRef<Page>();
+    const prevPageRef = useRef<Page | undefined>(undefined);
 
     useEffect(() => {
         prevPageRef.current = page;
     }, [page]);
     
+    const handleResetFilters = (scrollToTop?: boolean) => {
+        const resolvedScrollToTop = scrollToTop ?? true;
+        const resetState: Filter = { query: '', genres: [], types: [], statuses: [], years: [], languages: [], studios: [], sort: 'popularity' };
+        if (resolvedScrollToTop) {
+            homePageScrollPosition.current = 0;
+            window.scrollTo({ top: 0, behavior: 'auto' });
+        }
+        setFilters(resetState);
+        setStagedFilters(resetState);
+    };
+
     const navigateTo = (newPage: Page) => {
         if (page !== 'player' && page !== 'profile' && page !== 'club-detail') {
             homePageScrollPosition.current = window.scrollY;
         }
+
+        if (newPage === 'home' && page !== 'home' && page !== 'player') {
+            const resetState: Filter = { query: '', genres: [], types: [], statuses: [], years: [], languages: [], studios: [], sort: 'popularity' };
+            setFilters(resetState);
+            setStagedFilters(resetState);
+        }
+        
         setPage(newPage);
         setSelectedAnime(null);
         setSelectedClub(null);
-        // Reset filters if navigating back to home from a non-player page
-        if (newPage === 'home' && page !== 'player') {
-            handleResetFilters(false); // Soft reset without scrolling
-        }
     };
 
     const handleAnimeSelect = useCallback((anime: Anime) => {
@@ -84,8 +102,8 @@ const App: React.FC = () => {
           homePageScrollPosition.current = window.scrollY;
         }
         setSelectedAnime(anime);
-        setPage(settings.defaultPageAction === 'info' ? 'home' : 'player');
-    }, [page, settings.defaultPageAction]);
+        setPage('player');
+    }, [page]);
 
     const handleClubSelect = useCallback((club: Club) => {
         homePageScrollPosition.current = window.scrollY;
@@ -182,9 +200,9 @@ const App: React.FC = () => {
     }, [filters]);
 
     useEffect(() => {
+        setGridAnime([]);
         fetchJikanGridData(1, filters, true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [filters]);
+    }, [filters, fetchJikanGridData]);
     
     useEffect(() => {
         if (isSidebarOpen) document.body.classList.add('body-no-scroll');
@@ -201,7 +219,7 @@ const App: React.FC = () => {
         else if (page === 'home' && prevPage !== 'home') {
             window.scrollTo({ top: homePageScrollPosition.current, behavior: 'auto' });
         } else if (page !== 'home' && page !== prevPage) {
-            window.scrollTo(0, 0);
+            window.scrollTo({ top: 0, behavior: 'auto' });
         }
     }, [page, gridAnime]);
 
@@ -214,43 +232,33 @@ const App: React.FC = () => {
     }, [hasMore, isLoadingMore, currentPage, filters, fetchJikanGridData]);
 
     const handleStagedFilterChange = (newFilters: Partial<Filter>) => setStagedFilters(prev => ({ ...prev, ...newFilters }));
+    
     const handleApplyFilters = () => {
-        scrollPositionRef.current = window.scrollY;
+        window.scrollTo({ top: 0, behavior: 'auto' });
         setFilters(stagedFilters);
         setIsSidebarOpen(false);
         navigateTo('home');
     };
-    const handleResetFilters = (scrollToTop = true) => {
-        const resetState = { query: '', genres: [], types: [], statuses: [], years: [], languages: [], studios: [], sort: 'popularity' };
-        if (scrollToTop) {
-            homePageScrollPosition.current = 0;
-            window.scrollTo(0, 0);
-        }
-        setFilters(resetState);
-        setStagedFilters(resetState);
-        navigateTo('home');
-    };
+
     const handleSearchSubmit = (query: string) => { 
         const newFilters = { ...filters, query };
         homePageScrollPosition.current = 0;
-        window.scrollTo(0, 0);
+        window.scrollTo({ top: 0, behavior: 'auto' });
         setFilters(newFilters);
         setIsSearchOpen(false);
         navigateTo('home');
     };
     const handleSortChange = (sort: Filter['sort']) => {
-        scrollPositionRef.current = window.scrollY;
+        window.scrollTo({ top: 0, behavior: 'auto' });
         const newFilters = { ...filters, sort };
         setFilters(newFilters);
         setStagedFilters(newFilters);
     };
 
     const handleNotificationClick = (notification: Notification) => {
-        // Needs a robust way to find anime if not in pre-loaded lists
-        // For now, let's assume we can construct a minimal object and let the player fetch full details
         const animeStub: Anime = {
             id: notification.animeId,
-            title: 'Loading...', // Player will fetch the real title
+            title: 'Loading...',
             thumbnail: '', bannerImage: '', synopsis: '', genres: [], releaseYear: null, status: 'Ongoing', totalEpisodes: null, rating: null, type: null, studio: '', hasSub: false, hasDub: false, runtime: null, avgEpisodeDuration: null, isAdult: false, title_english: null, title_japanese: '',
         };
         handleAnimeSelect(animeStub);
@@ -272,22 +280,35 @@ const App: React.FC = () => {
             query: '', genres: [genre], types: [], statuses: [], years: [], languages: [], studios: [], sort: 'popularity'
         };
         homePageScrollPosition.current = 0;
-        window.scrollTo(0, 0);
+        window.scrollTo({ top: 0, behavior: 'auto' });
         setFilters(newFilters);
         navigateTo('home');
     };
+
+    const allAnime = useMemo(() => {
+        const animeMap = new Map<number, Anime>();
+        [...featuredAnime, ...gridAnime, ...trendingAnime].forEach(anime => {
+            if (anime) animeMap.set(anime.id, anime);
+        });
+        // We add stubs for anime in history that might not be in our loaded lists
+        watchProgressList.forEach(item => {
+            if (!animeMap.has(item.animeId)) {
+                 animeMap.set(item.animeId, { id: item.animeId, title: 'Loading...' } as Anime);
+            }
+        });
+        return Array.from(animeMap.values());
+    }, [featuredAnime, gridAnime, trendingAnime, watchProgressList]);
     
     const pageContent = useMemo(() => {
-        const fullAnimeList = [...featuredAnime, ...gridAnime];
         switch(page) {
-            case 'player': return selectedAnime && <Player anime={selectedAnime} onGoBack={() => navigateTo('home')} onSelectRelated={handleAnimeSelect} allAnime={fullAnimeList} onGenreSelect={handleGenreSelect} />;
-            case 'profile': return <ProfilePage onGoBack={() => navigateTo('home')} allAnime={fullAnimeList} onSelectAnime={handleAnimeSelect} />;
+            case 'player': return selectedAnime && <Player anime={selectedAnime} onGoBack={() => navigateTo('home')} onSelectRelated={handleAnimeSelect} allAnime={allAnime} onGenreSelect={handleGenreSelect} />;
+            case 'profile': return <ProfilePage onGoBack={() => navigateTo('home')} allAnime={allAnime} onSelectAnime={handleAnimeSelect} />;
             case 'clubs': return <ClubsPage onGoBack={() => navigateTo('home')} onClubSelect={handleClubSelect} />;
             case 'club-detail': return selectedClub && <ClubDetailPage club={selectedClub} onGoBack={() => navigateTo('clubs')} onSelectAnime={handleAnimeSelect} />;
             case 'magazines': return <MagazinesPage onGoBack={() => navigateTo('home')} />;
             case 'trending': return <TrendingPage onAnimeSelect={handleAnimeSelect} />;
             case 'schedule': return <SchedulePage onAnimeSelect={handleAnimeSelect} />;
-            case 'history': return <HistoryPage onAnimeSelect={handleAnimeSelect} allAnime={fullAnimeList} />;
+            case 'history': return <HistoryPage onAnimeSelect={handleAnimeSelect} allAnime={allAnime} />;
             case 'news': return <NewsPage onAnimeSelect={handleAnimeSelect} />;
             case 'manga': return <MangaPage onGoBack={() => navigateTo('home')} />;
             case 'beginners': return <BeginnerAnimePage onGoBack={() => navigateTo('home')} onAnimeSelect={handleAnimeSelect} />;
@@ -300,9 +321,9 @@ const App: React.FC = () => {
                         
                         {isDefaultHome && settings.showWatchHistoryOnHome && (
                             <ContinueWatching 
-                                allAnime={fullAnimeList}
+                                allAnime={allAnime}
                                 onSelectAnime={handleAnimeSelect} 
-                                onShowWatchlist={() => setIsWatchLaterOpen(true)} 
+                                onShowHistory={() => navigateTo('history')} 
                             />
                         )}
                         
@@ -322,7 +343,7 @@ const App: React.FC = () => {
                 );
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [page, hasActiveFilters, isCarouselLoading, isGridLoading, isLoadingMore, hasMore, featuredAnime, gridAnime, filters, settings.showWatchHistoryOnHome, selectedAnime, selectedClub]);
+    }, [page, hasActiveFilters, isCarouselLoading, isGridLoading, isLoadingMore, hasMore, featuredAnime, gridAnime, allAnime, filters, settings.showWatchHistoryOnHome, selectedAnime, selectedClub]);
 
     return (
         <div ref={appRef} className="bg-[rgb(var(--bg-gradient-start))] text-[rgb(var(--text-primary))]">
@@ -330,7 +351,7 @@ const App: React.FC = () => {
                 onMenuClick={() => setIsSidebarOpen(true)}
                 onLoginClick={() => setIsLoginOpen(true)}
                 onSearchClick={() => setIsSearchOpen(true)}
-                onShowWatchLater={() => setIsWatchLaterOpen(true)}
+                onShowWatchlist={() => setIsWatchlistOpen(true)}
                 onNavigate={navigateTo}
                 onNotificationClick={handleNotificationClick}
                 trendingAnime={trendingAnime}
@@ -342,7 +363,7 @@ const App: React.FC = () => {
                 filters={stagedFilters}
                 onFilterChange={handleStagedFilterChange}
                 onApplyFilters={handleApplyFilters}
-                onResetFilters={() => handleResetFilters(true)}
+                onResetFilters={() => { handleResetFilters(true); }}
                 onNavigate={navigateTo}
                 onSurpriseMe={handleSurpriseMe}
                 settings={settings}
@@ -350,7 +371,7 @@ const App: React.FC = () => {
             />
             {isSearchOpen && <SearchOverlay onClose={() => setIsSearchOpen(false)} onAnimeSelect={handleAnimeSelect} onSearchSubmit={handleSearchSubmit} />}
             {isLoginOpen && <AuthModal onClose={() => setIsLoginOpen(false)} />}
-            {isWatchLaterOpen && <WatchlistOverlay onClose={() => setIsWatchLaterOpen(false)} onSelectAnime={handleAnimeSelect} />}
+            {isWatchlistOpen && <WatchlistOverlay onClose={() => setIsWatchlistOpen(false)} onSelectAnime={handleAnimeSelect} />}
             
             <main className={`${page === 'home' && !hasActiveFilters ? '' : 'pt-20'}`}>
                 {pageContent}

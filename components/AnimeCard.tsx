@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Anime } from '../types';
-import { useWatchLater } from '../hooks/useWatchLater';
+import { useWatchlist } from '../hooks/useWatchLater';
 import { useAuth } from '../hooks/useAuth';
 import { PlusIcon, CheckIcon, DotsVerticalIcon, StarIcon } from './icons/Icons';
 import { useSettings } from '../hooks/useSettings';
@@ -27,18 +27,18 @@ const formatDuration = (minutes: number | null): string => {
 };
 
 const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect }) => {
-  const { addToWatchLater, removeFromWatchLater, isInWatchLater } = useWatchLater();
+  const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
   const { isLoggedIn } = useAuth();
   const { settings } = useSettings();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const inWatchLater = isInWatchLater(anime.id);
+  const inWatchlist = isInWatchlist(anime.id);
 
-  const handleWatchLaterClick = (e: React.MouseEvent) => {
+  const handleWatchlistClick = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card click
-    if(inWatchLater) {
-      removeFromWatchLater(anime.id);
+    if(inWatchlist) {
+      removeFromWatchlist(anime.id);
     } else {
-      addToWatchLater(anime);
+      addToWatchlist(anime);
     }
     setIsMenuOpen(false);
   };
@@ -84,9 +84,9 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect }) => {
             </button>
             {isMenuOpen && (
                 <div className="absolute top-full right-0 mt-1 bg-[rgb(var(--surface-2))] rounded-lg shadow-lg p-1 z-10 w-40">
-                    <button onClick={handleWatchLaterClick} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] rounded-md">
-                        {inWatchLater ? <CheckIcon/> : <PlusIcon/>}
-                        <span>{inWatchLater ? 'In Watchlist' : 'Add to Watchlist'}</span>
+                    <button onClick={handleWatchlistClick} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] rounded-md">
+                        {inWatchlist ? <CheckIcon/> : <PlusIcon/>}
+                        <span>{inWatchlist ? 'In Watchlist' : 'Add to Watchlist'}</span>
                     </button>
                 </div>
             )}

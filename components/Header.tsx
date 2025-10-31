@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { HamburgerIcon, SearchIcon, BellIcon, UserIcon, CloseIcon } from './icons/Icons';
+import { HamburgerIcon, SearchIcon, BellIcon, UserIcon, CloseIcon, BookmarkIcon, LogoutIcon } from './icons/Icons';
 import { useAuth } from '../hooks/useAuth';
 import type { Notification, Anime, Page } from '../types';
 import Logo from './Logo';
@@ -11,7 +11,7 @@ interface HeaderProps {
   onMenuClick: () => void;
   onLoginClick: () => void;
   onSearchClick: () => void;
-  onShowWatchLater: () => void;
+  onShowWatchlist: () => void;
   onNavigate: (page: Page) => void;
   onNotificationClick: (notification: Notification) => void;
   trendingAnime?: Anime[];
@@ -24,7 +24,7 @@ const NavLink: React.FC<{ page: Page; onNavigate: (page: Page) => void; children
     </button>
 );
 
-const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClick, onShowWatchLater, onNavigate, onNotificationClick, trendingAnime = [], onTrendingAnimeClick = (_) => {} }) => {
+const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClick, onShowWatchlist, onNavigate, onNotificationClick, trendingAnime = [], onTrendingAnimeClick = (_) => {} }) => {
   const { isLoggedIn, user, logout } = useAuth();
   const { notifications, markNotificationsAsRead } = useProfileData();
   const { settings } = useSettings();
@@ -58,8 +58,8 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
     setIsProfileOpen(false);
   }
   
-  const handleWatchLaterLink = () => {
-    onShowWatchLater();
+  const handleWatchlistLink = () => {
+    onShowWatchlist();
     setIsProfileOpen(false);
   }
 
@@ -110,7 +110,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
                     <BellIcon />
                     {unreadCount > 0 && <span className="absolute top-1 right-1 block h-2.5 w-2.5 rounded-full bg-[rgb(var(--color-primary))] ring-2 ring-[rgb(var(--surface-1))]"></span>}
                   </button>
-                  <div className={`origin-top-right absolute right-0 mt-2 w-72 sm:w-96 rounded-2xl shadow-lg bg-[rgb(var(--surface-2))/0.8] backdrop-blur-xl border border-white/10 transition-all duration-200 ease-out transform ${isNotificationOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}>
+                  <div className={`origin-top-right absolute right-0 mt-2 w-72 sm:w-96 rounded-2xl shadow-lg shadow-[rgb(var(--shadow-color))/0.3] bg-[rgb(var(--surface-2))] border border-white/10 transition-all duration-300 ease-out transform ${isNotificationOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'}`}>
                       <div className="p-3 flex justify-between items-center font-semibold text-[rgb(var(--text-primary))] border-b border-white/10">
                         <span>Notifications</span>
                         {notifications.length > 0 && unreadCount > 0 && (
@@ -144,12 +144,21 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
                   <button onClick={() => setIsProfileOpen(!isProfileOpen)} className="p-1 rounded-full text-[rgb(var(--text-secondary))] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[rgb(var(--surface-1))] focus:ring-[rgb(var(--color-primary))]">
                     <img src={user.avatar} alt={user.username} className="w-9 h-9 rounded-full bg-[rgb(var(--color-primary)/0.5)]" />
                   </button>
-                  <div className={`origin-top-right absolute right-0 mt-2 w-48 rounded-2xl shadow-lg bg-[rgb(var(--surface-2))/0.8] backdrop-blur-xl border border-white/10 transition-all duration-200 ease-out transform ${isProfileOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}>
-                      <div className="py-1" role="menu">
-                        <div className="px-4 py-2 text-sm text-[rgb(var(--text-primary))] font-semibold border-b border-white/10">{user.username}</div>
-                        <button onClick={() => handleProfileLink('profile')} className="block w-full text-left px-4 py-2 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] transition-colors">Profile</button>
-                        <button onClick={handleWatchLaterLink} className="block w-full text-left px-4 py-2 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] transition-colors">Watch Later</button>
-                        <button onClick={handleLogout} className="block w-full text-left px-4 py-2 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] transition-colors">Logout</button>
+                  <div className={`origin-top-right absolute right-0 mt-2 w-56 rounded-2xl shadow-lg shadow-[rgb(var(--shadow-color))/0.3] bg-[rgb(var(--surface-2))] border border-white/10 transition-all duration-300 ease-out transform ${isProfileOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'}`}>
+                      <div className="p-2 space-y-1" role="menu">
+                        <div className="px-3 py-2 text-sm text-[rgb(var(--text-primary))] font-semibold border-b border-white/10 mb-1">{user.username}</div>
+                        <button onClick={() => handleProfileLink('profile')} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] hover:text-[rgb(var(--text-primary))] rounded-lg transition-colors">
+                            <UserIcon className="w-5 h-5"/>
+                            <span>Profile & Settings</span>
+                        </button>
+                        <button onClick={handleWatchlistLink} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] hover:text-[rgb(var(--text-primary))] rounded-lg transition-colors">
+                            <BookmarkIcon className="w-5 h-5"/>
+                            <span>Watchlist</span>
+                        </button>
+                        <button onClick={handleLogout} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] hover:text-[rgb(var(--text-primary))] rounded-lg transition-colors">
+                            <LogoutIcon className="w-5 h-5"/>
+                            <span>Logout</span>
+                        </button>
                       </div>
                   </div>
                 </div>

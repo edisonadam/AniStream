@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
-import type { Anime } from '../types';
-import { useProfileData } from '../hooks/useProfileData';
-import AnimeCard from './AnimeCard';
-import { ChevronLeftIcon } from './icons/Icons';
+import type { Anime, WatchProgressInfo } from '../types';
+import { useWatchProgress } from '../hooks/useWatchProgress';
+import { useSettings } from '../hooks/useSettings';
+import { getDisplayTitle } from '../utils';
 
 interface HistoryPageProps {
   onAnimeSelect: (anime: Anime) => void;
@@ -10,14 +10,18 @@ interface HistoryPageProps {
 }
 
 const HistoryPage: React.FC<HistoryPageProps> = ({ onAnimeSelect, allAnime }) => {
-    const { history, clearHistory } = useProfileData();
+    const { watchProgressList, clearProgress } = useWatchProgress();
+    const { settings } = useSettings();
     
     const historyWithDetails = useMemo(() => {
         const animeMap = new Map(allAnime.map(a => [a.id, a]));
-        return history
-            .map(h => animeMap.get(h.animeId))
-            .filter((a): a is Anime => a !== undefined);
-    }, [history, allAnime]);
+        return watchProgressList
+            .map(progressInfo => {
+                const anime = animeMap.get(progressInfo.animeId);
+                return anime ? { anime, progressInfo } : null;
+            })
+            .filter((item): item is { anime: Anime; progressInfo: WatchProgressInfo } => item !== null);
+    }, [watchProgressList, allAnime]);
 
     return (
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-subtle-fade-in-up">
@@ -25,11 +29,11 @@ const HistoryPage: React.FC<HistoryPageProps> = ({ onAnimeSelect, allAnime }) =>
                 <h1 className="text-3xl font-bold text-[rgb(var(--text-primary))]" style={{ textShadow: `0 0 8px rgb(var(--shadow-color) / 0.5)` }}>
                     Viewing History
                 </h1>
-                {history.length > 0 && (
+                {historyWithDetails.length > 0 && (
                      <button 
                         onClick={() => {
                             if (window.confirm("Are you sure you want to clear your entire viewing history? This cannot be undone.")) {
-                                clearHistory();
+                                clearProgress();
                             }
                         }}
                         className="px-4 py-2 bg-[rgb(var(--color-danger))]/20 text-[rgb(var(--color-danger))] rounded-xl font-semibold hover:bg-[rgb(var(--color-danger))]/40"
@@ -40,10 +44,29 @@ const HistoryPage: React.FC<HistoryPageProps> = ({ onAnimeSelect, allAnime }) =>
             </div>
 
             {historyWithDetails.length > 0 ? (
-                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
-                    {historyWithDetails.map((anime, index) => (
-                        <div key={anime.id} className="animate-subtle-fade-in-up" style={{ animationDelay: `${index * 30}ms` }}>
-                            <AnimeCard anime={anime} onSelect={onAnimeSelect} />
+                 <div className="space-y-4">
+                    {historyWithDetails.map(({ anime, progressInfo }) => (
+                        <div 
+                            key={anime.id}
+                            onClick={() => onAnimeSelect(anime)}
+                            className="group flex items-center gap-4 bg-[rgb(var(--surface-2))/0.5] p-3 rounded-xl hover:bg-[rgb(var(--surface-2))] transition-colors cursor-pointer"
+                        >
+                            <img src={anime.thumbnail} alt={getDisplayTitle(anime, settings)} className="w-16 h-24 object-cover rounded-md flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                                <h3 className="font-bold text-[rgb(var(--text-primary))] truncate group-hover:text-[rgb(var(--color-primary-accent))] transition-colors">{getDisplayTitle(anime, settings)}</h3>
+                                <p className="text-sm text-[rgb(var(--text-muted))]">
+                                    Last Watched: S{progressInfo.currentSeason} E{progressInfo.currentEpisode}
+                                </p>
+                                <div className="mt-2">
+                                     <div className="w-full bg-[rgb(var(--surface-3))] rounded-full h-1.5">
+                                        <div className="bg-[rgb(var(--color-primary))] h-1.5 rounded-full" style={{width: `${progressInfo.progress}%`}}></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="flex-shrink-0 text-sm text-right text-[rgb(var(--text-muted))]">
+                                <p>{new Date(progressInfo.timestamp).toLocaleDateString()}</p>
+                                <p>{new Date(progressInfo.timestamp).toLocaleTimeString()}</p>
+                            </div>
                         </div>
                     ))}
                 </div>

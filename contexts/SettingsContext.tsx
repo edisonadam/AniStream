@@ -19,7 +19,6 @@ const defaultSettings: Settings = {
   autoSyncAniList: false,
   syncThreshold: 80,
   hideSpoilers: false,
-  defaultPageAction: 'watch',
   borderRadius: 50, // 50%
   showWatchHistoryOnHome: true,
   cardLayout: 'classic',

@@ -1,17 +1,19 @@
 
+
 import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import type { ContinueWatchingInfo, Anime } from '../types';
+// FIX: Module '"../types"' has no exported member 'ContinueWatchingInfo'. The correct type is 'WatchProgressInfo'.
+import type { WatchProgressInfo, Anime } from '../types';
 import { useAuth } from '../hooks/useAuth';
 
 interface ContinueWatchingContextType {
-  continueWatchingList: ContinueWatchingInfo[];
+  continueWatchingList: WatchProgressInfo[];
   updateProgress: (
     animeId: number, 
     currentSeason: number, 
     currentEpisode: number,
     progress: number
   ) => void;
-  getContinueWatchingInfo: (animeId: number) => ContinueWatchingInfo | undefined;
+  getContinueWatchingInfo: (animeId: number) => WatchProgressInfo | undefined;
 }
 
 export const ContinueWatchingContext = createContext<ContinueWatchingContextType | undefined>(undefined);
@@ -21,7 +23,7 @@ interface ContinueWatchingProviderProps {
 }
 
 export const ContinueWatchingProvider: React.FC<ContinueWatchingProviderProps> = ({ children }) => {
-  const [continueWatchingList, setContinueWatchingList] = useState<ContinueWatchingInfo[]>([]);
+  const [continueWatchingList, setContinueWatchingList] = useState<WatchProgressInfo[]>([]);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -33,7 +35,7 @@ export const ContinueWatchingProvider: React.FC<ContinueWatchingProviderProps> =
         if (storedList) {
           const parsedList = JSON.parse(storedList);
           // Sort by timestamp descending to show the most recent first
-          parsedList.sort((a: ContinueWatchingInfo, b: ContinueWatchingInfo) => b.timestamp - a.timestamp);
+          parsedList.sort((a: WatchProgressInfo, b: WatchProgressInfo) => b.timestamp - a.timestamp);
           setContinueWatchingList(parsedList);
         } else {
           setContinueWatchingList([]);
@@ -61,7 +63,7 @@ export const ContinueWatchingProvider: React.FC<ContinueWatchingProviderProps> =
     
     setContinueWatchingList(prevList => {
       const newList = prevList.filter(item => item.animeId !== animeId);
-      const newItem: ContinueWatchingInfo = { 
+      const newItem: WatchProgressInfo = { 
           animeId, 
           currentSeason, 
           currentEpisode, 

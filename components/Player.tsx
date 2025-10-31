@@ -1,10 +1,12 @@
+
 import React, { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import type { Anime, Season, Episode, VideoServer, EpisodeViewStyle, User, Character, DefaultLanguage } from '../types';
 import { ChevronLeftIcon, StarIcon, ChevronRightIcon, ViewGridIcon, ViewListIcon, ViewCarouselIcon, EyeIcon, EyeOffIcon, RewindIcon, FastForwardIcon, RefreshCwIcon, ShareIcon, CloseIcon, DownloadIcon, SparklesIcon } from './icons/Icons';
 import AnimeCard from './AnimeCard';
 import Comments from './Comments';
 import { useSettings } from '../hooks/useSettings';
-import { useContinueWatching } from '../hooks/useContinueWatching';
+// FIX: The application uses `WatchProgressProvider`, so this should use the `useWatchProgress` hook instead of the legacy `useContinueWatching`.
+import { useWatchProgress } from '../hooks/useWatchProgress';
 import { useProfileData } from '../hooks/useProfileData';
 import { useAuth } from '../hooks/useAuth';
 import { VIDEO_SERVERS, VIDSRC_DOMAINS } from '../constants';
@@ -195,8 +197,9 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
 
   const { settings, updateSettings } = useSettings();
   const { user } = useAuth();
-  const { updateProgress, getContinueWatchingInfo } = useContinueWatching();
-  const { logToHistory, rateAnime, getRating, friends, addNotification } = useProfileData();
+  const { updateProgress, getWatchProgress } = useWatchProgress();
+  // FIX: `logToHistory` does not exist on `ProfileDataContext`. This functionality is handled by `WatchProgressContext`.
+  const { rateAnime, getRating, friends, addNotification } = useProfileData();
   const currentRating = playerAnime ? getRating(playerAnime.id) : null;
   
   const episodeRefs = useRef<Map<number, HTMLButtonElement | null>>(new Map());
@@ -533,7 +536,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
                         const sessionStateString = sessionStorage.getItem(`anistream-player-state-${anime.id}`);
                         const sessionState = sessionStateString ? JSON.parse(sessionStateString) : null;
                         const seasonFromTitle = parseSeasonFromTitle(fullAnimeData.title);
-                        const savedProgress = getContinueWatchingInfo(anime.id);
+                        const savedProgress = getWatchProgress(anime.id);
 
                         if (sessionState && validSeasons.some(s => s.season_number === sessionState.season)) {
                             setCurrentSeason(sessionState.season);
@@ -584,8 +587,6 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
     fetchAnimeDetails();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [anime.id, settings]);
-
-  useEffect(() => { if (playerAnime) logToHistory(playerAnime); }, [playerAnime, logToHistory]);
 
   useEffect(() => {
     if (playerAnime) {

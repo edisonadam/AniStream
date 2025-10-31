@@ -1,81 +1,207 @@
-import React, { useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Anime } from '../types';
-import AnimeCard from './AnimeCard';
-import AnimeCardSkeleton from './AnimeCardSkeleton';
-import { ChevronLeftIcon, ChevronRightIcon } from './icons/Icons';
+import { ChevronLeftIcon, ChevronRightIcon, PlayIcon, PlusIcon, StarIcon, CheckIcon } from './icons/Icons';
+// FIX: The hook is named useWatchlist, not useWatchLater.
+import { useWatchlist } from '../hooks/useWatchLater';
+import { useAuth } from '../hooks/useAuth';
+import { useSettings } from '../hooks/useSettings';
+import { getDisplayTitle } from '../utils';
 
-interface AnimeCarouselProps {
-  title: string;
+interface FeaturedCarouselProps {
   animeList: Anime[];
   onAnimeSelect: (anime: Anime) => void;
   isLoading: boolean;
 }
 
-const AnimeCarousel: React.FC<AnimeCarouselProps> = ({ title, animeList, onAnimeSelect, isLoading }) => {
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeSelect, isLoading }) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  // FIX: The hook is useWatchlist and returns `addToWatchlist` and `isInWatchlist`.
+  const { addToWatchlist, isInWatchlist } = useWatchlist();
+  const { isLoggedIn } = useAuth();
+  const { settings } = useSettings();
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [touchEndX, setTouchEndX] = useState<number | null>(null);
+  const minSwipeDistance = 50;
 
-  const scroll = (direction: 'left' | 'right') => {
-    if (scrollContainerRef.current) {
-      const scrollAmount = scrollContainerRef.current.clientWidth * 0.8;
-      scrollContainerRef.current.scrollBy({
-        left: direction === 'left' ? -scrollAmount : scrollAmount,
-        behavior: 'smooth',
-      });
+  const slides = animeList.slice(0, 5);
+
+  const resetTimeout = useCallback(() => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+  }, []);
+
+  const stopAutoPlay = useCallback(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+  }, []);
+
+  const nextSlide = useCallback(() => {
+    setCurrentIndex((prev) => (prev + 1) % slides.length);
+  }, [slides.length]);
+
+  const prevSlide = useCallback(() => {
+    setCurrentIndex((prev) => (prev - 1 + slides.length) % slides.length);
+  }, [slides.length]);
+
+  const startAutoPlay = useCallback(() => {
+    stopAutoPlay();
+    intervalRef.current = setInterval(nextSlide, 7000); // Slower rotation
+  }, [stopAutoPlay, nextSlide]);
+
+  useEffect(() => {
+    if (slides.length > 0) {
+      startAutoPlay();
     }
+    return () => stopAutoPlay();
+  }, [slides.length, startAutoPlay, stopAutoPlay]);
+
+  const handleManualInteraction = useCallback(() => {
+    stopAutoPlay();
+    resetTimeout();
+    timeoutRef.current = setTimeout(() => {
+      startAutoPlay();
+    }, 10000); // Resume after 10s of inactivity
+  }, [stopAutoPlay, resetTimeout, startAutoPlay]);
+
+  const goToSlide = (index: number) => {
+    setCurrentIndex(index);
+    handleManualInteraction();
+  };
+
+  const goToPrev = () => {
+    prevSlide();
+    handleManualInteraction();
   };
   
-  if (!isLoading && animeList.length === 0) {
+  const goToNext = () => {
+    nextSlide();
+    handleManualInteraction();
+  };
+  
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEndX(null); // Reset touch end position
+    setTouchStartX(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEndX(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStartX || !touchEndX) return;
+    const distance = touchStartX - touchEndX;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isLeftSwipe) {
+      goToNext();
+    } else if (isRightSwipe) {
+      goToPrev();
+    }
+  };
+
+
+  if (isLoading) {
+    return (
+        <section className="relative w-full h-[90vh] bg-[rgb(var(--surface-2))] animate-pulse">
+            <div className="absolute bottom-10 md:bottom-20 left-4 md:left-12 max-w-xl z-20 space-y-4">
+                <div className="h-10 md:h-16 bg-[rgb(var(--surface-3))] rounded-lg w-3/4"></div>
+                <div className="h-6 bg-[rgb(var(--surface-3))] rounded-md w-1/2"></div>
+                <div className="flex items-center gap-3">
+                    <div className="h-12 bg-[rgb(var(--surface-4))] rounded-full w-36"></div>
+                    <div className="h-12 bg-[rgb(var(--surface-4))] rounded-full w-48"></div>
+                </div>
+            </div>
+        </section>
+    );
+  }
+  
+  if (slides.length === 0) {
       return null;
   }
 
-  return (
-    <section className="py-4 md:py-6 relative group">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="text-2xl sm:text-3xl font-bold text-[rgb(var(--text-primary))] mb-6" style={{ textShadow: `0 0 10px rgb(var(--shadow-color) / 0.5)` }}>
-          {title}
-        </h2>
+  const currentSlide = slides[currentIndex];
+  // FIX: Renamed from `inWatchLater` to `inWatchlist`.
+  const inWatchlist = isInWatchlist(currentSlide.id);
+  const displayTitle = getDisplayTitle(currentSlide, settings);
 
-        <div className="relative">
-            <div
-                ref={scrollContainerRef}
-                className="flex gap-4 md:gap-6 overflow-x-auto pb-4 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8"
-                style={{ scrollbarWidth: 'none', '-ms-overflow-style': 'none' }}
-            >
-                {isLoading ? (
-                    Array.from({ length: 10 }).map((_, index) => (
-                        <div key={index} className="flex-shrink-0 w-40 sm:w-48">
-                            <AnimeCardSkeleton />
-                        </div>
-                    ))
-                ) : (
-                    animeList.map((anime, index) => (
-                        <div key={anime.id} className="flex-shrink-0 w-40 sm:w-48 animate-subtle-fade-in-up" style={{ animationDelay: `${index * 40}ms` }}>
-                            <AnimeCard anime={anime} onSelect={onAnimeSelect} />
-                        </div>
-                    ))
-                )}
-            </div>
-            {/* Desktop Navigation Arrows */}
-            <div className="hidden md:block">
-                <button
-                    onClick={() => scroll('left')}
-                    className="absolute top-1/2 -translate-y-1/2 -left-4 p-2 bg-black/40 rounded-full text-white opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-[rgb(var(--color-primary))] hover:scale-110 z-20"
-                    aria-label="Scroll left"
-                >
-                    <ChevronLeftIcon className="w-8 h-8"/>
-                </button>
-                <button
-                    onClick={() => scroll('right')}
-                    className="absolute top-1/2 -translate-y-1/2 -right-4 p-2 bg-black/40 rounded-full text-white opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-[rgb(var(--color-primary))] hover:scale-110 z-20"
-                    aria-label="Scroll right"
-                >
-                    <ChevronRightIcon className="w-8 h-8"/>
-                </button>
-            </div>
+  return (
+    <section 
+      className="relative w-full h-[90vh] overflow-hidden group mb-8"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
+      {/* Slides */}
+      {slides.map((slide, index) => (
+        <div key={slide.id} className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${index === currentIndex ? 'opacity-100' : 'opacity-0'}`}>
+          <img src={slide.bannerImage} alt={getDisplayTitle(slide, settings)} className={`w-full h-full object-cover ${index === currentIndex ? 'animate-ken-burns' : ''}`} />
         </div>
+      ))}
+
+      {/* Gradient Fades */}
+      <div className="absolute top-0 left-0 w-full h-48 bg-gradient-to-b from-[rgb(var(--bg-gradient-start))] to-transparent z-10"></div>
+      <div className="absolute bottom-0 left-0 w-full h-96 bg-gradient-to-t from-[rgb(var(--bg-gradient-start))] to-transparent z-10"></div>
+      <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent w-3/4 z-10"></div>
+
+      {/* Content */}
+      <div className="absolute bottom-10 md:bottom-20 left-4 md:left-12 text-white max-w-2xl z-20">
+          <div key={currentIndex} className="animate-subtle-fade-in-up">
+            <h2 className="text-4xl md:text-6xl font-black mb-3 drop-shadow-2xl" style={{textShadow: '0 4px 20px rgba(0,0,0,0.9)'}}>
+              {displayTitle}
+            </h2>
+            <div className="flex items-center flex-wrap gap-x-4 gap-y-2 mb-4 text-gray-300 font-medium" style={{textShadow: '0 2px 8px rgba(0,0,0,0.7)'}}>
+                {currentSlide.type && <span>{currentSlide.type}</span>}
+                {currentSlide.rating && (
+                    <div className="flex items-center gap-1.5">
+                        <StarIcon className="w-5 h-5 text-[rgb(var(--color-warning))]" />
+                        <span>{currentSlide.rating.toFixed(1)}</span>
+                    </div>
+                )}
+                <span>{currentSlide.genres.slice(0, 3).join(' • ')}</span>
+            </div>
+            <p className="line-clamp-3 text-gray-200 mb-6 max-w-lg">{currentSlide.synopsis}</p>
+            <div className="flex items-center gap-3">
+              <button onClick={() => onAnimeSelect(currentSlide)} className="flex items-center gap-2 px-6 py-3 bg-[rgb(var(--color-primary))] text-white rounded-full font-bold hover:bg-[rgb(var(--color-primary-hover))] transition-transform duration-300 hover:scale-105 shadow-lg shadow-[rgb(var(--shadow-color))/0.4] hover:shadow-[rgb(var(--shadow-color))/0.6]">
+                <PlayIcon className="w-6 h-6"/>
+                <span>Watch Now</span>
+              </button>
+              {isLoggedIn && (
+                <button
+                  // FIX: Changed to use correct function `addToWatchlist` and state `inWatchlist`.
+                  onClick={() => !inWatchlist && addToWatchlist(currentSlide)}
+                  disabled={inWatchlist}
+                  className="flex items-center gap-2 px-5 py-3 bg-white/10 text-white rounded-full font-semibold hover:bg-white/20 transition-colors backdrop-blur-sm disabled:opacity-70 disabled:cursor-not-allowed">
+                  {inWatchlist ? <CheckIcon/> : <PlusIcon/>}
+                  <span>{inWatchlist ? 'In Watchlist' : 'Add to Watchlist'}</span>
+                </button>
+              )}
+            </div>
+          </div>
+      </div>
+      
+      {/* Navigation */}
+      <button onClick={goToPrev} className="absolute top-1/2 left-4 transform -translate-y-1/2 p-3 bg-black/30 rounded-full text-white opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-[rgb(var(--color-primary))] hover:scale-110 z-20" aria-label="Previous slide">
+        <ChevronLeftIcon className="w-8 h-8"/>
+      </button>
+      <button onClick={goToNext} className="absolute top-1/2 right-4 transform -translate-y-1/2 p-3 bg-black/30 rounded-full text-white opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-[rgb(var(--color-primary))] hover:scale-110 z-20" aria-label="Next slide">
+        <ChevronRightIcon className="w-8 h-8"/>
+      </button>
+
+      {/* Indicators */}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex space-x-2 z-20">
+        {slides.map((_, index) => (
+          <button 
+            key={index} 
+            onClick={() => goToSlide(index)} 
+            className={`w-8 h-1.5 rounded-full transition-all duration-300 ${currentIndex === index ? 'bg-[rgb(var(--color-primary-accent))]' : 'bg-gray-500/50 hover:bg-gray-400'}`}
+            aria-label={`Go to slide ${index + 1}`}
+          ></button>
+        ))}
       </div>
     </section>
   );
 };
 
-export default AnimeCarousel;
+export default FeaturedCarousel;

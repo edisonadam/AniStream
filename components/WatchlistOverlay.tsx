@@ -1,7 +1,8 @@
 
 
 import React, { useEffect } from 'react';
-import { useWatchLater } from '../hooks/useWatchLater';
+// FIX: The hook is named useWatchlist, not useWatchLater.
+import { useWatchlist } from '../hooks/useWatchLater';
 import { CloseIcon, PlayIcon, StarIcon } from './icons/Icons';
 import type { Anime } from '../types';
 import { useSettings } from '../hooks/useSettings';
@@ -13,7 +14,8 @@ interface WatchlistOverlayProps {
 }
 
 const WatchlistOverlay: React.FC<WatchlistOverlayProps> = ({ onClose, onSelectAnime }) => {
-    const { watchLaterList, removeFromWatchLater } = useWatchLater();
+    // FIX: The hook is useWatchlist and returns `watchlist` and `removeFromWatchlist`.
+    const { watchlist, removeFromWatchlist } = useWatchlist();
     const { settings } = useSettings();
 
     useEffect(() => {
@@ -39,9 +41,9 @@ const WatchlistOverlay: React.FC<WatchlistOverlayProps> = ({ onClose, onSelectAn
 
             <div className="flex-1 overflow-y-auto">
                 <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                    {watchLaterList.length > 0 ? (
+                    {watchlist.length > 0 ? (
                         <div className="space-y-4">
-                            {watchLaterList.map(anime => (
+                            {watchlist.map(anime => (
                                 <div key={anime.id} className="flex items-center gap-4 bg-[rgb(var(--surface-2))/0.5] p-3 rounded-xl hover:bg-[rgb(var(--surface-2))] transition-colors">
                                     <img src={anime.thumbnail} alt={getDisplayTitle(anime, settings)} className="w-16 h-24 object-cover rounded-md flex-shrink-0" />
                                     <div className="flex-1 min-w-0">
@@ -62,7 +64,7 @@ const WatchlistOverlay: React.FC<WatchlistOverlayProps> = ({ onClose, onSelectAn
                                         <button onClick={() => handleResume(anime)} className="p-2.5 bg-[rgb(var(--color-primary))] rounded-full hover:bg-[rgb(var(--color-primary-hover))] transition-colors" aria-label="Resume">
                                             <PlayIcon />
                                         </button>
-                                         <button onClick={() => removeFromWatchLater(anime.id)} className="p-2.5 bg-[rgb(var(--surface-3))] rounded-full hover:bg-[rgb(var(--color-danger))] transition-colors" aria-label="Remove">
+                                         <button onClick={() => removeFromWatchlist(anime.id)} className="p-2.5 bg-[rgb(var(--surface-3))] rounded-full hover:bg-[rgb(var(--color-danger))] transition-colors" aria-label="Remove">
                                             <CloseIcon/>
                                         </button>
                                     </div>

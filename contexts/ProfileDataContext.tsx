@@ -1,16 +1,13 @@
 import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import type { ViewingHistoryItem, Rating, Anime, User, Notification } from '../types';
+import type { Rating, Anime, User, Notification } from '../types';
 import { useAuth } from '../hooks/useAuth';
 
 interface ProfileDataContextType {
-  history: ViewingHistoryItem[];
   ratings: Rating[];
   friends: User[];
   notifications: Notification[];
-  logToHistory: (anime: Anime) => void;
   rateAnime: (animeId: number, rating: number) => void;
   getRating: (animeId: number) => number | null;
-  clearHistory: () => void;
   addFriend: (friend: User) => boolean;
   removeFriend: (username: string) => void;
   isFriend: (username: string) => boolean;
@@ -26,7 +23,6 @@ interface ProfileDataProviderProps {
 }
 
 export const ProfileDataProvider: React.FC<ProfileDataProviderProps> = ({ children }) => {
-  const [history, setHistory] = useState<ViewingHistoryItem[]>([]);
   const [ratings, setRatings] = useState<Rating[]>([]);
   const [friends, setFriends] = useState<User[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -35,9 +31,6 @@ export const ProfileDataProvider: React.FC<ProfileDataProviderProps> = ({ childr
   useEffect(() => {
     if (user) {
       try {
-        const storedHistory = localStorage.getItem(`history-${user.username}`);
-        setHistory(storedHistory ? JSON.parse(storedHistory) : []);
-        
         const storedRatings = localStorage.getItem(`ratings-${user.username}`);
         setRatings(storedRatings ? JSON.parse(storedRatings) : []);
         
@@ -48,22 +41,16 @@ export const ProfileDataProvider: React.FC<ProfileDataProviderProps> = ({ childr
         setNotifications(storedNotifications ? JSON.parse(storedNotifications) : []);
       } catch (e) {
         console.error("Failed to load profile data", e);
-        setHistory([]);
         setRatings([]);
         setFriends([]);
         setNotifications([]);
       }
     } else {
       // Clear data on logout
-      setHistory([]);
       setRatings([]);
       setFriends([]);
       setNotifications([]);
     }
-  }, [user]);
-
-  const persistHistory = useCallback((list: ViewingHistoryItem[]) => {
-    if (user) localStorage.setItem(`history-${user.username}`, JSON.stringify(list));
   }, [user]);
 
   const persistRatings = useCallback((list: Rating[]) => {
@@ -77,23 +64,6 @@ export const ProfileDataProvider: React.FC<ProfileDataProviderProps> = ({ childr
   const persistNotifications = useCallback((list: Notification[], username: string) => {
       localStorage.setItem(`notifications-${username}`, JSON.stringify(list));
   }, []);
-  
-  const logToHistory = useCallback((anime: Anime) => {
-    if (!user) return;
-    setHistory(prev => {
-      const newList = prev.filter(item => item.animeId !== anime.id);
-      const newItem: ViewingHistoryItem = { animeId: anime.id, timestamp: Date.now() };
-      const updatedList = [newItem, ...newList].slice(0, 50); // Keep history to 50 items
-      persistHistory(updatedList);
-      return updatedList;
-    });
-  }, [user, persistHistory]);
-  
-  const clearHistory = useCallback(() => {
-      if (!user) return;
-      setHistory([]);
-      localStorage.removeItem(`history-${user.username}`);
-  }, [user]);
 
   const rateAnime = useCallback((animeId: number, rating: number) => {
     if (!user) return;
@@ -180,8 +150,8 @@ export const ProfileDataProvider: React.FC<ProfileDataProviderProps> = ({ childr
 
   return (
     <ProfileDataContext.Provider value={{ 
-        history, ratings, friends, notifications,
-        logToHistory, rateAnime, getRating, clearHistory,
+        ratings, friends, notifications,
+        rateAnime, getRating,
         addFriend, removeFriend, isFriend, 
         addNotification, markNotificationsAsRead 
     }}>

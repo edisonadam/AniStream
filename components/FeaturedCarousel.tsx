@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Anime } from '../types';
 import { ChevronLeftIcon, ChevronRightIcon, PlayIcon, PlusIcon, StarIcon, CheckIcon } from './icons/Icons';
-import { useWatchLater } from '../hooks/useWatchLater';
+import { useWatchlist } from '../hooks/useWatchLater';
 import { useAuth } from '../hooks/useAuth';
 import { useSettings } from '../hooks/useSettings';
 import { getDisplayTitle } from '../utils';
@@ -14,7 +14,7 @@ interface FeaturedCarouselProps {
 
 const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeSelect, isLoading }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const { addToWatchLater, isInWatchLater } = useWatchLater();
+  const { addToWatchlist, isInWatchlist } = useWatchlist();
   const { isLoggedIn } = useAuth();
   const { settings } = useSettings();
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -120,7 +120,7 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
   }
 
   const currentSlide = slides[currentIndex];
-  const inWatchLater = isInWatchLater(currentSlide.id);
+  const inWatchlist = isInWatchlist(currentSlide.id);
   const displayTitle = getDisplayTitle(currentSlide, settings);
 
   return (
@@ -166,11 +166,11 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
               </button>
               {isLoggedIn && (
                 <button
-                  onClick={() => !inWatchLater && addToWatchLater(currentSlide)}
-                  disabled={inWatchLater}
+                  onClick={() => !inWatchlist && addToWatchlist(currentSlide)}
+                  disabled={inWatchlist}
                   className="flex items-center gap-2 px-5 py-3 bg-white/10 text-white rounded-full font-semibold hover:bg-white/20 transition-colors backdrop-blur-sm disabled:opacity-70 disabled:cursor-not-allowed">
-                  {inWatchLater ? <CheckIcon/> : <PlusIcon/>}
-                  <span>{inWatchLater ? 'In Watchlist' : 'Add to Watchlist'}</span>
+                  {inWatchlist ? <CheckIcon/> : <PlusIcon/>}
+                  <span>{inWatchlist ? 'In Watchlist' : 'Add to Watchlist'}</span>
                 </button>
               )}
             </div>

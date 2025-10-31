@@ -130,7 +130,6 @@ export interface Settings {
   autoSyncAniList: boolean;
   syncThreshold: number;
   hideSpoilers: boolean;
-  defaultPageAction: 'watch' | 'info';
   borderRadius: number; // 0-100 percent
   showWatchHistoryOnHome: boolean;
   cardLayout: CardLayout;
@@ -141,16 +140,11 @@ export interface Settings {
   forceMaxQuality: boolean;
 }
 
-export interface ContinueWatchingInfo {
+export interface WatchProgressInfo {
   animeId: number;
   currentSeason: number;
   currentEpisode: number;
   progress: number;
-  timestamp: number;
-}
-
-export interface ViewingHistoryItem {
-  animeId: number;
   timestamp: number;
 }
 

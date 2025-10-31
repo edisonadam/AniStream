@@ -1,21 +1,21 @@
 
 
 import React from 'react';
-import type { Anime, ContinueWatchingInfo } from '../types';
-import { useContinueWatching } from '../hooks/useContinueWatching';
+import type { Anime, WatchProgressInfo } from '../types';
+import { useWatchProgress } from '../hooks/useWatchProgress';
 import { useAuth } from '../hooks/useAuth';
 import { useSettings } from '../hooks/useSettings';
 import { getDisplayTitle } from '../utils';
 
 interface ContinueWatchingProps {
     allAnime: Anime[];
-    onShowWatchlist: () => void;
+    onShowHistory: () => void;
     onSelectAnime: (anime: Anime) => void;
 }
 
 interface ContinueWatchingCardProps {
     anime: Anime;
-    progressInfo: ContinueWatchingInfo;
+    progressInfo: WatchProgressInfo;
     onSelect: () => void;
 }
 
@@ -43,20 +43,21 @@ const ContinueWatchingCard: React.FC<ContinueWatchingCardProps> = ({ anime, prog
     );
 }
 
-const ContinueWatching: React.FC<ContinueWatchingProps> = ({ allAnime, onShowWatchlist, onSelectAnime }) => {
+const ContinueWatching: React.FC<ContinueWatchingProps> = ({ allAnime, onShowHistory, onSelectAnime }) => {
     const { isLoggedIn } = useAuth();
-    const { continueWatchingList } = useContinueWatching();
+    const { watchProgressList } = useWatchProgress();
 
-    if (!isLoggedIn || continueWatchingList.length === 0 || allAnime.length === 0) {
+    if (!isLoggedIn || watchProgressList.length === 0 || allAnime.length === 0) {
         return null;
     }
 
-    const watchableItems = continueWatchingList
+    const watchableItems = watchProgressList
+        .filter(p => p.progress > 0 && p.progress < 100) // Only show in-progress items
         .map(progressInfo => {
             const anime = allAnime.find(a => a.id === progressInfo.animeId);
             return anime ? { anime, progressInfo } : null;
         })
-        .filter(Boolean) as { anime: Anime; progressInfo: ContinueWatchingInfo }[];
+        .filter(Boolean) as { anime: Anime; progressInfo: WatchProgressInfo }[];
 
     if (watchableItems.length === 0) {
         return null;
@@ -68,8 +69,8 @@ const ContinueWatching: React.FC<ContinueWatchingProps> = ({ allAnime, onShowWat
                  <h2 className="text-2xl sm:text-3xl font-bold text-[rgb(var(--text-primary))]" style={{ textShadow: `0 0 8px rgb(var(--shadow-color) / 0.5)` }}>
                     Continue Watching
                 </h2>
-                <button onClick={onShowWatchlist} className="px-4 py-2 bg-[rgb(var(--surface-2))/0.7] rounded-lg text-sm font-semibold text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] hover:bg-[rgb(var(--surface-3))] transition-colors">
-                    View Full Watchlist
+                <button onClick={onShowHistory} className="px-4 py-2 bg-[rgb(var(--surface-2))/0.7] rounded-lg text-sm font-semibold text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] hover:bg-[rgb(var(--surface-3))] transition-colors">
+                    View Full History
                 </button>
             </div>
             <div className="flex gap-4 md:gap-6 overflow-x-auto pb-4 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8" style={{ scrollbarWidth: 'thin' }}>

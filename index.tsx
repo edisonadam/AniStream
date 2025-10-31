@@ -1,11 +1,10 @@
-
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { AuthProvider } from './contexts/AuthContext';
-import { WatchLaterProvider } from './contexts/WatchLaterContext';
+import { WatchlistProvider } from './contexts/WatchLaterContext';
 import { SettingsProvider } from './contexts/SettingsContext';
-import { ContinueWatchingProvider } from './contexts/ContinueWatchingContext';
+import { WatchProgressProvider } from './contexts/WatchProgressContext';
 import { ProfileDataProvider } from './contexts/ProfileDataContext';
 
 const rootElement = document.getElementById('root');
@@ -21,13 +20,13 @@ const AppWrapper = () => {
   return (
     <SettingsProvider>
       <AuthProvider>
-        <WatchLaterProvider>
-          <ContinueWatchingProvider>
+        <WatchlistProvider>
+          <WatchProgressProvider>
             <ProfileDataProvider>
               <App />
             </ProfileDataProvider>
-          </ContinueWatchingProvider>
-        </WatchLaterProvider>
+          </WatchProgressProvider>
+        </WatchlistProvider>
       </AuthProvider>
     </SettingsProvider>
   );
