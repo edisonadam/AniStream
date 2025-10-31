@@ -200,6 +200,40 @@
         animation: spin 1s linear infinite;
       }
       @keyframes spin { to { transform: rotate(360deg); } }
+
+      /* Touch Hover Enhancement */
+      .anime-card-touch-target.touch-hover {
+        transform: scale(1.05);
+        box-shadow: 0 25px 50px -12px rgba(var(--shadow-color), 0.4);
+      }
+      .anime-card-touch-target.touch-hover h3 {
+        color: rgb(var(--color-primary-accent));
+      }
+      .anime-card-touch-target.touch-hover .watchlist-menu {
+        opacity: 1;
+      }
+      .continue-watching-card-touch-target.touch-hover {
+        transform: translateY(-0.25rem); /* -translate-y-1 */
+      }
+      .continue-watching-card-touch-target.touch-hover p:first-of-type { /* The title */
+        color: rgb(var(--color-primary-accent));
+      }
+      .slideshow-card-touch-target.touch-hover > div {
+        transform: translateY(-0.5rem) scale(1.03);
+        box-shadow: 0 25px 50px -12px rgba(var(--shadow-color), 0.5);
+      }
+      .slideshow-card-touch-target.touch-hover h3 {
+        color: rgb(var(--color-primary-accent));
+      }
+      .club-card-touch-target.touch-hover,
+      .manga-card-touch-target.touch-hover {
+        transform: translateY(-0.5rem);
+        box-shadow: 0 25px 50px -12px rgba(var(--shadow-color), 0.5);
+      }
+      .club-card-touch-target.touch-hover h3,
+      .manga-card-touch-target.touch-hover h3 {
+        color: rgb(var(--color-primary-accent));
+      }
     </style>
   <script type="importmap">
 {

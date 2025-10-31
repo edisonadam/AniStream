@@ -1,5 +1,3 @@
-
-
 import React from 'react';
 import type { Anime, WatchProgressInfo } from '../types';
 import { useWatchProgress } from '../hooks/useWatchProgress';
@@ -24,7 +22,7 @@ const ContinueWatchingCard: React.FC<ContinueWatchingCardProps> = ({ anime, prog
     const displayTitle = getDisplayTitle(anime, settings);
 
     return (
-        <div onClick={onSelect} className="group relative flex-shrink-0 w-40 sm:w-48 cursor-pointer transform transition-transform duration-300 hover:-translate-y-1">
+        <div onClick={onSelect} className="continue-watching-card-touch-target group relative flex-shrink-0 w-40 sm:w-48 cursor-pointer transform transition-transform duration-300 hover:-translate-y-1">
             <div className="aspect-[2/3] w-full overflow-hidden rounded-lg shadow-lg">
                 <img src={anime.thumbnail} alt={displayTitle} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
             </div>

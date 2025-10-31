@@ -18,7 +18,7 @@ interface SidebarProps {
 }
 
 const SideButton: React.FC<{ icon: React.ReactNode; label: string; onClick: () => void; }> = ({ icon, label, onClick }) => (
-    <button onClick={onClick} className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] hover:text-[rgb(var(--text-primary))] transition-colors">
+    <button onClick={onClick} className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] hover:text-[rgb(var(--color-primary-accent))] transition-colors">
         {icon}
         <span className="font-semibold">{label}</span>
     </button>

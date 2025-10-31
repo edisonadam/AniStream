@@ -19,7 +19,7 @@ interface HeaderProps {
 }
 
 const NavLink: React.FC<{ page: Page; onNavigate: (page: Page) => void; children: React.ReactNode }> = ({ page, onNavigate, children }) => (
-    <button onClick={() => onNavigate(page)} className="font-semibold text-[rgb(var(--text-secondary))] hover:text-white transition-colors duration-300">
+    <button onClick={() => onNavigate(page)} className="font-semibold text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] transition-colors duration-300">
         {children}
     </button>
 );

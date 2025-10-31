@@ -8,7 +8,7 @@ interface MangaCardProps {
 
 const MangaCard: React.FC<MangaCardProps> = ({ manga }) => {
   return (
-    <a href={manga.malUrl} target="_blank" rel="noopener noreferrer" className="group relative overflow-hidden rounded-[2rem] shadow-lg cursor-pointer transform transition-all duration-300 hover:shadow-2xl hover:shadow-[rgb(var(--shadow-color))/0.5] hover:-translate-y-2">
+    <a href={manga.malUrl} target="_blank" rel="noopener noreferrer" className="manga-card-touch-target group relative overflow-hidden rounded-[2rem] shadow-lg cursor-pointer transform transition-all duration-300 hover:shadow-2xl hover:shadow-[rgb(var(--shadow-color))/0.5] hover:-translate-y-2">
       <div className="aspect-[2/3] w-full bg-[rgb(var(--surface-3))]">
         <img src={manga.thumbnail} alt={manga.title} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
       </div>

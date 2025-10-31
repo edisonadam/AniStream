@@ -51,7 +51,7 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect }) => {
   const displayTitle = getDisplayTitle(anime, settings);
 
   return (
-    <div className="group relative overflow-hidden rounded-xl shadow-lg cursor-pointer transform transition-all duration-300 hover:shadow-2xl hover:shadow-[rgb(var(--shadow-color))/0.4] hover:scale-105"
+    <div className="anime-card-touch-target group relative overflow-hidden rounded-xl shadow-lg cursor-pointer transform transition-all duration-300 hover:shadow-2xl hover:shadow-[rgb(var(--shadow-color))/0.4] hover:scale-105"
       onClick={() => onSelect(anime)}
       onKeyDown={(e) => e.key === 'Enter' && onSelect(anime)}
       role="button"
@@ -87,7 +87,7 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect }) => {
 
 
       {isLoggedIn && (
-        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+        <div className="watchlist-menu absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
             <button onClick={handleMenuToggle} className="p-1.5 bg-black/50 rounded-full text-white hover:bg-[rgb(var(--color-primary))/0.8] transition-colors">
                 <DotsVerticalIcon />
             </button>

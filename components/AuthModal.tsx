@@ -8,6 +8,8 @@ import {
     signInWithPopup,
     RecaptchaVerifier,
     signInWithPhoneNumber,
+    sendEmailVerification,
+    sendPasswordResetEmail,
     type ConfirmationResult
 } from 'firebase/auth';
 import { CloseIcon, GoogleIcon, ChevronLeftIcon } from './icons/Icons';
@@ -18,7 +20,7 @@ interface AuthModalProps {
 
 const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
   const [activeTab, setActiveTab] = useState<'login' | 'signup'>('login');
-  const [view, setView] = useState<'main' | 'phone'>('main');
+  const [view, setView] = useState<'main' | 'phone' | 'reset_password'>('main');
   const [phoneStep, setPhoneStep] = useState<'input' | 'verify'>('input');
   
   // Form states
@@ -33,6 +35,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+  
+  const [signupSuccess, setSignupSuccess] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
   
   const recaptchaContainerRef = useRef<HTMLDivElement>(null);
 
@@ -68,7 +73,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
           displayName: displayName.trim(),
           photoURL: `https://api.dicebear.com/8.x/bottts-neutral/svg?seed=${displayName.trim()}`
       });
-      onClose();
+      await sendEmailVerification(userCredential.user);
+      setSignupSuccess(true);
     } catch (err: any) {
       setError(err.message.replace('Firebase: ', ''));
     } finally {
@@ -137,14 +143,52 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
     }
   };
 
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) {
+      setError("Please enter your email address.");
+      return;
+    }
+    setIsLoading(true);
+    setError('');
+    try {
+        await sendPasswordResetEmail(auth, email);
+        setResetEmailSent(true);
+    } catch (err: any) {
+        setError(err.message.replace('Firebase: ', ''));
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
   const handleEmailSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isLoading) return;
     if (activeTab === 'signup') handleSignUp();
     else handleLogin();
   };
+
+  const renderSignupSuccess = () => (
+    <>
+        <h3 className="text-xl font-bold mb-2 text-center text-[rgb(var(--text-primary))]">Verification Email Sent!</h3>
+        <p className="text-[rgb(var(--text-muted))] text-sm mb-4 text-center">
+            We've sent a verification link to <strong>{email}</strong>. Please check your inbox (and spam folder) to complete your registration.
+        </p>
+        <button onClick={() => {
+            setSignupSuccess(false);
+            setActiveTab('login');
+            setEmail('');
+            setPassword('');
+            setConfirmPassword('');
+            setDisplayName('');
+        }} className="mt-6 w-full py-3 bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))] rounded-2xl font-semibold hover:bg-[rgb(var(--color-primary-hover))] transition-all duration-300 transform hover:scale-105 shadow-lg shadow-[rgb(var(--shadow-color))/0.3]">
+            Back to Login
+        </button>
+    </>
+  );
   
   const renderMainView = () => (
+    signupSuccess ? renderSignupSuccess() :
     <>
         <div className="flex border-b border-white/10 mb-6">
             <button onClick={() => setActiveTab('login')} className={`flex-1 py-2 text-lg font-semibold transition-colors ${activeTab === 'login' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>Login</button>
@@ -157,6 +201,13 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
                 )}
                 <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" required className="w-full bg-[rgb(var(--surface-input))/0.2] border border-white/10 rounded-2xl px-4 py-3 text-[rgb(var(--text-primary))] focus:ring-2 focus:ring-[rgb(var(--border-focus))] focus:border-[rgb(var(--border-focus))] transition-all" />
                 <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" required className="w-full bg-[rgb(var(--surface-input))/0.2] border border-white/10 rounded-2xl px-4 py-3 text-[rgb(var(--text-primary))] focus:ring-2 focus:ring-[rgb(var(--border-focus))] focus:border-[rgb(var(--border-focus))] transition-all" />
+                {activeTab === 'login' && (
+                    <div className="text-right !mt-2">
+                        <button type="button" onClick={() => { setView('reset_password'); setError('') }} className="text-sm font-medium text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))]">
+                            Forgot Password?
+                        </button>
+                    </div>
+                )}
                 {activeTab === 'signup' && (
                     <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Confirm Password" required className="w-full bg-[rgb(var(--surface-input))/0.2] border border-white/10 rounded-2xl px-4 py-3 text-[rgb(var(--text-primary))] focus:ring-2 focus:ring-[rgb(var(--border-focus))] focus:border-[rgb(var(--border-focus))] transition-all" />
                 )}
@@ -205,6 +256,40 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
     </div>
   );
 
+  const renderResetPasswordView = () => (
+    <div>
+        <button onClick={() => { setView('main'); setError(''); setResetEmailSent(false); }} className="flex items-center gap-1 text-sm text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-primary))] mb-4"><ChevronLeftIcon className="w-4 h-4" /> Back</button>
+        {resetEmailSent ? (
+            <div className="text-center">
+                <h3 className="text-xl font-bold mb-2">Password Reset Email Sent</h3>
+                <p className="text-[rgb(var(--text-muted))] text-sm mb-4">Check your inbox at <strong>{email}</strong> for a link to reset your password.</p>
+                <button onClick={() => { setView('main'); setResetEmailSent(false); }} className="mt-4 w-full py-3 bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))] rounded-2xl font-semibold hover:bg-[rgb(var(--color-primary-hover))]">Back to Login</button>
+            </div>
+        ) : (
+            <form onSubmit={handlePasswordReset}>
+                <h3 className="text-xl font-bold mb-2">Reset Password</h3>
+                <p className="text-[rgb(var(--text-muted))] text-sm mb-4">Enter your email and we'll send you a link to reset your password.</p>
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" required className="w-full bg-[rgb(var(--surface-input))/0.2] border border-white/10 rounded-2xl px-4 py-3 text-[rgb(var(--text-primary))] focus:ring-2 focus:ring-[rgb(var(--border-focus))] focus:border-[rgb(var(--border-focus))] transition-all" />
+                <button type="submit" disabled={isLoading} className="mt-4 w-full py-3 bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))] rounded-2xl font-semibold hover:bg-[rgb(var(--color-primary-hover))] transition-colors disabled:opacity-50">
+                    {isLoading ? 'Sending...' : 'Send Reset Link'}
+                </button>
+            </form>
+        )}
+    </div>
+  );
+
+  const renderContent = () => {
+    switch (view) {
+      case 'phone':
+        return renderPhoneView();
+      case 'reset_password':
+        return renderResetPasswordView();
+      case 'main':
+      default:
+        return renderMainView();
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center animate-cinematic-fade-in">
       <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-2xl border border-white/10 rounded-[2rem] shadow-2xl shadow-[rgb(var(--shadow-color))/0.5] w-full max-w-md m-4 p-8 relative transform transition-all animate-subtle-fade-in-up">
@@ -212,7 +297,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
           <CloseIcon />
         </button>
         
-        {view === 'main' ? renderMainView() : renderPhoneView()}
+        {renderContent()}
         
         {error && <p className="text-[rgb(var(--color-danger))] text-sm text-center mt-4">{error}</p>}
         

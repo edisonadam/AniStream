@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import type { Anime, Club, Filter, Notification, Settings, Page } from './types';
 import { useSettings } from './hooks/useSettings';
@@ -53,7 +51,9 @@ const App: React.FC = () => {
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
+    const [preloadedData, setPreloadedData] = useState<{ anime: Anime[], hasNext: boolean } | null>(null);
 
+    const isPreloading = useRef(false);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [isLoginOpen, setIsLoginOpen] = useState(false);
@@ -85,12 +85,6 @@ const App: React.FC = () => {
         if (page !== 'player' && page !== 'profile' && page !== 'club-detail') {
             homePageScrollPosition.current = window.scrollY;
         }
-
-        if (newPage === 'home' && page !== 'home' && page !== 'player') {
-            const resetState: Filter = { query: '', genres: [], types: [], statuses: [], years: [], languages: [], studios: [], sort: 'popularity' };
-            setFilters(resetState);
-            setStagedFilters(resetState);
-        }
         
         setPage(newPage);
         setSelectedAnime(null);
@@ -111,15 +105,13 @@ const App: React.FC = () => {
         setPage('club-detail');
     }, []);
 
-    const fetchJikanGridData = useCallback(async (pageNum: number, searchFilters: Filter, isNewSearch: boolean) => {
-        if (!isNewSearch) setIsLoadingMore(true); else setIsGridLoading(true);
-
+    const performFetch = useCallback(async (pageNum: number, searchFilters: Filter) => {
         const params = new URLSearchParams({
             page: pageNum.toString(),
             limit: ANIME_PAGE_SIZE.toString(),
             sfw: settings.restrictAdultContent ? 'true' : 'false'
         });
-
+    
         if (searchFilters.query) params.append('q', searchFilters.query);
         if (searchFilters.genres.length > 0) params.append('genres', searchFilters.genres.join(','));
         if (searchFilters.types.length > 0) params.append('type', searchFilters.types.join(',').toLowerCase());
@@ -138,30 +130,69 @@ const App: React.FC = () => {
             case 'alphabetical': params.append('order_by', 'title'); params.append('sort', 'asc'); break;
             default: params.append('order_by', 'members'); params.append('sort', 'desc'); break;
         }
+    
+        const res = await fetch(`https://api.jikan.moe/v4/anime?${params.toString()}`);
+        if (res.status === 429) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            return performFetch(pageNum, searchFilters); // Recurse
+        }
+        if (!res.ok) throw new Error(`Jikan API fetch failed for page ${pageNum}`);
+        
+        const data = await res.json();
+        const mappedData: Anime[] = data.data.map(mapJikanToAnime).filter((a: Anime | null): a is Anime => a !== null);
+        const hasNext = data.pagination?.has_next_page ?? false;
+        
+        return { anime: mappedData, hasNext };
+    }, [settings.restrictAdultContent]);
 
+    const fetchJikanGridData = useCallback(async (pageNum: number, searchFilters: Filter, isNewSearch: boolean) => {
+        if (isNewSearch) {
+            setIsGridLoading(true);
+            setPreloadedData(null);
+        } else {
+            setIsLoadingMore(true);
+        }
+    
         try {
-            const res = await fetch(`https://api.jikan.moe/v4/anime?${params.toString()}`);
-            if (res.status === 429) {
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                return fetchJikanGridData(pageNum, searchFilters, isNewSearch);
-            }
-            if (!res.ok) throw new Error('Failed to fetch from Jikan API');
+            const result = await performFetch(pageNum, searchFilters);
             
-            const data = await res.json();
-            const mappedData: Anime[] = data.data.map(mapJikanToAnime).filter((a: Anime | null): a is Anime => a !== null);
-            
-            setGridAnime(prev => isNewSearch ? mappedData : [...prev, ...mappedData]);
-            setHasMore(data.pagination?.has_next_page ?? false);
+            setGridAnime(prev => isNewSearch ? result.anime : [...prev, ...result.anime]);
+            setHasMore(result.hasNext);
             if(isNewSearch) setCurrentPage(1);
+    
+            // After displaying, trigger preload for the next page when the browser is idle.
+            if (result.hasNext) {
+                const preloadNextPage = () => {
+                    if (isPreloading.current) return;
+                    isPreloading.current = true;
+                    (async () => {
+                        try {
+                            const preloadResult = await performFetch(pageNum + 1, searchFilters);
+                            setPreloadedData(preloadResult);
+                        } catch (e) {
+                            console.error("Preload failed", e);
+                            setPreloadedData(null);
+                        } finally {
+                            isPreloading.current = false;
+                        }
+                    })();
+                };
 
+                if (window.requestIdleCallback) {
+                    window.requestIdleCallback(preloadNextPage, { timeout: 2000 });
+                } else {
+                    setTimeout(preloadNextPage, 500); // Fallback for older browsers
+                }
+            }
+    
         } catch (error) {
             console.error(error);
             setHasMore(false);
         } finally {
-            setIsGridLoading(false);
-            setIsLoadingMore(false);
+            if (isNewSearch) setIsGridLoading(false);
+            else setIsLoadingMore(false);
         }
-    }, [settings.restrictAdultContent]);
+    }, [performFetch]);
     
     useEffect(() => {
         const fetchInitialData = async () => {
@@ -210,6 +241,83 @@ const App: React.FC = () => {
         return () => document.body.classList.remove('body-no-scroll');
     }, [isSidebarOpen]);
 
+    // Close sidebar on main content scroll
+    useEffect(() => {
+        const handleScroll = () => {
+            if (isSidebarOpen) {
+                setIsSidebarOpen(false);
+            }
+        };
+
+        if (isSidebarOpen) {
+            window.addEventListener('scroll', handleScroll);
+        }
+
+        return () => {
+            window.removeEventListener('scroll', handleScroll);
+        };
+    }, [isSidebarOpen]);
+
+    // Touch hover effect for cards
+    useEffect(() => {
+        const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        if (!isTouchDevice) return;
+
+        let lastHoveredElement: Element | null = null;
+        let inThrottle = false;
+        const throttleLimit = 100; // ms
+        
+        // This empty listener helps mobile browsers remove :hover states more reliably after a tap.
+        const emptyListener = () => {};
+        document.body.addEventListener('touchstart', emptyListener, { passive: true });
+
+        const handleTouchMove = (event: TouchEvent) => {
+            if (inThrottle) return;
+            inThrottle = true;
+            setTimeout(() => { inThrottle = false; }, throttleLimit);
+
+            if (event.touches.length !== 1) return;
+
+            const touch = event.touches[0];
+            const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
+
+            if (!targetElement) return;
+
+            const card = targetElement.closest('.anime-card-touch-target, .continue-watching-card-touch-target, .slideshow-card-touch-target, .club-card-touch-target, .manga-card-touch-target');
+
+            if (card) {
+                if (card !== lastHoveredElement) {
+                    lastHoveredElement?.classList.remove('touch-hover');
+                    card.classList.add('touch-hover');
+                    lastHoveredElement = card;
+                }
+            } else {
+                if (lastHoveredElement) {
+                    lastHoveredElement.classList.remove('touch-hover');
+                    lastHoveredElement = null;
+                }
+            }
+        };
+
+        const handleTouchEnd = () => {
+            if (lastHoveredElement) {
+                lastHoveredElement.classList.remove('touch-hover');
+                lastHoveredElement = null;
+            }
+        };
+        
+        window.addEventListener('touchmove', handleTouchMove, { passive: true });
+        window.addEventListener('touchend', handleTouchEnd, { passive: true });
+        window.addEventListener('touchcancel', handleTouchEnd, { passive: true });
+
+        return () => {
+            document.body.removeEventListener('touchstart', emptyListener);
+            window.removeEventListener('touchmove', handleTouchMove);
+            window.removeEventListener('touchend', handleTouchEnd);
+            window.removeEventListener('touchcancel', handleTouchEnd);
+        };
+    }, []);
+
     useLayoutEffect(() => {
         const prevPage = prevPageRef.current;
         if (scrollPositionRef.current !== null) {
@@ -224,20 +332,55 @@ const App: React.FC = () => {
     }, [page, gridAnime]);
 
     const loadMoreGrid = useCallback(() => {
-        if (hasMore && !isLoadingMore) {
+        if (isLoadingMore || !hasMore) {
+            return;
+        }
+    
+        if (preloadedData) {
+            setGridAnime(prev => [...prev, ...preloadedData.anime]);
+            setHasMore(preloadedData.hasNext);
+            const newPage = currentPage + 1;
+            setCurrentPage(newPage);
+            setPreloadedData(null);
+    
+            if (preloadedData.hasNext) {
+                const preloadNextPage = () => {
+                    if (isPreloading.current) return;
+                    isPreloading.current = true;
+                    (async () => {
+                        try {
+                            const preloadResult = await performFetch(newPage + 1, filters);
+                            setPreloadedData(preloadResult);
+                        } catch (e) {
+                            console.error("Preload failed", e);
+                            setPreloadedData(null);
+                        } finally {
+                            isPreloading.current = false;
+                        }
+                    })();
+                };
+                if (window.requestIdleCallback) {
+                    window.requestIdleCallback(preloadNextPage, { timeout: 2000 });
+                } else {
+                    setTimeout(preloadNextPage, 500);
+                }
+            }
+        } else {
             const newPage = currentPage + 1;
             setCurrentPage(newPage);
             fetchJikanGridData(newPage, filters, false);
         }
-    }, [hasMore, isLoadingMore, currentPage, filters, fetchJikanGridData]);
+    }, [hasMore, isLoadingMore, currentPage, filters, fetchJikanGridData, preloadedData, performFetch]);
 
     const handleStagedFilterChange = (newFilters: Partial<Filter>) => setStagedFilters(prev => ({ ...prev, ...newFilters }));
     
     const handleApplyFilters = () => {
         window.scrollTo({ top: 0, behavior: 'auto' });
+        if (page !== 'home') {
+            setPage('home');
+        }
         setFilters(stagedFilters);
         setIsSidebarOpen(false);
-        navigateTo('home');
     };
 
     const handleSearchSubmit = (query: string) => { 

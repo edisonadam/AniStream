@@ -11,7 +11,7 @@ const ClubCard: React.FC<ClubCardProps> = ({ club, onSelect }) => {
   return (
     <div
       onClick={() => onSelect(club)}
-      className="group relative overflow-hidden rounded-[2rem] shadow-lg cursor-pointer bg-[rgb(var(--surface-2))] transform transition-all duration-300 hover:shadow-2xl hover:shadow-[rgb(var(--shadow-color))/0.5] hover:-translate-y-2"
+      className="club-card-touch-target group relative overflow-hidden rounded-[2rem] shadow-lg cursor-pointer bg-[rgb(var(--surface-2))] transform transition-all duration-300 hover:shadow-2xl hover:shadow-[rgb(var(--shadow-color))/0.5] hover:-translate-y-2"
     >
       <div className="aspect-[4/3] w-full bg-[rgb(var(--surface-3))]">
         <img src={club.images.jpg.image_url} alt={club.name} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />

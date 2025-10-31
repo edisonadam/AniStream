@@ -107,12 +107,9 @@ const FeaturedSlideshow: React.FC<FeaturedSlideshowProps> = ({ onAnimeSelect, al
             </h2>
              <div className="flex gap-4 md:gap-6 overflow-x-auto pb-4 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8" style={{ scrollbarWidth: 'thin' }}>
                 {recentEpisodes.map(ep => (
-                    <div key={ep.id} onClick={() => handleEpisodeClick(ep)} className="group flex-shrink-0 w-48 cursor-pointer">
+                    <div key={ep.id} onClick={() => handleEpisodeClick(ep)} className="slideshow-card-touch-target group flex-shrink-0 w-48 cursor-pointer">
                         <div 
-                            className="relative aspect-[2/3] w-full overflow-hidden rounded-[2rem] shadow-lg transform transition-all duration-300 group-hover:shadow-2xl group-hover:shadow-[rgb(var(--shadow-color))/0.5]"
-                            style={{ transition: 'transform 0.3s ease, box-shadow 0.3s ease' }}
-                            onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-8px) scale(1.03)'; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0px) scale(1)'; }}
+                            className="relative aspect-[2/3] w-full overflow-hidden rounded-[2rem] shadow-lg transform transition-all duration-300 group-hover:shadow-2xl group-hover:shadow-[rgb(var(--shadow-color))/0.5] group-hover:-translate-y-2 group-hover:scale-[1.03]"
                         >
                            <img src={ep.image} alt={ep.title} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"/>
                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
