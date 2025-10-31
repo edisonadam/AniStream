@@ -1,3 +1,5 @@
+
+
 import React from 'react';
 import type { Filter, Settings, Page } from '../types';
 import { CloseIcon, UsersIcon, BookOpenIcon, GiftIcon, MoonIcon, SunIcon, HomeIcon, TrendingUpIcon, CalendarIcon, HistoryIcon, InfoIcon, AcademicCapIcon, EyeIcon, EyeOffIcon } from './icons/Icons';
@@ -12,9 +14,12 @@ interface SidebarProps {
   onApplyFilters: () => void;
   onResetFilters: () => void;
   onNavigate: (page: Page) => void;
+  onGoHome: () => void;
   onSurpriseMe: () => void;
   settings: Settings;
   updateSettings: (newSettings: Partial<Settings>) => void;
+  isLoggedIn: boolean;
+  onLoginClick: (reason: string) => void;
 }
 
 const SideButton: React.FC<{ icon: React.ReactNode; label: string; onClick: () => void; }> = ({ icon, label, onClick }) => (
@@ -26,8 +31,8 @@ const SideButton: React.FC<{ icon: React.ReactNode; label: string; onClick: () =
 
 const Sidebar: React.FC<SidebarProps> = ({ 
     isOpen, onClose, filters, onFilterChange, onApplyFilters, onResetFilters, 
-    onNavigate, onSurpriseMe, 
-    settings, updateSettings 
+    onNavigate, onGoHome, onSurpriseMe, 
+    settings, updateSettings, isLoggedIn, onLoginClick
 }) => {
   const handleMultiSelect = (key: keyof Filter, value: string) => {
     const currentValues = (filters[key] as string[]) || [];
@@ -41,6 +46,21 @@ const Sidebar: React.FC<SidebarProps> = ({
     onNavigate(page);
     onClose();
   }
+  
+  const handleGoHome = () => {
+    onGoHome();
+    onClose();
+  }
+
+  const handleSfwToggle = () => {
+    // If SFW is currently ON and user wants to turn it OFF, check for login
+    if (settings.restrictAdultContent && !isLoggedIn) {
+        onLoginClick('You must be logged in to view adult content.');
+        onClose(); // Close sidebar to show modal clearly
+    } else {
+        updateSettings({ restrictAdultContent: !settings.restrictAdultContent });
+    }
+  };
 
   const FilterSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
     <div className="py-4 border-b border-white/10">
@@ -74,7 +94,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         }`}
       >
         <div className="flex-shrink-0 flex justify-between items-center p-4 border-b border-white/10 h-[65px]">
-          <Logo onClick={() => handleNavigation('home')} />
+          <Logo onClick={handleGoHome} />
           <button onClick={onClose} className="text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))]">
             <CloseIcon />
           </button>
@@ -82,7 +102,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         
         <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
           <div className="p-4 space-y-2 border-b border-white/10">
-            <SideButton icon={<HomeIcon />} label="Home" onClick={() => handleNavigation('home')} />
+            <SideButton icon={<HomeIcon />} label="Home" onClick={handleGoHome} />
             <SideButton icon={<TrendingUpIcon />} label="Trending" onClick={() => handleNavigation('trending')} />
             <SideButton icon={<CalendarIcon />} label="Schedule" onClick={() => handleNavigation('schedule')} />
             <SideButton icon={<HistoryIcon />} label="History" onClick={() => handleNavigation('history')} />
@@ -136,7 +156,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     </button>
 
                     <button 
-                        onClick={() => updateSettings({ restrictAdultContent: !settings.restrictAdultContent })} 
+                        onClick={handleSfwToggle} 
                         title={`Turn ${settings.restrictAdultContent ? 'Off' : 'On'} Adult Content Restriction`} 
                         aria-label={`Turn ${settings.restrictAdultContent ? 'Off' : 'On'} Adult Content Restriction`}
                         className="p-2.5 rounded-full bg-[rgb(var(--surface-3))] text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-4))] hover:text-[rgb(var(--text-primary))] transition-colors"
@@ -147,7 +167,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             </div>
 
             <div className="p-4 grid grid-cols-2 gap-4 border-t border-white/5">
-                <button onClick={() => { onResetFilters(); onNavigate('home'); onClose(); }} className="w-full py-2.5 bg-[rgb(var(--surface-3))] rounded-lg font-semibold hover:bg-[rgb(var(--surface-4))] text-[rgb(var(--text-primary))]">
+                <button onClick={() => { onResetFilters(); onGoHome(); onClose(); }} className="w-full py-2.5 bg-[rgb(var(--surface-3))] rounded-lg font-semibold hover:bg-[rgb(var(--surface-4))] text-[rgb(var(--text-primary))]">
                     Reset
                 </button>
                 <button onClick={onApplyFilters} className="w-full py-2.5 bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))] rounded-lg font-semibold hover:bg-[rgb(var(--color-primary-hover))] shadow-lg shadow-[rgb(var(--shadow-color))/0.3]">

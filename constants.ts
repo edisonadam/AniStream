@@ -1,4 +1,4 @@
-import type { ColorPreset, VideoServer, DefaultLanguage } from './types';
+import type { ColorPreset, VideoServer, DefaultLanguage, Anime } from './types';
 
 export const GENRES = [
     'Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Horror',
@@ -9,6 +9,8 @@ export const GENRES = [
 
 export const ANIME_TYPES = ['TV', 'Movie', 'OVA', 'Special', 'ONA'];
 export const ANIME_STATUSES = ['Ongoing', 'Completed', 'Upcoming'];
+export const MANGA_TYPES = ['manga', 'novel', 'lightnovel', 'oneshot', 'doujin', 'manhwa', 'manhua'];
+export const MANGA_STATUSES = ['publishing', 'complete', 'hiatus', 'discontinued', 'upcoming'];
 export const YEAR_OPTIONS = ['2020s', '2010s', '2000s', '1990s'];
 export const LANGUAGE_OPTIONS = ['Sub', 'Dub', 'Raw'];
 export const STUDIO_OPTIONS = [
@@ -43,30 +45,144 @@ export const DEFAULT_SEARCH_SUGGESTIONS = ["Solo Leveling", "Jujutsu Kaisen", "C
 export const POPULAR_TITLES = ['Void Scrambler', 'Galactic Drifters', 'Chronicles of Valoria'];
 export const RECENTLY_ADDED = ['Neon Genesis Evangelion', 'Astra Lost in Space'];
 
-export const BEGINNER_ANIME_IDS = [
-    1535,  // Death Note
-    38000, // Demon Slayer: Kimetsu no Yaiba
-    5114,  // Fullmetal Alchemist: Brotherhood
-    16498, // Attack on Titan
-    31964, // My Hero Academia
-    1,     // Cowboy Bebop
-    50265, // SPY x FAMILY
-    20583, // Haikyu!!
-    40748, // Jujutsu Kaisen
-    32182, // Mob Psycho 100
-    20,    // Naruto
-    30276, // One-Punch Man
-    11061, // Hunter x Hunter (2011)
-    31043, // Erased
-    38680, // Fruits Basket (2019)
-    37521, // Vinland Saga
-    38691, // Dr. Stone
-    23273, // Your Lie in April
-    2001,  // Gurren Lagann
-    42897, // Horimiya
-    52991, // Frieren: Beyond Journey's End
+export const BEGINNER_ANIME_LIST: Anime[] = [
+    {
+        id: 1535,
+        title: "Death Note",
+        title_english: "Death Note",
+        title_japanese: "デスノート",
+        thumbnail: "https://cdn.myanimelist.net/images/anime/9/9453.jpg",
+        bannerImage: "https://cdn.myanimelist.net/images/anime/9/9453.jpg",
+        synopsis: "A shinigami, as a god of death, can kill any person—provided they see their victim's face and write their victim's name in a notebook called a Death Note. One day, Ryuk, bored by the shinigami lifestyle and interested in seeing how a human would use a Death Note, drops one into the human realm...",
+        genres: ["Supernatural", "Suspense", "Psychological", "Shounen"],
+        releaseYear: 2006,
+        status: "Completed",
+        totalEpisodes: 37,
+        rating: 8.62,
+        type: "TV",
+        studio: "Madhouse",
+        hasSub: true, hasDub: true, runtime: null, avgEpisodeDuration: 23, isAdult: false
+    },
+    {
+        id: 5114,
+        title: "Fullmetal Alchemist: Brotherhood",
+        title_english: "Fullmetal Alchemist: Brotherhood",
+        title_japanese: "鋼の錬金術師 FULLMETAL ALCHEMIST",
+        thumbnail: "https://cdn.myanimelist.net/images/anime/1223/96541.jpg",
+        bannerImage: "https://cdn.myanimelist.net/images/anime/1223/96541.jpg",
+        synopsis: "'In order for something to be obtained, something of equal value must be lost.' Alchemy is bound by this Law of Equivalent Exchange—something the young brothers Edward and Alphonse Elric only realize after attempting human transmutation: the one forbidden act of alchemy...",
+        genres: ["Action", "Adventure", "Drama", "Fantasy", "Shounen"],
+        releaseYear: 2009,
+        status: "Completed",
+        totalEpisodes: 64,
+        rating: 9.1,
+        type: "TV",
+        studio: "Bones",
+        hasSub: true, hasDub: true, runtime: null, avgEpisodeDuration: 24, isAdult: false
+    },
+    {
+        id: 38000,
+        title: "Kimetsu no Yaiba",
+        title_english: "Demon Slayer: Kimetsu no Yaiba",
+        title_japanese: "鬼滅の刃",
+        thumbnail: "https://cdn.myanimelist.net/images/anime/1286/99889.jpg",
+        bannerImage: "https://cdn.myanimelist.net/images/anime/1286/99889.jpg",
+        synopsis: "Ever since the death of his father, the burden of supporting the family has fallen upon Tanjirou Kamado's shoulders. Though living impoverished on a remote mountain, the Kamado family are able to enjoy a relatively peaceful and happy life. One day, Tanjirou decides to go down to the local village to make a little money selling charcoal. On his way back, night falls, forcing Tanjirou to take shelter in the house of a strange man, who warns him of flesh-eating demons that lurk in the woods at night.",
+        genres: ["Action", "Fantasy", "Shounen"],
+        releaseYear: 2019,
+        status: "Completed",
+        totalEpisodes: 26,
+        rating: 8.55,
+        type: "TV",
+        studio: "ufotable",
+        hasSub: true, hasDub: true, runtime: null, avgEpisodeDuration: 24, isAdult: false
+    },
+    {
+        id: 31964,
+        title: "Boku no Hero Academia",
+        title_english: "My Hero Academia",
+        title_japanese: "僕のヒーローアカデミア",
+        thumbnail: "https://cdn.myanimelist.net/images/anime/10/78745.jpg",
+        bannerImage: "https://cdn.myanimelist.net/images/anime/10/78745.jpg",
+        synopsis: "The appearance of 'quirks,' newly discovered super powers, has been steadily increasing over the years, with 80 percent of humanity possessing various abilities from manipulation of elements to shapeshifting. This leaves the remainder of the world completely powerless, and Izuku Midoriya is one such individual...",
+        genres: ["Action", "Shounen"],
+        releaseYear: 2016,
+        status: "Completed",
+        totalEpisodes: 13,
+        rating: 7.95,
+        type: "TV",
+        studio: "Bones",
+        hasSub: true, hasDub: true, runtime: null, avgEpisodeDuration: 24, isAdult: false
+    },
+    {
+        id: 11061,
+        title: "Hunter x Hunter (2011)",
+        title_english: "Hunter x Hunter",
+        title_japanese: "HUNTER×HUNTER（ハンター×ハンター）",
+        thumbnail: "https://cdn.myanimelist.net/images/anime/1337/99013.jpg",
+        bannerImage: "https://cdn.myanimelist.net/images/anime/1337/99013.jpg",
+        synopsis: "Hunters are specialized in a wide variety of fields, ranging from treasure hunting to cooking. They have access to otherwise unavailable funds and information that allow them to pursue their dreams and interests. However, being a Hunter is a special privilege, only attained by taking a deadly exam with an extremely low success rate...",
+        genres: ["Action", "Adventure", "Fantasy", "Shounen"],
+        releaseYear: 2011,
+        status: "Completed",
+        totalEpisodes: 148,
+        rating: 9.04,
+        type: "TV",
+        studio: "Madhouse",
+        hasSub: true, hasDub: true, runtime: null, avgEpisodeDuration: 23, isAdult: false
+    },
+    {
+        id: 16498,
+        title: "Shingeki no Kyojin",
+        title_english: "Attack on Titan",
+        title_japanese: "進撃の巨人",
+        thumbnail: "https://cdn.myanimelist.net/images/anime/10/47347.jpg",
+        bannerImage: "https://cdn.myanimelist.net/images/anime/10/47347.jpg",
+        synopsis: "Centuries ago, mankind was slaughtered to near extinction by monstrous humanoid creatures called Titans, forcing humans to hide in fear behind enormous concentric walls. What makes these giants truly terrifying is that their taste for human flesh is not born out of hunger but what appears to be out of pleasure...",
+        genres: ["Action", "Drama", "Suspense", "Shounen"],
+        releaseYear: 2013,
+        status: "Completed",
+        totalEpisodes: 25,
+        rating: 8.54,
+        type: "TV",
+        studio: "Wit Studio",
+        hasSub: true, hasDub: true, runtime: null, avgEpisodeDuration: 24, isAdult: false
+    },
+    {
+        id: 30276,
+        title: "One Punch Man",
+        title_english: "One-Punch Man",
+        title_japanese: "ワンパンマン",
+        thumbnail: "https://cdn.myanimelist.net/images/anime/12/76049.jpg",
+        bannerImage: "https://cdn.myanimelist.net/images/anime/12/76049.jpg",
+        synopsis: "The seemingly ordinary and unimpressive Saitama has a rather unique hobby: being a hero. In order to pursue his childhood dream, he trained relentlessly for three years—and lost all of his hair in the process. Now, Saitama is incredibly powerful, so much so that no enemy is able to defeat him in battle...",
+        genres: ["Action", "Comedy", "Supernatural"],
+        releaseYear: 2015,
+        status: "Completed",
+        totalEpisodes: 12,
+        rating: 8.51,
+        type: "TV",
+        studio: "Madhouse",
+        hasSub: true, hasDub: true, runtime: null, avgEpisodeDuration: 24, isAdult: false
+    },
+    {
+        id: 40748,
+        title: "Jujutsu Kaisen",
+        title_english: "Jujutsu Kaisen",
+        title_japanese: "呪術廻戦",
+        thumbnail: "https://cdn.myanimelist.net/images/anime/1171/109222.jpg",
+        bannerImage: "https://cdn.myanimelist.net/images/anime/1171/109222.jpg",
+        synopsis: "Idly indulging in baseless paranormal activities with the Occult Club, high schooler Yuuji Itadori spends his days at either the clubroom or the hospital, where he visits his bedridden grandfather. However, this leisurely lifestyle soon takes a turn for the strange when he unknowingly encounters a cursed item...",
+        genres: ["Action", "Fantasy", "Shounen"],
+        releaseYear: 2020,
+        status: "Completed",
+        totalEpisodes: 24,
+        rating: 8.68,
+        type: "TV",
+        studio: "MAPPA",
+        hasSub: true, hasDub: true, runtime: null, avgEpisodeDuration: 24, isAdult: false
+    }
 ];
-
 
 export const COLOR_PRESETS: { id: ColorPreset, name: string }[] = [
     { id: 'abyssal-blue', name: 'Abyssal Blue' },

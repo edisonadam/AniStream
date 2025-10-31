@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Magazine } from '../types';
 import MagazineCard from './MagazineCard';
@@ -25,6 +24,7 @@ const MagazinesPage: React.FC<MagazinesPageProps> = ({ onGoBack }) => {
   const [hasMore, setHasMore] = useState(true);
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [sort, setSort] = useState(''); // '', 'name_asc', 'count_desc'
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -47,6 +47,16 @@ const MagazinesPage: React.FC<MagazinesPageProps> = ({ onGoBack }) => {
     });
     if (searchQuery) {
         params.append('q', searchQuery);
+    }
+    
+    if (sort) {
+        if (sort === 'name_asc') {
+            params.append('order_by', 'name');
+            params.append('sort', 'asc');
+        } else if (sort === 'count_desc') {
+            params.append('order_by', 'count');
+            params.append('sort', 'desc');
+        }
     }
 
     try {
@@ -71,14 +81,14 @@ const MagazinesPage: React.FC<MagazinesPageProps> = ({ onGoBack }) => {
         setIsLoading(false);
         setIsLoadingMore(false);
     }
-  }, []);
+  }, [sort]);
 
   useEffect(() => {
     setMagazines([]);
     setPage(1);
     setHasMore(true);
     fetchMagazines(1, debouncedQuery, true);
-  }, [debouncedQuery, fetchMagazines]);
+  }, [debouncedQuery, fetchMagazines, sort]);
 
   const loadMore = () => {
     if (!isLoadingMore && hasMore) {
@@ -97,16 +107,27 @@ const MagazinesPage: React.FC<MagazinesPageProps> = ({ onGoBack }) => {
             <h2 className="text-3xl font-bold text-[rgb(var(--text-primary))]" style={{ textShadow: `0 0 8px rgb(var(--shadow-color) / 0.5)` }}>
                 Discover Magazines
             </h2>
-            <div className="relative w-full sm:max-w-xs">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[rgb(var(--text-muted))]"><SearchIcon /></div>
-                <input
-                    ref={inputRef}
-                    type="text"
-                    value={query}
-                    onChange={e => setQuery(e.target.value)}
-                    placeholder="Search magazines..."
-                    className="w-full bg-[rgb(var(--surface-2))] border border-[rgb(var(--border-color))] rounded-lg py-2 pl-10 pr-4 text-[rgb(var(--text-primary))] placeholder-[rgb(var(--text-muted))] focus:ring-1 focus:ring-[rgb(var(--border-focus))] focus:border-[rgb(var(--border-focus))] transition-all"
-                />
+            <div className="flex items-center gap-4">
+                <div className="relative w-full sm:max-w-xs">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[rgb(var(--text-muted))]"><SearchIcon /></div>
+                    <input
+                        ref={inputRef}
+                        type="text"
+                        value={query}
+                        onChange={e => setQuery(e.target.value)}
+                        placeholder="Search magazines..."
+                        className="w-full bg-[rgb(var(--surface-2))] border border-[rgb(var(--border-color))] rounded-lg py-2 pl-10 pr-4 text-[rgb(var(--text-primary))] placeholder-[rgb(var(--text-muted))] focus:ring-1 focus:ring-[rgb(var(--border-focus))] focus:border-[rgb(var(--border-focus))] transition-all"
+                    />
+                </div>
+                <select
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value)}
+                  className="bg-[rgb(var(--surface-2))] border border-[rgb(var(--border-color))] rounded-lg px-3 py-2 text-sm text-[rgb(var(--text-primary))] focus:ring-1 focus:ring-[rgb(var(--border-focus))] focus:border-[rgb(var(--border-focus))] transition-all"
+                >
+                    <option value="">Default Order</option>
+                    <option value="name_asc">Name (A-Z)</option>
+                    <option value="count_desc">Title Count</option>
+                </select>
             </div>
         </div>
 

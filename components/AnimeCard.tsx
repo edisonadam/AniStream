@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Anime } from '../types';
-import { useWatchlist } from '../hooks/useWatchLater';
+import { useWatchlist } from '../hooks/useWatchlist';
 import { useAuth } from '../hooks/useAuth';
 import { PlusIcon, CheckIcon, DotsVerticalIcon, StarIcon } from './icons/Icons';
 import { useSettings } from '../hooks/useSettings';

@@ -1,7 +1,7 @@
 
 
 import React, { useEffect } from 'react';
-import { useWatchlist } from '../hooks/useWatchLater';
+import { useWatchlist } from '../hooks/useWatchlist';
 import { CloseIcon, PlayIcon, StarIcon } from './icons/Icons';
 import type { Anime } from '../types';
 import { useSettings } from '../hooks/useSettings';

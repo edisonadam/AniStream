@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { AuthProvider } from './contexts/AuthContext';
-import { WatchlistProvider } from './contexts/WatchLaterContext';
+import { WatchlistProvider } from './contexts/WatchlistContext';
 import { SettingsProvider } from './contexts/SettingsContext';
 import { WatchProgressProvider } from './contexts/WatchProgressContext';
 import { ProfileDataProvider } from './contexts/ProfileDataContext';

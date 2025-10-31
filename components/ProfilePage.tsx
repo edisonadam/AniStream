@@ -3,7 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useSettings } from '../hooks/useSettings';
 import { useProfileData } from '../hooks/useProfileData';
 import { useWatchProgress } from '../hooks/useWatchProgress';
-import { useWatchlist } from '../hooks/useWatchLater';
+import { useWatchlist } from '../hooks/useWatchlist';
 import { ChevronLeftIcon, CloseIcon } from './icons/Icons';
 import type { Anime, WatchProgressInfo, Rating, User } from '../types';
 import AnimeCard from './AnimeCard';

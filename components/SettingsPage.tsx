@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useSettings } from '../hooks/useSettings';
 import { useWatchProgress } from '../hooks/useWatchProgress';
-import { useWatchlist } from '../hooks/useWatchLater';
+import { useWatchlist } from '../hooks/useWatchlist';
 import { COLOR_PRESETS, VIDEO_SERVERS, VIDSRC_DOMAINS } from '../constants';
 import { fetchMalUserAnimeList, fetchAnilistUserAnimeList } from '../api';
 import type { Anime } from '../types';
@@ -247,6 +247,15 @@ const SettingsPage: React.FC = () => {
                 <RadioGroup label="Card Size" selected={settings.cardSize} onChange={v => updateSettings({ cardSize: v })} options={[{value: 'medium', label: 'Medium'}, {value: 'large', label: 'Large'}]} />
                 <Dropdown label="Title Language" selected={settings.displayTitleLanguage} onChange={v => updateSettings({ displayTitleLanguage: v })} options={[{value: 'english', label: 'English'}, {value: 'japanese', label: 'Japanese'}]} />
                 <Dropdown label="Character Name Language" selected={settings.characterNameLanguage} onChange={v => updateSettings({ characterNameLanguage: v })} options={[{value: 'romaji', label: 'Romaji'}, {value: 'native', label: 'Native'}]} />
+            </SettingsSection>
+
+            <SettingsSection title="Content">
+                <Toggle 
+                    label="Restrict Adult Content"
+                    note="Hides content rated 18+ (R+, Rx)."
+                    checked={settings.restrictAdultContent}
+                    onChange={() => updateSettings({ restrictAdultContent: !settings.restrictAdultContent })}
+                />
             </SettingsSection>
 
             <SettingsSection title="Comments">

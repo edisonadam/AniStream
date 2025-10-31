@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { HamburgerIcon, SearchIcon, BellIcon, UserIcon, CloseIcon, BookmarkIcon, LogoutIcon } from './icons/Icons';
 import { useAuth } from '../hooks/useAuth';
@@ -13,6 +14,7 @@ interface HeaderProps {
   onSearchClick: () => void;
   onShowWatchlist: () => void;
   onNavigate: (page: Page) => void;
+  onGoHome: () => void;
   onNotificationClick: (notification: Notification) => void;
   trendingAnime?: Anime[];
   onTrendingAnimeClick?: (query: string) => void;
@@ -24,7 +26,7 @@ const NavLink: React.FC<{ page: Page; onNavigate: (page: Page) => void; children
     </button>
 );
 
-const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClick, onShowWatchlist, onNavigate, onNotificationClick, trendingAnime = [], onTrendingAnimeClick = (_) => {} }) => {
+const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClick, onShowWatchlist, onNavigate, onGoHome, onNotificationClick, trendingAnime = [], onTrendingAnimeClick = (_) => {} }) => {
   const { isLoggedIn, user, logout } = useAuth();
   const { notifications, markNotificationsAsRead } = useProfileData();
   const { settings } = useSettings();
@@ -75,9 +77,9 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
           {/* Left Section */}
           <div className="flex items-center space-x-4">
             <button onClick={onMenuClick} className="lg:hidden text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] transition-colors" aria-label="Open menu"><HamburgerIcon /></button>
-            <Logo onClick={() => onNavigate('home')} />
+            <Logo onClick={onGoHome} />
             <nav className="hidden lg:flex items-center space-x-6 ml-6">
-                <NavLink page="home" onNavigate={onNavigate}>Home</NavLink>
+                <button onClick={onGoHome} className="font-semibold text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] transition-colors duration-300">Home</button>
                 <NavLink page="manga" onNavigate={onNavigate}>Manga</NavLink>
                 <NavLink page="trending" onNavigate={onNavigate}>Trending</NavLink>
                 <NavLink page="schedule" onNavigate={onNavigate}>Schedule</NavLink>

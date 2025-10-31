@@ -18,9 +18,10 @@ import { CloseIcon, GoogleIcon, ChevronLeftIcon } from './icons/Icons';
 
 interface AuthModalProps {
   onClose: () => void;
+  reason?: string | null;
 }
 
-const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
+const AuthModal: React.FC<AuthModalProps> = ({ onClose, reason }) => {
   const [activeTab, setActiveTab] = useState<'login' | 'signup'>('login');
   const [view, setView] = useState<'main' | 'phone' | 'reset_password'>('main');
   const [phoneStep, setPhoneStep] = useState<'input' | 'verify'>('input');
@@ -231,6 +232,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
   const renderMainView = () => (
     signupSuccess ? renderSignupSuccess() :
     <>
+        {reason && (
+            <div className="text-center bg-[rgb(var(--color-warning))]/10 border border-[rgb(var(--color-warning))]/30 text-[rgb(var(--color-warning))] text-sm rounded-xl p-3 mb-4">
+                {reason}
+            </div>
+        )}
         <div className="flex border-b border-white/10 mb-6">
             <button onClick={() => handleTabChange('login')} className={`flex-1 py-2 text-lg font-semibold transition-colors ${activeTab === 'login' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>Login</button>
             <button onClick={() => handleTabChange('signup')} className={`flex-1 py-2 text-lg font-semibold transition-colors ${activeTab === 'signup' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>Sign Up</button>

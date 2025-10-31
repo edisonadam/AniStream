@@ -26,6 +26,8 @@ import NewsPage from './components/NewsPage';
 import MangaPage from './components/MangaPage';
 import BeginnerAnimePage from './components/BeginnerAnimePage';
 import { useWatchProgress } from './hooks/useWatchProgress';
+import BeginnerAnime from './components/BeginnerAnime';
+import { useAuth } from './hooks/useAuth';
 
 const ANIME_PAGE_SIZE = 25;
 
@@ -57,20 +59,23 @@ const App: React.FC = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [isLoginOpen, setIsLoginOpen] = useState(false);
+    const [loginReason, setLoginReason] = useState<string | null>(null);
     const [isWatchlistOpen, setIsWatchlistOpen] = useState(false);
 
     const { settings, updateSettings } = useSettings();
+    const { isLoggedIn } = useAuth();
     const { watchProgressList } = useWatchProgress();
     const appRef = useRef<HTMLDivElement>(null);
     const scrollPositionRef = useRef<number | null>(null);
     const homePageScrollPosition = useRef(0);
+    const pageBeforePlayerRef = useRef<Page>('home'); // To store page before navigating to player
     const prevPageRef = useRef<Page | undefined>(undefined);
 
     useEffect(() => {
         prevPageRef.current = page;
     }, [page]);
     
-    const handleResetFilters = (scrollToTop?: boolean) => {
+    const handleResetFilters = useCallback((scrollToTop?: boolean) => {
         const resolvedScrollToTop = scrollToTop ?? true;
         const resetState: Filter = { query: '', genres: [], types: [], statuses: [], years: [], languages: [], studios: [], sort: 'popularity' };
         if (resolvedScrollToTop) {
@@ -79,31 +84,47 @@ const App: React.FC = () => {
         }
         setFilters(resetState);
         setStagedFilters(resetState);
-    };
+    }, []);
 
-    const navigateTo = (newPage: Page) => {
+    const goHome = useCallback(() => {
+        handleResetFilters(true);
+        setPage('home');
+        setSelectedAnime(null);
+        setSelectedClub(null);
+    }, [handleResetFilters]);
+
+    const navigateTo = useCallback((newPage: Page) => {
         if (page !== 'player' && page !== 'profile' && page !== 'club-detail') {
             homePageScrollPosition.current = window.scrollY;
         }
-        
+
         setPage(newPage);
-        setSelectedAnime(null);
-        setSelectedClub(null);
-    };
+    }, [page]);
 
     const handleAnimeSelect = useCallback((anime: Anime) => {
         if (page !== 'player') {
           homePageScrollPosition.current = window.scrollY;
+          pageBeforePlayerRef.current = page;
         }
         setSelectedAnime(anime);
         setPage('player');
     }, [page]);
+
+    const goBackFromPlayer = useCallback(() => {
+        setSelectedAnime(null);
+        setPage(pageBeforePlayerRef.current);
+    }, []);
 
     const handleClubSelect = useCallback((club: Club) => {
         homePageScrollPosition.current = window.scrollY;
         setSelectedClub(club);
         setPage('club-detail');
     }, []);
+    
+    const handleLoginRequest = (reason?: string) => {
+        setLoginReason(reason || null);
+        setIsLoginOpen(true);
+    };
 
     const performFetch = useCallback(async (pageNum: number, searchFilters: Filter) => {
         const params = new URLSearchParams({
@@ -235,9 +256,11 @@ const App: React.FC = () => {
     }, [filters]);
 
     useEffect(() => {
-        setGridAnime([]);
-        fetchJikanGridData(1, filters, true);
-    }, [filters, fetchJikanGridData]);
+        if (page !== 'player') {
+            setGridAnime([]);
+            fetchJikanGridData(1, filters, true);
+        }
+    }, [filters, fetchJikanGridData, page]);
     
     useEffect(() => {
         if (isSidebarOpen) document.body.classList.add('body-no-scroll');
@@ -448,17 +471,17 @@ const App: React.FC = () => {
     
     const pageContent = useMemo(() => {
         switch(page) {
-            case 'player': return selectedAnime && <Player anime={selectedAnime} onGoBack={() => navigateTo('home')} onSelectRelated={handleAnimeSelect} allAnime={allAnime} onGenreSelect={handleGenreSelect} />;
-            case 'profile': return <ProfilePage onGoBack={() => navigateTo('home')} allAnime={allAnime} onSelectAnime={handleAnimeSelect} />;
-            case 'clubs': return <ClubsPage onGoBack={() => navigateTo('home')} onClubSelect={handleClubSelect} />;
+            case 'player': return selectedAnime && <Player anime={selectedAnime} onGoBack={goBackFromPlayer} onSelectRelated={handleAnimeSelect} allAnime={allAnime} onGenreSelect={handleGenreSelect} />;
+            case 'profile': return <ProfilePage onGoBack={goHome} allAnime={allAnime} onSelectAnime={handleAnimeSelect} />;
+            case 'clubs': return <ClubsPage onGoBack={goHome} onClubSelect={handleClubSelect} />;
             case 'club-detail': return selectedClub && <ClubDetailPage club={selectedClub} onGoBack={() => navigateTo('clubs')} onSelectAnime={handleAnimeSelect} />;
-            case 'magazines': return <MagazinesPage onGoBack={() => navigateTo('home')} />;
+            case 'magazines': return <MagazinesPage onGoBack={goHome} />;
             case 'trending': return <TrendingPage onAnimeSelect={handleAnimeSelect} />;
             case 'schedule': return <SchedulePage onAnimeSelect={handleAnimeSelect} />;
             case 'history': return <HistoryPage onAnimeSelect={handleAnimeSelect} allAnime={allAnime} />;
             case 'news': return <NewsPage onAnimeSelect={handleAnimeSelect} />;
-            case 'manga': return <MangaPage onGoBack={() => navigateTo('home')} />;
-            case 'beginners': return <BeginnerAnimePage onGoBack={() => navigateTo('home')} onAnimeSelect={handleAnimeSelect} />;
+            case 'manga': return <MangaPage onGoBack={goHome} />;
+            case 'beginners': return <BeginnerAnimePage onGoBack={goHome} onAnimeSelect={handleAnimeSelect} />;
             case 'search':
                 return (
                     <AnimeGrid
@@ -488,6 +511,8 @@ const App: React.FC = () => {
                                 onShowHistory={() => navigateTo('history')} 
                             />
                         )}
+
+                        {isDefaultHome && <BeginnerAnime onAnimeSelect={handleAnimeSelect} />}
                         
                         <AnimeGrid
                             title={isDefaultHome ? "Discover Anime" : "Filtered Results"}
@@ -511,10 +536,11 @@ const App: React.FC = () => {
         <div ref={appRef} className="bg-[rgb(var(--bg-gradient-start))] text-[rgb(var(--text-primary))]">
             <Header
                 onMenuClick={() => setIsSidebarOpen(true)}
-                onLoginClick={() => setIsLoginOpen(true)}
+                onLoginClick={() => handleLoginRequest()}
                 onSearchClick={() => setIsSearchOpen(true)}
                 onShowWatchlist={() => setIsWatchlistOpen(true)}
                 onNavigate={navigateTo}
+                onGoHome={goHome}
                 onNotificationClick={handleNotificationClick}
                 trendingAnime={trendingAnime}
                 onTrendingAnimeClick={handleSearchSubmit}
@@ -527,12 +553,15 @@ const App: React.FC = () => {
                 onApplyFilters={handleApplyFilters}
                 onResetFilters={() => { handleResetFilters(true); }}
                 onNavigate={navigateTo}
+                onGoHome={goHome}
                 onSurpriseMe={handleSurpriseMe}
                 settings={settings}
                 updateSettings={updateSettings}
+                isLoggedIn={isLoggedIn}
+                onLoginClick={handleLoginRequest}
             />
             {isSearchOpen && <SearchOverlay onClose={() => setIsSearchOpen(false)} onAnimeSelect={handleAnimeSelect} onSearchSubmit={handleSearchSubmit} />}
-            {isLoginOpen && <AuthModal onClose={() => setIsLoginOpen(false)} />}
+            {isLoginOpen && <AuthModal onClose={() => { setIsLoginOpen(false); setLoginReason(null); }} reason={loginReason} />}
             {isWatchlistOpen && <WatchlistOverlay onClose={() => setIsWatchlistOpen(false)} onSelectAnime={handleAnimeSelect} />}
             
             <main className={`${page === 'home' && !hasActiveFilters ? '' : 'pt-20'}`}>
