@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import type { Anime, Season, Episode, VideoServer, EpisodeViewStyle, User, Character, DefaultLanguage } from '../types';
 import { ChevronLeftIcon, StarIcon, ChevronRightIcon, ViewGridIcon, ViewListIcon, ViewCarouselIcon, EyeIcon, EyeOffIcon, RewindIcon, FastForwardIcon, RefreshCwIcon, ShareIcon, CloseIcon, DownloadIcon, SparklesIcon } from './icons/Icons';
@@ -434,10 +432,15 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
             
                 setSeriesParts(finalSeriesParts.length > 1 ? finalSeriesParts : [fullAnimeData]);
             
-                const movieRelations = allEntries
+                let movieRelations = allEntries
                     .filter((entry: any) => entry.type === 'Movie')
                     .map((m: any) => mapJikanToAnime(m))
                     .filter((a): a is Anime => a !== null);
+
+                if (settings.restrictAdultContent) {
+                    movieRelations = movieRelations.filter(anime => !anime.isAdult);
+                }
+                
                 setRelatedMovies(Array.from(new Map(movieRelations.map(m => [m.id, m])).values()));
             } else {
                 setSeriesParts([fullAnimeData]);
@@ -446,11 +449,16 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
             const recommendationsRes = await fetchWithRetry(`https://api.jikan.moe/v4/anime/${anime.id}/recommendations`);
             if (recommendationsRes.ok) {
                 const recommendationsData = await recommendationsRes.json();
-                const mappedRecs = (recommendationsData.data || [])
-                    .slice(0, 6)
+                let mappedRecs = (recommendationsData.data || [])
+                    .slice(0, 12) // fetch more to have enough after filtering
                     .map((rec: any) => mapJikanToAnime(rec.entry))
                     .filter((a): a is Anime => a !== null);
-                setRelatedAnime(mappedRecs);
+                
+                if (settings.restrictAdultContent) {
+                    mappedRecs = mappedRecs.filter(anime => !anime.isAdult);
+                }
+                
+                setRelatedAnime(mappedRecs.slice(0, 6));
             }
 
             // Fetch Trailers from Jikan

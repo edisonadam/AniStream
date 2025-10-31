@@ -118,7 +118,11 @@ export const mapJikanToAnime = (item: any): Anime | null => {
     }
     
     const ratingString = item.rating || '';
-    const isAdult = ratingString.includes('R - 17+') || ratingString.includes('R+ - Mild Nudity') || ratingString.includes('Rx - Hentai');
+    const hasAdultRating = ratingString.includes('R - 17+') || ratingString.includes('R+ - Mild Nudity') || ratingString.includes('Rx - Hentai');
+    const hasExplicitGenre = (item.explicit_genres || []).some((g: any) => ['Hentai', 'Erotica'].includes(g.name));
+    
+    // An anime is adult if sfw is false, or it has an adult rating, or an explicit genre.
+    const isAdult = item.sfw === false || hasAdultRating || hasExplicitGenre;
 
     return {
         id: item.mal_id,
@@ -160,6 +164,8 @@ export const mapJikanToManga = (item: any): Manga | null => {
     if (!item || !item.mal_id) {
         return null;
     }
+    const hasExplicitGenre = (item.explicit_genres || []).some((g: any) => g.name === 'Hentai' || g.name === 'Erotica');
+    const isAdult = item.sfw === false || hasExplicitGenre;
     return {
         id: item.mal_id,
         title: item.title_english || item.title || 'Untitled',
@@ -175,6 +181,7 @@ export const mapJikanToManga = (item: any): Manga | null => {
         status: item.status,
         authors: (item.authors || []).map((a: any) => ({ name: a.name })),
         malUrl: item.url,
+        isAdult,
     };
 };
 

@@ -77,7 +77,10 @@ const SchedulePage: React.FC<SchedulePageProps> = ({ onAnimeSelect }) => {
             if (!res.ok) throw new Error(`Failed to fetch anime for ${mode === 'upcoming' ? 'upcoming season' : `${selectedSeason} ${selectedYear}`}.`);
             
             const data = await res.json();
-            const mapped = data.data.map(mapJikanToAnime).filter(Boolean);
+            let mapped = data.data.map(mapJikanToAnime).filter(Boolean);
+            if (settings.restrictAdultContent) {
+                mapped = mapped.filter((a: Anime) => !a.isAdult);
+            }
 
             setSeasonalAnime(prev => isNewSearch ? mapped : [...prev, ...mapped]);
             setHasMore(data.pagination?.has_next_page ?? false);

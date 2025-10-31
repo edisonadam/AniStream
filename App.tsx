@@ -163,7 +163,10 @@ const App: React.FC = () => {
         if (!res.ok) throw new Error(`Jikan API fetch failed for page ${pageNum}`);
         
         const data = await res.json();
-        const mappedData: Anime[] = data.data.map(mapJikanToAnime).filter((a: Anime | null): a is Anime => a !== null);
+        let mappedData: Anime[] = data.data.map(mapJikanToAnime).filter((a: Anime | null): a is Anime => a !== null);
+        if (settings.restrictAdultContent) {
+            mappedData = mappedData.filter(anime => !anime.isAdult);
+        }
         const hasNext = data.pagination?.has_next_page ?? false;
         
         return { anime: mappedData, hasNext };
@@ -230,12 +233,20 @@ const App: React.FC = () => {
 
                 if (topRes.ok) {
                     const topData = await topRes.json();
-                    setFeaturedAnime(topData.data.map(mapJikanToAnime).filter(Boolean));
+                    let mapped = topData.data.map(mapJikanToAnime).filter(Boolean);
+                    if (settings.restrictAdultContent) {
+                        mapped = mapped.filter((a: Anime) => !a.isAdult);
+                    }
+                    setFeaturedAnime(mapped);
                 }
                 
                 if (seasonNowRes.ok) {
                     const seasonNowData = await seasonNowRes.json();
-                    const seasonNowAnime = deduplicateFranchises(seasonNowData.data.map(mapJikanToAnime).filter(Boolean));
+                    let mapped = seasonNowData.data.map(mapJikanToAnime).filter(Boolean);
+                    if (settings.restrictAdultContent) {
+                        mapped = mapped.filter((a: Anime) => !a.isAdult);
+                    }
+                    const seasonNowAnime = deduplicateFranchises(mapped);
                     setTrendingAnime(seasonNowAnime.slice(0, 10)); // For header
                 }
             } catch (error) {

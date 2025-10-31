@@ -47,6 +47,7 @@ export interface Manga {
   status: string;
   authors: { name: string }[];
   malUrl?: string;
+  isAdult: boolean;
 }
 
 export interface Filter {

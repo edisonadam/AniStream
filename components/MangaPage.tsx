@@ -77,7 +77,10 @@ const MangaPage: React.FC<MangaPageProps> = ({ onGoBack }) => {
       if (!res.ok) throw new Error('Failed to fetch manga from Jikan API.');
 
       const data = await res.json();
-      const newManga = data.data.map(mapJikanToManga).filter(Boolean);
+      let newManga = data.data.map(mapJikanToManga).filter(Boolean);
+      if (settings.restrictAdultContent) {
+          newManga = newManga.filter((m: Manga) => !m.isAdult);
+      }
 
       setManga(prev => isNewSearch ? newManga : [...prev, ...newManga]);
       setHasMore(data.pagination?.has_next_page ?? false);

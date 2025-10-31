@@ -24,7 +24,10 @@ const TrendingPage: React.FC<TrendingPageProps> = ({ onAnimeSelect }) => {
                 const res = await fetch(`https://api.jikan.moe/v4/top/anime?filter=bypopularity&limit=25${sfwQuery}`);
                 if (!res.ok) throw new Error('Failed to fetch trending anime.');
                 const data = await res.json();
-                const mapped = data.data.map(mapJikanToAnime).filter(Boolean);
+                let mapped = data.data.map(mapJikanToAnime).filter(Boolean);
+                if (settings.restrictAdultContent) {
+                    mapped = mapped.filter((a: Anime) => !a.isAdult);
+                }
                 setTrending(mapped);
             } catch (e) {
                 setError(e instanceof Error ? e.message : 'An error occurred.');
