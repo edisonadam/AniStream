@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useSettings } from '../hooks/useSettings';
-// FIX: `clearHistory` is not provided by `ProfileDataContext`. The history clearing functionality is in `WatchProgressContext`.
 import { useWatchProgress } from '../hooks/useWatchProgress';
 import { useWatchlist } from '../hooks/useWatchLater';
 import { COLOR_PRESETS, VIDEO_SERVERS, VIDSRC_DOMAINS } from '../constants';
+import { fetchMalUserAnimeList, fetchAnilistUserAnimeList } from '../api';
+import type { Anime } from '../types';
 
 const SettingsSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
     <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 p-6 rounded-2xl">
@@ -48,23 +49,194 @@ const Dropdown: React.FC<{label: string, options: {value: string, label: string}
     </div>
 );
 
+const TextInput: React.FC<{ label: string, type?: string, value: string, placeholder?: string, onChange: (value: string) => void }> = ({ label, type = 'text', value, placeholder, onChange }) => (
+     <div className="flex flex-col sm:flex-row justify-between items-center pt-4 border-t border-white/10">
+        <label className="font-semibold text-[rgb(var(--text-secondary))] mb-2 sm:mb-0">{label}</label>
+        <input 
+            type={type}
+            value={value}
+            placeholder={placeholder}
+            onChange={e => onChange(e.target.value)}
+            className="w-full sm:w-auto bg-[rgb(var(--surface-input))/0.2] border border-white/10 rounded-xl px-3 py-2 text-[rgb(var(--text-primary))] focus:ring-2 focus:ring-[rgb(var(--border-focus))] focus:border-[rgb(var(--border-focus))] transition-all"
+        />
+    </div>
+);
+
+
 const SettingsPage: React.FC = () => {
     const { settings, updateSettings, restoreDefaults } = useSettings();
     const { clearProgress } = useWatchProgress();
-    const { overwriteWatchlist } = useWatchlist();
+    const { watchlist, overwriteWatchlist } = useWatchlist();
+    const [isImporting, setIsImporting] = useState<'' | 'mal' | 'anilist'>('');
+    const [importStatus, setImportStatus] = useState('');
+    const [deleteBeforeImporting, setDeleteBeforeImporting] = useState(false);
 
     const handleClearWatchHistory = () => {
         if (window.confirm("Are you sure? This will clear all local watch history and continue watching progress.")) {
-            // FIX: The function to clear history is `clearProgress` from `useWatchProgress`.
             clearProgress();
             alert("Watch history cleared.");
         }
     }
+    
+    const handleImport = async (type: 'mal' | 'anilist') => {
+        setIsImporting(type);
+        setImportStatus('Importing...');
+        try {
+            let externalList: Anime[] = [];
+            if (type === 'mal') {
+                if (!settings.malUsername) throw new Error("MyAnimeList username is not set.");
+                externalList = await fetchMalUserAnimeList(settings.malUsername);
+            } else {
+                if (!settings.anilistUsername) throw new Error("AniList username is not set.");
+                externalList = await fetchAnilistUserAnimeList(settings.anilistUsername);
+            }
+
+            if (deleteBeforeImporting) {
+                overwriteWatchlist(externalList);
+                setImportStatus(`Successfully imported ${externalList.length} titles and replaced your old watchlist.`);
+            } else {
+                const mergedList = [...watchlist];
+                const watchlistIds = new Set(watchlist.map(a => a.id));
+                
+                let newItemsCount = 0;
+                externalList.forEach(anime => {
+                    if (!watchlistIds.has(anime.id)) {
+                        mergedList.push(anime);
+                        newItemsCount++;
+                    }
+                });
+                overwriteWatchlist(mergedList);
+                setImportStatus(`Successfully imported and merged ${newItemsCount} new title(s) into your watchlist.`);
+            }
+
+        } catch (e) {
+            setImportStatus(e instanceof Error ? e.message : 'An unknown error occurred.');
+        } finally {
+            setTimeout(() => {
+                setIsImporting('');
+                setImportStatus('');
+            }, 5000);
+        }
+    };
+    
+    const handleExportWatchlist = (format: 'json' | 'text' | 'xml') => {
+        if (watchlist.length === 0) {
+            alert("Your watchlist is empty. Nothing to export.");
+            return;
+        }
+
+        const date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        let filename = `anistream_watchlist_${date}`;
+        let blob: Blob;
+
+        switch (format) {
+            case 'text':
+                const textContent = watchlist
+                    .map(anime => anime.malUrl)
+                    .filter(Boolean)
+                    .join('\n');
+                blob = new Blob([textContent], { type: 'text/plain' });
+                filename += '.txt';
+                break;
+            
+            case 'xml':
+                const xmlContent = `<?xml version="1.0" encoding="UTF-8"?>\n<watchlist>\n${watchlist
+                    .map(anime => 
+                        `  <anime>\n` +
+                        `    <mal_id>${anime.id}</mal_id>\n` +
+                        `    <title><![CDATA[${anime.title}]]></title>\n` +
+                        `    <mal_url>${anime.malUrl || ''}</mal_url>\n` +
+                        `  </anime>`
+                    )
+                    .join('\n')}\n</watchlist>`;
+                blob = new Blob([xmlContent], { type: 'application/xml' });
+                filename += '.xml';
+                break;
+
+            case 'json':
+            default:
+                const jsonContent = JSON.stringify(watchlist, null, 2);
+                blob = new Blob([jsonContent], { type: 'application/json' });
+                filename += '.json';
+                break;
+        }
+
+        const href = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = href;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(href);
+    };
 
     return (
         <div className="max-w-4xl mx-auto space-y-8">
+
+            <SettingsSection title="Integrations">
+                {/* MyAnimeList */}
+                <div className="space-y-4 pt-4 border-t border-white/10">
+                    <h4 className="font-semibold text-lg text-[rgb(var(--text-secondary))]">MyAnimeList</h4>
+                    <div className="space-y-2 text-sm text-[rgb(var(--text-muted))] bg-black/20 p-3 rounded-lg">
+                        <p>- Your MAL-List must be in Public status on your Privacy setting.</p>
+                        <p>- If an anime is available in your MAL-List but not available in the site, it will not be imported.</p>
+                        <p>- This process may take a few minutes to finish, please be patient.</p>
+                    </div>
+                    <TextInput label="Your MAL username:" value={settings.malUsername} onChange={v => updateSettings({ malUsername: v })} placeholder="Enter MAL username" />
+                    <div className="flex justify-end">
+                        <button onClick={() => handleImport('mal')} disabled={!settings.malUsername || isImporting === 'mal'} className="px-4 py-2 bg-[rgb(var(--color-primary))] text-sm text-[rgb(var(--text-on-primary))] rounded-xl font-semibold hover:bg-[rgb(var(--color-primary-hover))] disabled:opacity-50 disabled:cursor-wait">
+                             {isImporting === 'mal' ? 'Importing...' : 'Import from MAL'}
+                        </button>
+                    </div>
+                </div>
+                
+                {/* AniList */}
+                <div className="space-y-4 pt-4 border-t border-white/10">
+                    <h4 className="font-semibold text-lg text-[rgb(var(--text-secondary))]">AniList</h4>
+                    <TextInput label="AniList Username" value={settings.anilistUsername} onChange={v => updateSettings({ anilistUsername: v })} placeholder="Enter AniList username" />
+                    <TextInput label="AniList Token" type="password" value={settings.anilistToken} onChange={v => updateSettings({ anilistToken: v })} placeholder="Enter AniList auth token" />
+                    <p className="text-xs text-[rgb(var(--text-muted))] !mt-2 text-right">Get your token from AniList's <a href="https://anilist.co/settings/developer" target="_blank" rel="noopener noreferrer" className="text-[rgb(var(--color-primary-accent))] hover:underline">developer settings</a>.</p>
+                    <div className="pt-4 border-t border-white/10 flex justify-between items-center">
+                        <Toggle label="Auto Sync AniList Progress" checked={settings.autoSyncAniList} onChange={() => updateSettings({ autoSyncAniList: !settings.autoSyncAniList })} note="Automatically update episode progress on your AniList profile." />
+                        <button onClick={() => handleImport('anilist')} disabled={!settings.anilistUsername || isImporting === 'anilist'} className="px-4 py-2 bg-[rgb(var(--color-primary))] text-sm text-[rgb(var(--text-on-primary))] rounded-xl font-semibold hover:bg-[rgb(var(--color-primary-hover))] disabled:opacity-50 disabled:cursor-wait">
+                            {isImporting === 'anilist' ? 'Importing...' : 'Import from AniList'}
+                        </button>
+                    </div>
+                </div>
+                
+                {importStatus && <p className="text-center text-sm text-[rgb(var(--text-secondary))] pt-4 border-t border-white/10">{importStatus}</p>}
+
+                {/* Data Management */}
+                <div className="space-y-6 pt-4 border-t border-white/10">
+                    <h4 className="font-semibold text-lg text-[rgb(var(--text-secondary))]">Import & Export</h4>
+                    <div>
+                        <div className="flex items-center gap-3">
+                            <label htmlFor="delete-before-import" className="font-semibold text-[rgb(var(--text-secondary))]">Erase List:</label>
+                            <input
+                                type="checkbox"
+                                id="delete-before-import"
+                                checked={deleteBeforeImporting}
+                                onChange={e => setDeleteBeforeImporting(e.target.checked)}
+                                className="h-4 w-4 rounded bg-[rgb(var(--surface-4))] border-[rgb(var(--border-color))] text-[rgb(var(--color-primary))] focus:ring-[rgb(var(--color-primary))] focus:ring-offset-0 cursor-pointer"
+                            />
+                        </div>
+                        <p className="text-xs text-[rgb(var(--text-muted))] mt-1">If checked, your current watchlist will be replaced by the imported list.</p>
+                    </div>
+
+                    <div>
+                        <h4 className="font-semibold text-[rgb(var(--text-secondary))]">Export format:</h4>
+                        <p className="text-xs text-[rgb(var(--text-muted))] mt-1">Export your watchlist for backup or use in other services. The TEXT format provides a list of MyAnimeList URLs.</p>
+                        <div className="flex items-center gap-2 mt-3">
+                            <button onClick={() => handleExportWatchlist('text')} className="px-4 py-2 bg-white/10 text-sm text-[rgb(var(--text-secondary))] rounded-xl font-semibold hover:bg-white/20">TEXT</button>
+                            <button onClick={() => handleExportWatchlist('xml')} className="px-4 py-2 bg-white/10 text-sm text-[rgb(var(--text-secondary))] rounded-xl font-semibold hover:bg-white/20">XML</button>
+                            <button onClick={() => handleExportWatchlist('json')} className="px-4 py-2 bg-white/10 text-sm text-[rgb(var(--text-secondary))] rounded-xl font-semibold hover:bg-white/20">JSON</button>
+                        </div>
+                    </div>
+                </div>
+            </SettingsSection>
+
             <SettingsSection title="App Behavior">
-                <Toggle label="Auto Sync with AniList" checked={settings.autoSyncAniList} onChange={() => updateSettings({ autoSyncAniList: !settings.autoSyncAniList })} note="This feature is not supported on embedded players." />
                 <div className="flex flex-col pt-4 border-t border-white/10">
                     <label className="font-semibold text-[rgb(var(--text-secondary))]">Sync Threshold (%)</label>
                     <input type="range" min="1" max="100" value={settings.syncThreshold} onChange={e => updateSettings({ syncThreshold: parseInt(e.target.value, 10)})} className="w-full h-2 bg-[rgb(var(--surface-4))] rounded-lg appearance-none cursor-pointer" />

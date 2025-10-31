@@ -31,13 +31,13 @@ export const ProfileDataProvider: React.FC<ProfileDataProviderProps> = ({ childr
   useEffect(() => {
     if (user) {
       try {
-        const storedRatings = localStorage.getItem(`ratings-${user.username}`);
+        const storedRatings = localStorage.getItem(`ratings-${user.uid}`);
         setRatings(storedRatings ? JSON.parse(storedRatings) : []);
         
-        const storedFriends = localStorage.getItem(`friends-${user.username}`);
+        const storedFriends = localStorage.getItem(`friends-${user.uid}`);
         setFriends(storedFriends ? JSON.parse(storedFriends) : []);
 
-        const storedNotifications = localStorage.getItem(`notifications-${user.username}`);
+        const storedNotifications = localStorage.getItem(`notifications-${user.uid}`);
         setNotifications(storedNotifications ? JSON.parse(storedNotifications) : []);
       } catch (e) {
         console.error("Failed to load profile data", e);
@@ -54,15 +54,15 @@ export const ProfileDataProvider: React.FC<ProfileDataProviderProps> = ({ childr
   }, [user]);
 
   const persistRatings = useCallback((list: Rating[]) => {
-    if (user) localStorage.setItem(`ratings-${user.username}`, JSON.stringify(list));
+    if (user) localStorage.setItem(`ratings-${user.uid}`, JSON.stringify(list));
   }, [user]);
 
   const persistFriends = useCallback((list: User[]) => {
-      if (user) localStorage.setItem(`friends-${user.username}`, JSON.stringify(list));
+      if (user) localStorage.setItem(`friends-${user.uid}`, JSON.stringify(list));
   }, [user]);
 
-  const persistNotifications = useCallback((list: Notification[], username: string) => {
-      localStorage.setItem(`notifications-${username}`, JSON.stringify(list));
+  const persistNotifications = useCallback((list: Notification[], userId: string) => {
+      localStorage.setItem(`notifications-${userId}`, JSON.stringify(list));
   }, []);
 
   const rateAnime = useCallback((animeId: number, rating: number) => {
@@ -109,8 +109,8 @@ export const ProfileDataProvider: React.FC<ProfileDataProviderProps> = ({ childr
   }, [friends]);
   
   const addNotification = useCallback((notificationData: Omit<Notification, 'id' | 'timestamp' | 'read'>, targetUsername?: string) => {
-    const target = targetUsername || user?.username;
-    if (!target) return;
+    const targetUser = friends.find(f => f.username === targetUsername) || user;
+    if (!targetUser) return;
 
     const newNotification: Notification = {
       ...notificationData,
@@ -119,16 +119,16 @@ export const ProfileDataProvider: React.FC<ProfileDataProviderProps> = ({ childr
       read: false,
     };
     
-    if (target === user?.username) {
+    if (targetUser.uid === user?.uid) {
         setNotifications(prev => {
             const newList = [newNotification, ...prev].slice(0, 50);
-            persistNotifications(newList, target);
+            persistNotifications(newList, targetUser.uid);
             return newList;
         });
     } else {
         // This is for notifying another user, a simulation for a client-side app
         try {
-            const storageKey = `notifications-${target}`;
+            const storageKey = `notifications-${targetUser.uid}`;
             const existing = localStorage.getItem(storageKey);
             const currentList: Notification[] = existing ? JSON.parse(existing) : [];
             const newList = [newNotification, ...currentList].slice(0, 50);
@@ -137,13 +137,13 @@ export const ProfileDataProvider: React.FC<ProfileDataProviderProps> = ({ childr
             console.error("Could not add notification for other user", e);
         }
     }
-  }, [user, persistNotifications]);
+  }, [user, friends, persistNotifications]);
   
   const markNotificationsAsRead = useCallback(() => {
     if (!user) return;
     setNotifications(prev => {
         const newList = prev.map(n => ({ ...n, read: true }));
-        persistNotifications(newList, user.username);
+        persistNotifications(newList, user.uid);
         return newList;
     });
   }, [user, persistNotifications]);

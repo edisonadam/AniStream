@@ -64,7 +64,7 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect }) => {
 
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-100 transition-opacity duration-300"></div>
 
-      <div className="absolute top-2 left-2 flex flex-col gap-1.5 z-10">
+      <div className="absolute top-2 left-2 flex flex-col items-start gap-1.5 z-10">
         {anime.rating && anime.rating > 0 && (
             <div className="flex items-center gap-1 px-2 py-0.5 text-xs font-bold rounded-full bg-black/60 text-yellow-400 backdrop-blur-md">
                 <StarIcon className="w-3 h-3" />
@@ -72,9 +72,18 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect }) => {
             </div>
         )}
         {anime.type && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/50 text-white backdrop-blur-md">{anime.type.toUpperCase()}</span>}
+        {(anime.hasSub || anime.hasDub) && (
+            <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/50 text-white backdrop-blur-md">
+                {anime.hasSub && anime.hasDub ? 'SUB/DUB' : anime.hasSub ? 'SUB' : 'DUB'}
+            </span>
+        )}
       </div>
       
-      {anime.avgEpisodeDuration && anime.type !== 'Movie' && <span className="absolute top-2 right-2 px-2 py-0.5 text-xs font-bold rounded-full bg-black/70 text-white backdrop-blur-sm z-10">~{anime.avgEpisodeDuration}m</span>}
+      {anime.type === 'Movie' && anime.runtime ? (
+        <span className="absolute top-2 right-2 px-2 py-0.5 text-xs font-bold rounded-full bg-black/70 text-white backdrop-blur-sm z-10">{formatDuration(anime.runtime)}</span>
+      ) : anime.avgEpisodeDuration ? (
+        <span className="absolute top-2 right-2 px-2 py-0.5 text-xs font-bold rounded-full bg-black/70 text-white backdrop-blur-sm z-10">~{anime.avgEpisodeDuration}m</span>
+      ) : null}
 
 
       {isLoggedIn && (

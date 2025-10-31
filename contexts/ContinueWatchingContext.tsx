@@ -1,7 +1,6 @@
 
 
 import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
-// FIX: Module '"../types"' has no exported member 'ContinueWatchingInfo'. The correct type is 'WatchProgressInfo'.
 import type { WatchProgressInfo, Anime } from '../types';
 import { useAuth } from '../hooks/useAuth';
 

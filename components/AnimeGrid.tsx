@@ -110,7 +110,6 @@ const AnimeGrid: React.FC<AnimeGridProps> = ({ onAnimeSelect, animeList, title, 
             <div ref={gridContainerRef} className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
               {animeList.map((anime, index) => (
                 <div key={anime.id} className="animate-subtle-fade-in-up" style={{ animationDelay: `${(index % ANIME_PAGE_SIZE) * 30}ms` }}>
-                    {/* FIX: Corrected a typo in the `onSelect` prop. The `onAnimeSelect` prop from `AnimeGridProps` should have been used, but it was incorrectly referenced as `onSelect`. */}
                     <AnimeCard anime={anime} onSelect={onAnimeSelect} />
                 </div>
               ))}

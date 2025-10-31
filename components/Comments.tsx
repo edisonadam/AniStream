@@ -75,7 +75,7 @@ const Comments: React.FC<CommentsProps> = ({ anime }) => {
     const newComment: CommentType = {
       id: Date.now().toString(),
       animeId: anime.id,
-      user,
+      user: user,
       text: text.trim(),
       timestamp: Date.now(),
       parentId: parentComment?.id,

@@ -136,9 +136,18 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose, onAnimeSelect, o
                         <div className="flex-1 min-w-0">
                             <p className="font-semibold text-[rgb(var(--text-primary))] truncate">{getDisplayTitle(anime, settings)}</p>
                             <div className="flex items-center gap-1.5 text-xs text-[rgb(var(--text-muted))] mt-1">
-                                {anime.releaseYear && <span>{anime.releaseYear}</span>}
-                                {anime.hasSub && <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-[rgb(var(--color-primary))/0.6] text-white">SUB</span>}
-                                {anime.hasDub && <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-[rgb(var(--color-tertiary-accent))/0.6] text-white">DUB</span>}
+                                {anime.releaseYear && <span>{anime.releaseYear} • </span>}
+                                {(anime.hasSub || anime.hasDub) && (
+                                    <span className={`px-1.5 py-0.5 text-[10px] font-bold rounded-full text-white ${
+                                        anime.hasSub && anime.hasDub
+                                            ? 'bg-gradient-to-r from-[rgb(var(--color-primary))/0.8] to-[rgb(var(--color-tertiary-accent))/0.8]'
+                                            : anime.hasSub
+                                            ? 'bg-[rgb(var(--color-primary))/0.6]'
+                                            : 'bg-[rgb(var(--color-tertiary-accent))/0.6]'
+                                    }`}>
+                                        {anime.hasSub && anime.hasDub ? 'SUB/DUB' : anime.hasSub ? 'SUB' : 'DUB'}
+                                    </span>
+                                )}
                             </div>
                         </div>
                     </li>

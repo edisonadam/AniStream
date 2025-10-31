@@ -3,7 +3,7 @@ import type { Settings, Theme, ColorPreset } from '../types';
 
 const defaultSettings: Settings = {
   theme: 'dark',
-  colorPreset: 'violet-fusion',
+  colorPreset: 'abyssal-blue',
   autoplayNext: true,
   autoSkipIntro: false,
   autoSkipOutro: false,
@@ -15,6 +15,8 @@ const defaultSettings: Settings = {
   restrictAdultContent: true,
   displayTitleLanguage: 'english',
   malUsername: '',
+  anilistUsername: '',
+  anilistToken: '',
   // New settings defaults from master prompt
   autoSyncAniList: false,
   syncThreshold: 80,

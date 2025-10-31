@@ -85,8 +85,10 @@ export interface Episode {
 }
 
 export interface User {
+  uid: string;
   username: string;
   avatar: string;
+  email: string | null;
   joinedDate: number; // timestamp
 }
 
@@ -104,7 +106,7 @@ export interface Comment {
 }
 
 export type Theme = 'light' | 'dark';
-export type ColorPreset = 'violet-fusion' | 'cyber-cyan' | 'sunset-orange';
+export type ColorPreset = 'abyssal-blue' | 'violet-fusion' | 'cyber-cyan' | 'sunset-orange';
 export type EpisodeViewStyle = 'auto' | 'default' | 'compact' | 'grid';
 export type CardLayout = 'classic' | 'anichart' | 'card_list';
 export type CardSize = 'medium' | 'large';
@@ -126,6 +128,8 @@ export interface Settings {
   restrictAdultContent: boolean;
   displayTitleLanguage: 'english' | 'japanese';
   malUsername: string;
+  anilistUsername: string;
+  anilistToken: string;
   // New Settings from Master Prompt
   autoSyncAniList: boolean;
   syncThreshold: number;

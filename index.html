@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark" data-color-preset="violet-fusion">
+<html lang="en" data-theme="dark" data-color-preset="abyssal-blue">
   <head>
     <meta charset="UTF-g" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
@@ -12,8 +12,20 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-      :root, :root[data-color-preset="violet-fusion"] {
-        /* THEME: Violet Fusion (New Default, inspired by miruro.to) */
+      :root, :root[data-color-preset="abyssal-blue"] {
+        /* THEME: Abyssal Blue (Default) */
+        --color-primary: 37 99 235; /* blue-600 */
+        --color-primary-hover: 29 78 216; /* blue-700 */
+        --color-primary-accent: 96 165 250; /* blue-400 */
+        --color-secondary-accent: 34 211 238; /* cyan-400 */
+        --color-tertiary-accent: 45 212 191; /* teal-400 */
+        --shadow-color: 37 99 235; /* blue-600 */
+        --logo-glow-1: #2563eb;
+        --logo-glow-2: #60a5fa;
+      }
+
+      :root[data-color-preset="violet-fusion"] {
+        /* THEME: Violet Fusion (inspired by miruro.to) */
         --color-primary: 139 92 246; /* violet-500 */
         --color-primary-hover: 124 58 237; /* violet-600 */
         --color-primary-accent: 167 139 250; /* violet-400 */
@@ -195,7 +207,10 @@
     "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "react": "https://aistudiocdn.com/react@^19.2.0",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.27.0"
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.27.0",
+    "firebase/app": "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
+    "firebase/auth": "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
+    "firebase/": "https://aistudiocdn.com/firebase@^12.5.0/"
   }
 }
 </script>

@@ -138,7 +138,6 @@ const Sidebar: React.FC<SidebarProps> = ({
             </div>
 
             <div className="p-4 grid grid-cols-2 gap-4 border-t border-white/5">
-                {/* FIX: The reset button should navigate to home after resetting filters to ensure the UI updates correctly and avoids potential infinite loops. */}
                 <button onClick={() => { onResetFilters(); onNavigate('home'); onClose(); }} className="w-full py-2.5 bg-[rgb(var(--surface-3))] rounded-lg font-semibold hover:bg-[rgb(var(--surface-4))] text-[rgb(var(--text-primary))]">
                     Reset
                 </button>

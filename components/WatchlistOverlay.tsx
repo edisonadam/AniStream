@@ -1,7 +1,6 @@
 
 
 import React, { useEffect } from 'react';
-// FIX: The hook is named useWatchlist, not useWatchLater.
 import { useWatchlist } from '../hooks/useWatchLater';
 import { CloseIcon, PlayIcon, StarIcon } from './icons/Icons';
 import type { Anime } from '../types';
@@ -14,7 +13,6 @@ interface WatchlistOverlayProps {
 }
 
 const WatchlistOverlay: React.FC<WatchlistOverlayProps> = ({ onClose, onSelectAnime }) => {
-    // FIX: The hook is useWatchlist and returns `watchlist` and `removeFromWatchlist`.
     const { watchlist, removeFromWatchlist } = useWatchlist();
     const { settings } = useSettings();
 

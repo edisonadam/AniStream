@@ -1,16 +1,16 @@
 
+
 import React, { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import type { Anime, Season, Episode, VideoServer, EpisodeViewStyle, User, Character, DefaultLanguage } from '../types';
 import { ChevronLeftIcon, StarIcon, ChevronRightIcon, ViewGridIcon, ViewListIcon, ViewCarouselIcon, EyeIcon, EyeOffIcon, RewindIcon, FastForwardIcon, RefreshCwIcon, ShareIcon, CloseIcon, DownloadIcon, SparklesIcon } from './icons/Icons';
 import AnimeCard from './AnimeCard';
 import Comments from './Comments';
 import { useSettings } from '../hooks/useSettings';
-// FIX: The application uses `WatchProgressProvider`, so this should use the `useWatchProgress` hook instead of the legacy `useContinueWatching`.
 import { useWatchProgress } from '../hooks/useWatchProgress';
 import { useProfileData } from '../hooks/useProfileData';
 import { useAuth } from '../hooks/useAuth';
 import { VIDEO_SERVERS, VIDSRC_DOMAINS } from '../constants';
-import { buildSourceUrl, mapJikanToAnime, mapJikanToCharacter } from '../api';
+import { buildSourceUrl, mapJikanToAnime, mapJikanToCharacter, getAnilistId, updateAnilistProgress } from '../api';
 import { GoogleGenAI } from '@google/genai';
 import DownloadModal from './DownloadModal';
 import { getDisplayTitle } from '../utils';
@@ -198,7 +198,6 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
   const { settings, updateSettings } = useSettings();
   const { user } = useAuth();
   const { updateProgress, getWatchProgress } = useWatchProgress();
-  // FIX: `logToHistory` does not exist on `ProfileDataContext`. This functionality is handled by `WatchProgressContext`.
   const { rateAnime, getRating, friends, addNotification } = useProfileData();
   const currentRating = playerAnime ? getRating(playerAnime.id) : null;
   
@@ -747,6 +746,44 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
 
         fetchStreamAndProgress();
     }, [playerAnime, currentSeason, currentEpisode, mediaIds.tmdb, mediaIds.mediaType, settings.videoServer, settings.vidsrcDomain, settings.autoplayNext, seasons, sortedSeasons, updateProgress, selectSeason, autoRedirected]);
+
+  // AniList Auto-Sync Effect
+  useEffect(() => {
+    const syncAnilistProgress = async () => {
+        if (!playerAnime || !settings.autoSyncAniList || !settings.anilistToken || mediaIds.mediaType !== 'tv') {
+            return;
+        }
+
+        const seasonInfo = seasons.find(s => s.season_number === currentSeason);
+        if (!seasonInfo || !playerAnime.totalEpisodes) return;
+        
+        // This is a rough estimation of overall progress for multi-season shows
+        const episodesInPrevSeasons = seasons
+            .filter(s => s.season_number < currentSeason)
+            .reduce((acc, s) => acc + s.episode_count, 0);
+        const overallEpisodeNumber = episodesInPrevSeasons + currentEpisode;
+
+        const totalProgressPercent = (overallEpisodeNumber / playerAnime.totalEpisodes) * 100;
+
+        if (totalProgressPercent >= settings.syncThreshold) {
+            try {
+                const anilistId = await getAnilistId(playerAnime.id);
+                if (anilistId) {
+                    await updateAnilistProgress(anilistId, overallEpisodeNumber, settings.anilistToken);
+                    console.log(`Synced episode ${overallEpisodeNumber} to AniList for ${playerAnime.title}.`);
+                } else {
+                    console.warn(`Could not find AniList ID for MAL ID ${playerAnime.id} to sync progress.`);
+                }
+            } catch (error) {
+                console.error("Failed to sync progress with AniList:", error);
+            }
+        }
+    };
+    
+    // We run this when the episode changes.
+    syncAnilistProgress();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentEpisode, currentSeason, playerAnime]);
 
   // Effect to save current player state to session storage
   useEffect(() => {
@@ -1370,8 +1407,18 @@ const AnimeInfoSection: React.FC<{anime: Anime, onTrailerClick: () => void}> = (
     return (
         <div className="bg-[rgb(var(--surface-2))/0.5] backdrop-blur-md rounded-3xl p-6">
             <div className="flex flex-col md:flex-row gap-6">
-                <div className="w-full md:w-1/3 lg:w-1/4 flex-shrink-0">
+                <div className="w-full md:w-1/3 lg:w-1/4 flex-shrink-0 relative">
                     <img src={anime.thumbnail} alt={getDisplayTitle(anime, settings)} className="w-full h-auto object-cover rounded-2xl shadow-lg" />
+                    <div className="absolute top-2 left-2 flex flex-col items-start gap-1.5 z-10">
+                        {(anime.hasSub || anime.hasDub) && (
+                            <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/50 text-white backdrop-blur-md">
+                                {anime.hasSub && anime.hasDub ? 'SUB/DUB' : anime.hasSub ? 'SUB' : 'DUB'}
+                            </span>
+                        )}
+                    </div>
+                    {anime.type === 'Movie' && anime.runtime && (
+                        <span className="absolute top-2 right-2 px-2 py-0.5 text-xs font-bold rounded-full bg-black/70 text-white backdrop-blur-sm z-10">{formatDuration(anime.runtime)}</span>
+                    )}
                 </div>
                 <div className="flex-1">
                     <div className="flex flex-wrap gap-2 mb-4">

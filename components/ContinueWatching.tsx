@@ -29,6 +29,11 @@ const ContinueWatchingCard: React.FC<ContinueWatchingCardProps> = ({ anime, prog
                 <img src={anime.thumbnail} alt={displayTitle} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
             </div>
              <div className="absolute top-2 right-2 flex flex-col items-end gap-1.5 z-10">
+                {(anime.hasSub || anime.hasDub) && (
+                    <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/50 text-white backdrop-blur-md">
+                        {anime.hasSub && anime.hasDub ? 'SUB/DUB' : anime.hasSub ? 'SUB' : 'DUB'}
+                    </span>
+                )}
                 {anime.isAdult && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/50 text-white backdrop-blur-md">+18</span>}
                 {anime.type && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/50 text-white backdrop-blur-md">{anime.type.toUpperCase()}</span>}
              </div>

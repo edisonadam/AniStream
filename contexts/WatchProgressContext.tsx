@@ -27,7 +27,7 @@ export const WatchProgressProvider: React.FC<WatchProgressProviderProps> = ({ ch
   useEffect(() => {
     if (user) {
       try {
-        const storageKey = `watch-progress-${user.username}`;
+        const storageKey = `watch-progress-${user.uid}`;
         const storedList = localStorage.getItem(storageKey);
         
         if (storedList) {
@@ -72,7 +72,7 @@ export const WatchProgressProvider: React.FC<WatchProgressProviderProps> = ({ ch
       const updatedList = [newItem, ...newList];
       
       const limitedList = updatedList.slice(0, 50); // Keep history to 50 items
-      localStorage.setItem(`watch-progress-${user.username}`, JSON.stringify(limitedList));
+      localStorage.setItem(`watch-progress-${user.uid}`, JSON.stringify(limitedList));
       return limitedList;
     });
   }, [user]);
@@ -80,7 +80,7 @@ export const WatchProgressProvider: React.FC<WatchProgressProviderProps> = ({ ch
   const clearProgress = useCallback(() => {
     if (user) {
       setWatchProgressList([]);
-      localStorage.removeItem(`watch-progress-${user.username}`);
+      localStorage.removeItem(`watch-progress-${user.uid}`);
     }
   }, [user]);
   

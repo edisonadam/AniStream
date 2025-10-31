@@ -18,8 +18,6 @@ const mapRelationToAnime = (relation: MalUrl): Anime => ({
     status: 'Completed',
     totalEpisodes: null,
     rating: null,
-    // FIX: The type 'anime' from the relation object is not a valid `Anime['type']`.
-    // Setting it to null is a safe fallback as the specific type is not provided.
     type: null,
     studio: '',
     hasSub: true,

@@ -249,3 +249,124 @@ export const fetchNewsPromos = async (): Promise<NewsPromo[]> => {
     const result = await response.json();
     return result.data || [];
 }
+
+// --- AniList Integration ---
+
+const ANILIST_API_URL = 'https://graphql.anilist.co';
+
+async function fetchAnilist(query: string, variables: object, token?: string) {
+    const headers: HeadersInit = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+    if (token) {
+        headers['Authorization'] = 'Bearer ' + token;
+    }
+    const response = await fetch(ANILIST_API_URL, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ query, variables }),
+    });
+    if (!response.ok) {
+        const errorBody = await response.json();
+        throw new Error(`AniList API Error: ${errorBody.errors?.[0]?.message || 'Unknown error'}`);
+    }
+    return response.json();
+}
+
+const mapAnilistToAnime = (item: any): Anime | null => {
+    if (!item?.idMal) return null; // We use MAL ID as the primary key in our app
+
+    let status: Anime['status'] = 'Upcoming';
+    switch (item.status) {
+        case 'RELEASING': status = 'Ongoing'; break;
+        case 'FINISHED': status = 'Completed'; break;
+        case 'NOT_YET_RELEASED': status = 'Upcoming'; break;
+    }
+
+    return {
+        id: item.idMal,
+        title: item.title.english || item.title.romaji || 'Untitled',
+        title_english: item.title.english,
+        title_japanese: item.title.native,
+        thumbnail: item.coverImage.extraLarge,
+        bannerImage: item.bannerImage || item.coverImage.extraLarge,
+        synopsis: item.description?.replace(/<br\s*\/?>/gi, '\n') || 'No synopsis available.',
+        genres: item.genres || [],
+        releaseYear: item.seasonYear,
+        status,
+        totalEpisodes: item.episodes,
+        rating: item.averageScore ? item.averageScore / 10 : null,
+        type: item.type,
+        studio: item.studios?.nodes?.[0]?.name || 'Unknown',
+        hasSub: true,
+        hasDub: false, // Cannot reliably determine from AniList
+        runtime: null,
+        avgEpisodeDuration: item.duration,
+        isAdult: item.isAdult,
+        malUrl: `https://myanimelist.net/anime/${item.idMal}`,
+        anilistUrl: `https://anilist.co/anime/${item.id}`,
+    };
+};
+
+export const fetchAnilistUserAnimeList = async (username: string): Promise<Anime[]> => {
+    const query = `
+      query ($userName: String) {
+        MediaListCollection(userName: $userName, type: ANIME, status_in: [CURRENT, PLANNING]) {
+          lists {
+            entries {
+              media {
+                id
+                idMal
+                title { romaji english native }
+                coverImage { extraLarge }
+                bannerImage
+                description(asHtml: false)
+                genres
+                seasonYear
+                status
+                episodes
+                averageScore
+                type
+                duration
+                isAdult
+                studios(isMain: true) { nodes { name } }
+              }
+            }
+          }
+        }
+      }
+    `;
+    const result = await fetchAnilist(query, { userName: username });
+    const entries = result.data?.MediaListCollection?.lists?.flatMap((l: any) => l.entries) || [];
+    return entries.map((entry: any) => mapAnilistToAnime(entry.media)).filter(Boolean);
+};
+
+export const getAnilistId = async (malId: number): Promise<number | null> => {
+    // Basic caching to avoid repeated lookups during a session
+    const cacheKey = `mal-to-anilist-${malId}`;
+    const cachedId = sessionStorage.getItem(cacheKey);
+    if (cachedId) return parseInt(cachedId, 10);
+    
+    const query = `query ($malId: Int) { Media(idMal: $malId, type: ANIME) { id } }`;
+    try {
+        const result = await fetchAnilist(query, { malId });
+        const anilistId = result.data?.Media?.id;
+        if (anilistId) {
+            sessionStorage.setItem(cacheKey, anilistId.toString());
+        }
+        return anilistId || null;
+    } catch (error) {
+        console.error("Failed to get AniList ID", error);
+        return null;
+    }
+};
+
+export const updateAnilistProgress = async (anilistId: number, episode: number, token: string): Promise<void> => {
+    const mutation = `
+        mutation ($mediaId: Int, $progress: Int) {
+            SaveMediaListEntry(mediaId: $mediaId, progress: $progress) {
+                id
+                progress
+            }
+        }
+    `;
+    await fetchAnilist(mutation, { mediaId: anilistId, progress: episode }, token);
+};
