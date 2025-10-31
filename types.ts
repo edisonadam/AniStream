@@ -111,7 +111,7 @@ export type EpisodeViewStyle = 'auto' | 'default' | 'compact' | 'grid';
 export type CardLayout = 'classic' | 'anichart' | 'card_list';
 export type CardSize = 'medium' | 'large';
 export type DefaultLanguage = 'sub' | 'dub' | 'ssub';
-export type Page = 'home' | 'player' | 'profile' | 'clubs' | 'club-detail' | 'magazines' | 'trending' | 'schedule' | 'history' | 'news' | 'manga' | 'beginners';
+export type Page = 'home' | 'player' | 'profile' | 'clubs' | 'club-detail' | 'magazines' | 'trending' | 'schedule' | 'history' | 'news' | 'manga' | 'beginners' | 'search';
 
 
 export interface Settings {

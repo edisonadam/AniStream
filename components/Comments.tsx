@@ -3,6 +3,7 @@ import type { Comment as CommentType, Anime } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { useProfileData } from '../hooks/useProfileData';
 import { MessageCircleIcon, UserPlusIcon, CheckIcon } from './icons/Icons';
+import { formatRelativeTime } from '../utils';
 
 interface CommentsProps {
   anime: Anime;
@@ -138,7 +139,7 @@ const Comments: React.FC<CommentsProps> = ({ anime }) => {
                 <div className="bg-[rgb(var(--surface-3))/0.5] rounded-[2rem] rounded-tl-xl p-4">
                     <div className="flex items-baseline space-x-2">
                         <p className="font-semibold text-[rgb(var(--color-primary-accent))]">{comment.user.username}</p>
-                        <p className="text-xs text-[rgb(var(--text-muted))]">{new Date(comment.timestamp).toLocaleString()}</p>
+                        <p className="text-xs text-[rgb(var(--text-muted))]">{formatRelativeTime(comment.timestamp)}</p>
                     </div>
                     <p className="text-[rgb(var(--text-secondary))] mt-1 whitespace-pre-wrap">
                         {comment.replyingTo && <span className="text-[rgb(var(--color-primary-accent))] font-semibold">@{comment.replyingTo} </span>}

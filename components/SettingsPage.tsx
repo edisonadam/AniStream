@@ -173,65 +173,54 @@ const SettingsPage: React.FC = () => {
 
     return (
         <div className="max-w-4xl mx-auto space-y-8">
-
-            <SettingsSection title="Integrations">
-                {/* MyAnimeList */}
-                <div className="space-y-4 pt-4 border-t border-white/10">
-                    <h4 className="font-semibold text-lg text-[rgb(var(--text-secondary))]">MyAnimeList</h4>
-                    <div className="space-y-2 text-sm text-[rgb(var(--text-muted))] bg-black/20 p-3 rounded-lg">
-                        <p>- Your MAL-List must be in Public status on your Privacy setting.</p>
-                        <p>- If an anime is available in your MAL-List but not available in the site, it will not be imported.</p>
-                        <p>- This process may take a few minutes to finish, please be patient.</p>
-                    </div>
-                    <TextInput label="Your MAL username:" value={settings.malUsername} onChange={v => updateSettings({ malUsername: v })} placeholder="Enter MAL username" />
-                    <div className="flex justify-end">
-                        <button onClick={() => handleImport('mal')} disabled={!settings.malUsername || isImporting === 'mal'} className="px-4 py-2 bg-[rgb(var(--color-primary))] text-sm text-[rgb(var(--text-on-primary))] rounded-xl font-semibold hover:bg-[rgb(var(--color-primary-hover))] disabled:opacity-50 disabled:cursor-wait">
-                             {isImporting === 'mal' ? 'Importing...' : 'Import from MAL'}
-                        </button>
-                    </div>
+            <SettingsSection title="MyAnimeList Integration">
+                <div className="space-y-2 text-sm text-[rgb(var(--text-muted))] bg-black/20 p-3 rounded-lg">
+                    <p>- Your MAL-List must be in Public status on your Privacy setting.</p>
+                    <p>- If an anime is available in your MAL-List but not available in the site, it will not be imported.</p>
+                    <p>- This process may take a few minutes to finish, please be patient.</p>
                 </div>
-                
-                {/* AniList */}
-                <div className="space-y-4 pt-4 border-t border-white/10">
-                    <h4 className="font-semibold text-lg text-[rgb(var(--text-secondary))]">AniList</h4>
-                    <TextInput label="AniList Username" value={settings.anilistUsername} onChange={v => updateSettings({ anilistUsername: v })} placeholder="Enter AniList username" />
-                    <TextInput label="AniList Token" type="password" value={settings.anilistToken} onChange={v => updateSettings({ anilistToken: v })} placeholder="Enter AniList auth token" />
-                    <p className="text-xs text-[rgb(var(--text-muted))] !mt-2 text-right">Get your token from AniList's <a href="https://anilist.co/settings/developer" target="_blank" rel="noopener noreferrer" className="text-[rgb(var(--color-primary-accent))] hover:underline">developer settings</a>.</p>
-                    <div className="pt-4 border-t border-white/10 flex justify-between items-center">
-                        <Toggle label="Auto Sync AniList Progress" checked={settings.autoSyncAniList} onChange={() => updateSettings({ autoSyncAniList: !settings.autoSyncAniList })} note="Automatically update episode progress on your AniList profile." />
-                        <button onClick={() => handleImport('anilist')} disabled={!settings.anilistUsername || isImporting === 'anilist'} className="px-4 py-2 bg-[rgb(var(--color-primary))] text-sm text-[rgb(var(--text-on-primary))] rounded-xl font-semibold hover:bg-[rgb(var(--color-primary-hover))] disabled:opacity-50 disabled:cursor-wait">
-                            {isImporting === 'anilist' ? 'Importing...' : 'Import from AniList'}
-                        </button>
-                    </div>
+                <TextInput label="Username:" value={settings.malUsername} onChange={v => updateSettings({ malUsername: v })} placeholder="Enter MAL username" />
+                <div className="flex justify-end">
+                    <button onClick={() => handleImport('mal')} disabled={!settings.malUsername || isImporting === 'mal'} className="px-4 py-2 bg-[rgb(var(--color-primary))] text-sm text-[rgb(var(--text-on-primary))] rounded-xl font-semibold hover:bg-[rgb(var(--color-primary-hover))] disabled:opacity-50 disabled:cursor-wait">
+                         {isImporting === 'mal' ? 'Importing...' : 'Import from MAL'}
+                    </button>
                 </div>
-                
-                {importStatus && <p className="text-center text-sm text-[rgb(var(--text-secondary))] pt-4 border-t border-white/10">{importStatus}</p>}
+            </SettingsSection>
+            
+            <SettingsSection title="AniList Integration">
+                <TextInput label="Username" value={settings.anilistUsername} onChange={v => updateSettings({ anilistUsername: v })} placeholder="Enter AniList username" />
+                <TextInput label="Auth Token" type="password" value={settings.anilistToken} onChange={v => updateSettings({ anilistToken: v })} placeholder="Enter AniList auth token" />
+                <p className="text-xs text-[rgb(var(--text-muted))] !mt-2 text-right">Get your token from AniList's <a href="https://anilist.co/settings/developer" target="_blank" rel="noopener noreferrer" className="text-[rgb(var(--color-primary-accent))] hover:underline">developer settings</a>.</p>
+                <div className="pt-4 border-t border-white/10 flex justify-between items-center">
+                    <Toggle label="Auto Sync Progress" checked={settings.autoSyncAniList} onChange={() => updateSettings({ autoSyncAniList: !settings.autoSyncAniList })} note="Automatically update episode progress on your AniList profile." />
+                    <button onClick={() => handleImport('anilist')} disabled={!settings.anilistUsername || isImporting === 'anilist'} className="px-4 py-2 bg-[rgb(var(--color-primary))] text-sm text-[rgb(var(--text-on-primary))] rounded-xl font-semibold hover:bg-[rgb(var(--color-primary-hover))] disabled:opacity-50 disabled:cursor-wait">
+                        {isImporting === 'anilist' ? 'Importing...' : 'Import from AniList'}
+                    </button>
+                </div>
+            </SettingsSection>
 
-                {/* Data Management */}
-                <div className="space-y-6 pt-4 border-t border-white/10">
-                    <h4 className="font-semibold text-lg text-[rgb(var(--text-secondary))]">Import & Export</h4>
-                    <div>
-                        <div className="flex items-center gap-3">
-                            <label htmlFor="delete-before-import" className="font-semibold text-[rgb(var(--text-secondary))]">Erase List:</label>
-                            <input
-                                type="checkbox"
-                                id="delete-before-import"
-                                checked={deleteBeforeImporting}
-                                onChange={e => setDeleteBeforeImporting(e.target.checked)}
-                                className="h-4 w-4 rounded bg-[rgb(var(--surface-4))] border-[rgb(var(--border-color))] text-[rgb(var(--color-primary))] focus:ring-[rgb(var(--color-primary))] focus:ring-offset-0 cursor-pointer"
-                            />
-                        </div>
-                        <p className="text-xs text-[rgb(var(--text-muted))] mt-1">If checked, your current watchlist will be replaced by the imported list.</p>
+            <SettingsSection title="Data Management">
+                {importStatus && <p className="text-center text-sm text-[rgb(var(--text-secondary))]">{importStatus}</p>}
+                <div className="pt-4 border-t border-white/10">
+                    <div className="flex items-center gap-3">
+                        <label htmlFor="delete-before-import" className="font-semibold text-[rgb(var(--text-secondary))]">Erase List Before Importing:</label>
+                        <input
+                            type="checkbox"
+                            id="delete-before-import"
+                            checked={deleteBeforeImporting}
+                            onChange={e => setDeleteBeforeImporting(e.target.checked)}
+                            className="h-4 w-4 rounded bg-[rgb(var(--surface-4))] border-[rgb(var(--border-color))] text-[rgb(var(--color-primary))] focus:ring-[rgb(var(--color-primary))] focus:ring-offset-0 cursor-pointer"
+                        />
                     </div>
-
-                    <div>
-                        <h4 className="font-semibold text-[rgb(var(--text-secondary))]">Export format:</h4>
-                        <p className="text-xs text-[rgb(var(--text-muted))] mt-1">Export your watchlist for backup or use in other services. The TEXT format provides a list of MyAnimeList URLs.</p>
-                        <div className="flex items-center gap-2 mt-3">
-                            <button onClick={() => handleExportWatchlist('text')} className="px-4 py-2 bg-white/10 text-sm text-[rgb(var(--text-secondary))] rounded-xl font-semibold hover:bg-white/20">TEXT</button>
-                            <button onClick={() => handleExportWatchlist('xml')} className="px-4 py-2 bg-white/10 text-sm text-[rgb(var(--text-secondary))] rounded-xl font-semibold hover:bg-white/20">XML</button>
-                            <button onClick={() => handleExportWatchlist('json')} className="px-4 py-2 bg-white/10 text-sm text-[rgb(var(--text-secondary))] rounded-xl font-semibold hover:bg-white/20">JSON</button>
-                        </div>
+                    <p className="text-xs text-[rgb(var(--text-muted))] mt-1">If checked, your current watchlist will be replaced by the imported list.</p>
+                </div>
+                <div className="pt-4 border-t border-white/10">
+                    <h4 className="font-semibold text-[rgb(var(--text-secondary))]">Export Watchlist:</h4>
+                    <p className="text-xs text-[rgb(var(--text-muted))] mt-1">Export your watchlist for backup or use in other services. The TEXT format provides a list of MyAnimeList URLs.</p>
+                    <div className="flex items-center gap-2 mt-3">
+                        <button onClick={() => handleExportWatchlist('text')} className="px-4 py-2 bg-white/10 text-sm text-[rgb(var(--text-secondary))] rounded-xl font-semibold hover:bg-white/20">TEXT</button>
+                        <button onClick={() => handleExportWatchlist('xml')} className="px-4 py-2 bg-white/10 text-sm text-[rgb(var(--text-secondary))] rounded-xl font-semibold hover:bg-white/20">XML</button>
+                        <button onClick={() => handleExportWatchlist('json')} className="px-4 py-2 bg-white/10 text-sm text-[rgb(var(--text-secondary))] rounded-xl font-semibold hover:bg-white/20">JSON</button>
                     </div>
                 </div>
             </SettingsSection>

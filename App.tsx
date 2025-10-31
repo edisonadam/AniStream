@@ -389,7 +389,7 @@ const App: React.FC = () => {
         window.scrollTo({ top: 0, behavior: 'auto' });
         setFilters(newFilters);
         setIsSearchOpen(false);
-        navigateTo('home');
+        navigateTo('search');
     };
     const handleSortChange = (sort: Filter['sort']) => {
         window.scrollTo({ top: 0, behavior: 'auto' });
@@ -455,6 +455,21 @@ const App: React.FC = () => {
             case 'news': return <NewsPage onAnimeSelect={handleAnimeSelect} />;
             case 'manga': return <MangaPage onGoBack={() => navigateTo('home')} />;
             case 'beginners': return <BeginnerAnimePage onGoBack={() => navigateTo('home')} onAnimeSelect={handleAnimeSelect} />;
+            case 'search':
+                return (
+                    <AnimeGrid
+                        title={`Results for "${filters.query}"`}
+                        animeList={gridAnime}
+                        onAnimeSelect={handleAnimeSelect}
+                        filters={filters}
+                        isLoading={isGridLoading && gridAnime.length === 0}
+                        onLoadMore={loadMoreGrid}
+                        hasMore={hasMore}
+                        isLoadingMore={isLoadingMore}
+                        sortValue={filters.sort}
+                        onSortChange={handleSortChange}
+                    />
+                );
             case 'home':
             default:
                 const isDefaultHome = !hasActiveFilters;
@@ -471,7 +486,7 @@ const App: React.FC = () => {
                         )}
                         
                         <AnimeGrid
-                            title={isDefaultHome ? "Discover Anime" : (filters.query ? `Results for "${filters.query}"` : "Filtered Results")}
+                            title={isDefaultHome ? "Discover Anime" : "Filtered Results"}
                             animeList={gridAnime}
                             onAnimeSelect={handleAnimeSelect}
                             filters={filters}

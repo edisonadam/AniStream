@@ -10,7 +10,9 @@ import {
     signInWithPhoneNumber,
     sendEmailVerification,
     sendPasswordResetEmail,
-    type ConfirmationResult
+    linkWithCredential,
+    type ConfirmationResult,
+    type AuthCredential
 } from 'firebase/auth';
 import { CloseIcon, GoogleIcon, ChevronLeftIcon } from './icons/Icons';
 
@@ -35,7 +37,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
-  
+  const [pendingCredential, setPendingCredential] = useState<AuthCredential | null>(null);
+
   const [signupSuccess, setSignupSuccess] = useState(false);
   const [resetEmailSent, setResetEmailSent] = useState(false);
   
@@ -55,6 +58,27 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
     }
   }, [view, phoneStep]);
 
+  const handleTabChange = (newTab: 'login' | 'signup') => {
+    if (activeTab !== newTab) {
+      setActiveTab(newTab);
+      setError('');
+      // Clear pending credential if user switches away from login during linking process
+      if (newTab !== 'login' && pendingCredential) {
+        setPendingCredential(null);
+      }
+    }
+  };
+
+  const handleViewChange = (newView: 'main' | 'phone' | 'reset_password') => {
+    if (view !== newView) {
+      setView(newView);
+      setError('');
+      // Clear pending credential if user leaves the main auth flow
+      if (pendingCredential) {
+        setPendingCredential(null);
+      }
+    }
+  };
 
   const handleSignUp = async () => {
     if (password !== confirmPassword) {
@@ -86,7 +110,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
       setIsLoading(true);
       setError('');
       try {
-          await signInWithEmailAndPassword(auth, email, password);
+          const userCredential = await signInWithEmailAndPassword(auth, email, password);
+          if (pendingCredential) {
+              await linkWithCredential(userCredential.user, pendingCredential);
+              setPendingCredential(null);
+          }
           onClose();
       } catch (err: any) {
           setError(err.message.replace('Firebase: ', ''));
@@ -103,7 +131,20 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
         await signInWithPopup(auth, provider);
         onClose();
     } catch (err: any) {
-        setError(err.message.replace('Firebase: ', ''));
+        if (err.code === 'auth/account-exists-with-different-credential') {
+            const email = err.customData.email;
+            const credential = GoogleAuthProvider.credentialFromError(err);
+            if (credential) {
+              setPendingCredential(credential);
+              setEmail(email);
+              setActiveTab('login');
+              setError('An account with this email already exists. Please sign in with your password to link your Google account.');
+            } else {
+               setError('Could not process Google sign-in. Please try again.');
+            }
+        } else {
+            setError(err.message.replace('Firebase: ', ''));
+        }
     } finally {
         setIsLoading(false);
     }
@@ -176,7 +217,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
         </p>
         <button onClick={() => {
             setSignupSuccess(false);
-            setActiveTab('login');
+            handleTabChange('login');
             setEmail('');
             setPassword('');
             setConfirmPassword('');
@@ -191,8 +232,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
     signupSuccess ? renderSignupSuccess() :
     <>
         <div className="flex border-b border-white/10 mb-6">
-            <button onClick={() => setActiveTab('login')} className={`flex-1 py-2 text-lg font-semibold transition-colors ${activeTab === 'login' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>Login</button>
-            <button onClick={() => setActiveTab('signup')} className={`flex-1 py-2 text-lg font-semibold transition-colors ${activeTab === 'signup' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>Sign Up</button>
+            <button onClick={() => handleTabChange('login')} className={`flex-1 py-2 text-lg font-semibold transition-colors ${activeTab === 'login' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>Login</button>
+            <button onClick={() => handleTabChange('signup')} className={`flex-1 py-2 text-lg font-semibold transition-colors ${activeTab === 'signup' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>Sign Up</button>
         </div>
         <form onSubmit={handleEmailSubmit}>
             <div className="space-y-4">
@@ -203,7 +244,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
                 <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" required className="w-full bg-[rgb(var(--surface-input))/0.2] border border-white/10 rounded-2xl px-4 py-3 text-[rgb(var(--text-primary))] focus:ring-2 focus:ring-[rgb(var(--border-focus))] focus:border-[rgb(var(--border-focus))] transition-all" />
                 {activeTab === 'login' && (
                     <div className="text-right !mt-2">
-                        <button type="button" onClick={() => { setView('reset_password'); setError('') }} className="text-sm font-medium text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))]">
+                        <button type="button" onClick={() => handleViewChange('reset_password')} className="text-sm font-medium text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))]">
                             Forgot Password?
                         </button>
                     </div>
@@ -213,7 +254,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
                 )}
             </div>
             <button type="submit" disabled={isLoading} className="mt-6 w-full py-3 bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))] rounded-2xl font-semibold hover:bg-[rgb(var(--color-primary-hover))] transition-all duration-300 transform hover:scale-105 shadow-lg shadow-[rgb(var(--shadow-color))/0.3] disabled:opacity-50 disabled:cursor-wait">
-                {isLoading ? 'Processing...' : (activeTab === 'login' ? 'Log In' : 'Sign Up')}
+                {isLoading ? 'Processing...' : (pendingCredential ? 'Link Account & Log In' : (activeTab === 'login' ? 'Log In' : 'Sign Up'))}
             </button>
         </form>
         
@@ -226,14 +267,14 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
             <button onClick={handleGoogleSignIn} disabled={isLoading} className="w-full flex items-center justify-center gap-3 py-3 bg-white/5 text-[rgb(var(--text-secondary))] rounded-2xl font-semibold hover:bg-white/10 transition-colors disabled:opacity-50">
                 <GoogleIcon /> Continue with Google
             </button>
-            <button onClick={() => setView('phone')} disabled={isLoading} className="w-full py-3 bg-white/5 text-[rgb(var(--text-secondary))] rounded-2xl font-semibold hover:bg-white/10 transition-colors disabled:opacity-50">Continue with Phone</button>
+            <button onClick={() => handleViewChange('phone')} disabled={isLoading} className="w-full py-3 bg-white/5 text-[rgb(var(--text-secondary))] rounded-2xl font-semibold hover:bg-white/10 transition-colors disabled:opacity-50">Continue with Phone</button>
         </div>
     </>
   );
   
   const renderPhoneView = () => (
     <div>
-        <button onClick={() => { setView('main'); setError(''); }} className="flex items-center gap-1 text-sm text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-primary))] mb-4"><ChevronLeftIcon className="w-4 h-4" /> Back</button>
+        <button onClick={() => handleViewChange('main')} className="flex items-center gap-1 text-sm text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-primary))] mb-4"><ChevronLeftIcon className="w-4 h-4" /> Back</button>
         {phoneStep === 'input' ? (
             <form onSubmit={handleSendCode}>
                 <h3 className="text-xl font-bold mb-2">Enter your phone number</h3>
@@ -258,12 +299,12 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
 
   const renderResetPasswordView = () => (
     <div>
-        <button onClick={() => { setView('main'); setError(''); setResetEmailSent(false); }} className="flex items-center gap-1 text-sm text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-primary))] mb-4"><ChevronLeftIcon className="w-4 h-4" /> Back</button>
+        <button onClick={() => handleViewChange('main')} className="flex items-center gap-1 text-sm text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-primary))] mb-4"><ChevronLeftIcon className="w-4 h-4" /> Back</button>
         {resetEmailSent ? (
             <div className="text-center">
                 <h3 className="text-xl font-bold mb-2">Password Reset Email Sent</h3>
                 <p className="text-[rgb(var(--text-muted))] text-sm mb-4">Check your inbox at <strong>{email}</strong> for a link to reset your password.</p>
-                <button onClick={() => { setView('main'); setResetEmailSent(false); }} className="mt-4 w-full py-3 bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))] rounded-2xl font-semibold hover:bg-[rgb(var(--color-primary-hover))]">Back to Login</button>
+                <button onClick={() => handleViewChange('main')} className="mt-4 w-full py-3 bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))] rounded-2xl font-semibold hover:bg-[rgb(var(--color-primary-hover))]">Back to Login</button>
             </div>
         ) : (
             <form onSubmit={handlePasswordReset}>
