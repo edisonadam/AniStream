@@ -1,622 +1,365 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
+import type { Anime, Club, Filter, Notification, Settings, Page } from './types';
+import { useSettings } from './hooks/useSettings';
+import { mapJikanToAnime } from './api';
+import { deduplicateFranchises, getDisplayTitle } from './utils';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import FeaturedCarousel from './components/FeaturedCarousel';
 import AnimeGrid from './components/AnimeGrid';
 import Footer from './components/Footer';
 import Player from './components/Player';
-import AuthModal from './components/AuthModal';
 import SearchOverlay from './components/SearchOverlay';
-import WatchlistOverlay from './components/WatchlistOverlay';
+import AuthModal from './components/AuthModal';
 import ProfilePage from './components/ProfilePage';
-import ContinueWatching from './components/ContinueWatching';
 import GoToTopButton from './components/GoToTopButton';
-import type { Anime, Filter, Notification } from './types';
-import { useWatchLater } from './hooks/useWatchLater';
-import { useAuth } from './hooks/useAuth';
-import { useSettings } from './hooks/useSettings';
-import { ANIME_TYPES } from './constants';
+import ContinueWatching from './components/ContinueWatching';
+import WatchlistOverlay from './components/WatchlistOverlay';
+import AdBanner from './components/AdBanner';
+import ClubsPage from './components/ClubsPage';
+import ClubDetailPage from './components/ClubDetailPage';
+import MagazinesPage from './components/MagazinesPage';
+import TrendingPage from './components/TrendingPage';
+import SchedulePage from './components/SchedulePage';
+import HistoryPage from './components/HistoryPage';
+import NewsPage from './components/NewsPage';
+import MangaPage from './components/MangaPage';
+import BeginnerAnimePage from './components/BeginnerAnimePage';
 
-type View = 'home' | 'player' | 'list' | 'profile';
-
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const ANIME_PAGE_SIZE = 25;
 
 const App: React.FC = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [isWatchlistOpen, setIsWatchlistOpen] = useState(false);
-  
-  const [view, setView] = useState<View>('home');
-  const [selectedAnime, setSelectedAnime] = useState<Anime | null>(null);
-  
-  const [animeList, setAnimeList] = useState<Anime[]>([]);
-  const [topAnimeList, setTopAnimeList] = useState<Anime[]>([]);
-  const [beginnerAnimeList, setBeginnerAnimeList] = useState<Anime[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [isLoadingBeginner, setIsLoadingBeginner] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  
-  const [filters, setFilters] = useState<Filter>(() => {
-    const savedFilters = sessionStorage.getItem('anistream-filters');
-    return savedFilters ? JSON.parse(savedFilters) : {};
-  });
-  
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
+    const [page, setPage] = useState<Page>('home');
+    const [selectedAnime, setSelectedAnime] = useState<Anime | null>(null);
+    const [selectedClub, setSelectedClub] = useState<Club | null>(null);
 
-  const [genreMap, setGenreMap] = useState<Record<string, number>>({});
-  const { isLoggedIn } = useAuth();
-  const { watchLaterList } = useWatchLater();
-  const { settings } = useSettings();
-
-  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
-  const closeSidebar = () => setIsSidebarOpen(false);
-
-  // Apply desktop mode class based on settings and window size
-  useEffect(() => {
-    const rootContainer = document.querySelector('#root > div');
-    if (!rootContainer) return;
-
-    const applyLayoutMode = () => {
-      const isDesktop = settings.forceDesktopMode || window.innerWidth >= 1024;
-      if (isDesktop) {
-        rootContainer.classList.add('desktop-mode');
-      } else {
-        rootContainer.classList.remove('desktop-mode');
-      }
-      if (settings.forceDesktopMode) {
-        rootContainer.classList.add('force-desktop-mode');
-      } else {
-        rootContainer.classList.remove('force-desktop-mode');
-      }
-    };
-
-    applyLayoutMode();
-    window.addEventListener('resize', applyLayoutMode);
-    return () => window.removeEventListener('resize', applyLayoutMode);
-  }, [settings.forceDesktopMode]);
-
-
-  // Fetch genre mapping on initial load
-  useEffect(() => {
-    const fetchGenreMap = async () => {
-      try {
-        const response = await fetch('https://api.jikan.moe/v4/genres/anime');
-        if (!response.ok) return;
-        const data = await response.json();
-        const map = data.data.reduce((acc: Record<string, number>, genre: any) => {
-          acc[genre.name] = genre.mal_id;
-          return acc;
-        }, {});
-        setGenreMap(map);
-      } catch (e) {
-        console.error("Failed to fetch genre map", e);
-      }
-    };
-    fetchGenreMap();
-  }, []);
-
-  // New useEffect for beginner friendly anime
-  useEffect(() => {
-    const beginnerAnimeIds = [38000, 30276, 1535, 11061, 16498, 5114, 31964, 40748]; // Demon Slayer, One-Punch Man, Death Note, HxH, AoT, FMAB, MHA, JJK
+    // State for carousels and grids
+    const [featuredAnime, setFeaturedAnime] = useState<Anime[]>([]);
+    const [trendingAnime, setTrendingAnime] = useState<Anime[]>([]); // Used for header ticker
+    const [isCarouselLoading, setIsCarouselLoading] = useState(true);
     
-    const fetchBeginnerAnime = async () => {
-      setIsLoadingBeginner(true);
-      try {
-        const animeData = [];
-        for (const id of beginnerAnimeIds) {
-          try {
-            let res = await fetch(`https://api.jikan.moe/v4/anime/${id}`);
-            if (res.status === 429) {
-              await sleep(1000); // Wait 1 second on rate limit
-              res = await fetch(`https://api.jikan.moe/v4/anime/${id}`);
-            }
+    // State for main anime grid (used for both home and filtered results)
+    const [gridAnime, setGridAnime] = useState<Anime[]>([]);
+    
+    const [filters, setFilters] = useState<Filter>({
+        query: '', genres: [], types: [], statuses: [], years: [], languages: [], studios: [], sort: 'popularity'
+    });
+    const [stagedFilters, setStagedFilters] = useState<Filter>(filters);
 
-            if (!res.ok) {
-              console.warn(`Skipping beginner anime ID ${id} due to fetch error: ${res.status}`);
-              continue; // Skip this anime if it fails
-            }
-            
-            const result = await res.json();
-            animeData.push(result);
-            await sleep(400); // Stagger requests to be safe with Jikan API rate limits (~3/sec)
-          } catch (e) {
-            console.warn(`Skipping beginner anime ID ${id} due to an exception:`, e);
-          }
+    const [isGridLoading, setIsGridLoading] = useState(true);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [isLoginOpen, setIsLoginOpen] = useState(false);
+    const [isWatchLaterOpen, setIsWatchLaterOpen] = useState(false);
+
+    const { settings, updateSettings } = useSettings();
+    const appRef = useRef<HTMLDivElement>(null);
+    const scrollPositionRef = useRef<number | null>(null);
+    const homePageScrollPosition = useRef(0);
+    const prevPageRef = useRef<Page>();
+
+    useEffect(() => {
+        prevPageRef.current = page;
+    }, [page]);
+    
+    const navigateTo = (newPage: Page) => {
+        if (page !== 'player' && page !== 'profile' && page !== 'club-detail') {
+            homePageScrollPosition.current = window.scrollY;
         }
-        
-        const mappedData: Anime[] = animeData
-          .map(result => result.data)
-          .filter(item => item) // Filter out null/undefined if any request failed
-          .map((item: any): Anime => {
-            let totalMinutes = 0;
-            const hourMatch = item.duration?.match(/(\d+)\s*hr/);
-            const minMatch = item.duration?.match(/(\d+)\s*min/);
-            if (hourMatch?.[1]) totalMinutes += parseInt(hourMatch[1], 10) * 60;
-            if (minMatch?.[1]) totalMinutes += parseInt(minMatch[1], 10);
-            
-            let avgEpDuration: number | null = null;
-            if (item.duration && item.duration.includes('per ep')) {
-              const epMinMatch = item.duration.match(/(\d+)\s*min/);
-              if (epMinMatch && epMinMatch[1]) {
-                avgEpDuration = parseInt(epMinMatch[1], 10);
-              }
-            }
-
-            return {
-              id: item.mal_id,
-              title: item.title_english || item.title,
-              thumbnail: item.images.jpg.large_image_url,
-              bannerImage: item.images.jpg.large_image_url,
-              synopsis: item.synopsis || 'No synopsis available.',
-              genres: item.genres.map((g: any) => g.name),
-              releaseYear: item.year,
-              status: item.status === 'Finished Airing' ? 'Completed' : item.status === 'Currently Airing' ? 'Ongoing' : 'Upcoming',
-              totalEpisodes: item.episodes,
-              rating: item.score,
-              type: item.type,
-              studio: item.studios.length > 0 ? item.studios[0].name : 'Unknown',
-              hasSub: true,
-              hasDub: !!item.title_english,
-              runtime: totalMinutes > 0 ? totalMinutes : null,
-              avgEpisodeDuration: avgEpDuration,
-              isAdult: item.rating === 'Rx - Hentai',
-            };
-          });
-        
-        setBeginnerAnimeList(mappedData);
-        
-      } catch (e) {
-        console.error("An unexpected error occurred while fetching beginner anime", e);
-      } finally {
-        setIsLoadingBeginner(false);
-      }
+        setPage(newPage);
+        setSelectedAnime(null);
+        setSelectedClub(null);
+        // Reset filters if navigating back to home from a non-player page
+        if (newPage === 'home' && page !== 'player') {
+            handleResetFilters(false); // Soft reset without scrolling
+        }
     };
 
-    fetchBeginnerAnime();
-  }, []);
-
-  // Centralized data fetching logic based on filters and page
-  useEffect(() => {
-    const fetchAnime = async () => {
-      if (!hasMore || (filters.genres && filters.genres.length > 0 && Object.keys(genreMap).length === 0)) {
-        if (page === 1) setIsLoading(false);
-        return;
-      }
-      
-      if (page === 1) {
-        setIsLoading(true);
-      } else {
-        setIsLoadingMore(true);
-      }
-      setError(null);
-
-      const params = new URLSearchParams({ limit: '25' });
-      params.append('page', page.toString());
-      let endpoint = 'https://api.jikan.moe/v4/top/anime';
-      let isSearchOrFilter = false;
-
-      const { query, genres, types, status, sort } = filters;
-
-      if (query || (genres && genres.length > 0) || status || (types && types.length > 0)) {
-        endpoint = 'https://api.jikan.moe/v4/anime';
-        isSearchOrFilter = true;
-      }
-
-      if (query) params.append('q', query);
-      
-      if (genres && genres.length > 0 && Object.keys(genreMap).length > 0) {
-        const genreIds = genres.map(g => genreMap[g]).filter(Boolean).join(',');
-        if (genreIds) params.append('genres', genreIds);
-      }
-      
-      if (types && types.length > 0) {
-          params.append('type', types.map(t => t.toLowerCase()).join(','));
-      }
-
-      if (status) {
-        const jikanStatusMap = { 'Ongoing': 'airing', 'Completed': 'complete', 'Upcoming': 'upcoming' };
-        params.append('status', jikanStatusMap[status]);
-      }
-      
-      const sortMap = { 'popularity': 'score', 'release_date': 'start_date', 'alphabetical': 'title' };
-      if (sort && isSearchOrFilter) {
-          params.append('order_by', sortMap[sort]);
-          params.append('sort', sort === 'alphabetical' ? 'asc' : 'desc');
-      }
-
-      try {
-        let response = await fetch(`${endpoint}?${params.toString()}`);
-
-        if (response.status === 429) {
-            await sleep(1500); // Wait for rate limit and retry once
-            response = await fetch(`${endpoint}?${params.toString()}`);
+    const handleAnimeSelect = useCallback((anime: Anime) => {
+        if (page !== 'player') {
+          homePageScrollPosition.current = window.scrollY;
         }
-        
-        if (!response.ok) throw new Error('Failed to fetch anime data from Jikan API.');
-        
-        const data = await response.json();
+        setSelectedAnime(anime);
+        setPage(settings.defaultPageAction === 'info' ? 'home' : 'player');
+    }, [page, settings.defaultPageAction]);
 
-        let mappedData: Anime[] = data.data
-          .map((item: any): Anime => {
-            let totalMinutes = 0;
-            const hourMatch = item.duration?.match(/(\d+)\s*hr/);
-            const minMatch = item.duration?.match(/(\d+)\s*min/);
-            if (hourMatch?.[1]) totalMinutes += parseInt(hourMatch[1], 10) * 60;
-            if (minMatch?.[1]) totalMinutes += parseInt(minMatch[1], 10);
-            
-            let avgEpDuration: number | null = null;
-            if (item.duration && item.duration.includes('per ep')) {
-              const epMinMatch = item.duration.match(/(\d+)\s*min/);
-              if (epMinMatch && epMinMatch[1]) {
-                avgEpDuration = parseInt(epMinMatch[1], 10);
-              }
-            }
+    const handleClubSelect = useCallback((club: Club) => {
+        homePageScrollPosition.current = window.scrollY;
+        setSelectedClub(club);
+        setPage('club-detail');
+    }, []);
 
-            return {
-              id: item.mal_id,
-              title: item.title_english || item.title,
-              thumbnail: item.images.jpg.large_image_url,
-              bannerImage: item.images.jpg.large_image_url,
-              synopsis: item.synopsis || 'No synopsis available.',
-              genres: item.genres.map((g: any) => g.name),
-              releaseYear: item.year,
-              status: item.status === 'Finished Airing' ? 'Completed' : item.status === 'Currently Airing' ? 'Ongoing' : 'Upcoming',
-              totalEpisodes: item.episodes,
-              rating: item.score,
-              type: item.type,
-              studio: item.studios.length > 0 ? item.studios[0].name : 'Unknown',
-              hasSub: true,
-              hasDub: !!item.title_english,
-              runtime: totalMinutes > 0 ? totalMinutes : null,
-              avgEpisodeDuration: avgEpDuration,
-              isAdult: item.rating === 'Rx - Hentai',
-            };
-          });
+    const fetchJikanGridData = useCallback(async (pageNum: number, searchFilters: Filter, isNewSearch: boolean) => {
+        if (!isNewSearch) setIsLoadingMore(true); else setIsGridLoading(true);
 
-        if (!isSearchOrFilter) {
-          mappedData = mappedData.filter((anime: Anime) => anime.type && ANIME_TYPES.includes(anime.type));
-          
-          // Filter out sequels for the homepage/trending view to only show root seasons.
-          // This logic groups anime by a "franchise" name to show only one entry per series.
-          const franchiseMap = new Map<string, Anime>();
-          mappedData.forEach(anime => {
-              const franchiseTitle = anime.title.replace(/:\s.*|\sSeason\s\d+|\sPart\s\d+|\s\d(nd|rd|th)\sSeason/i, '').trim();
-              if (!franchiseMap.has(franchiseTitle)) {
-                  franchiseMap.set(franchiseTitle, anime);
-              }
-          });
-          mappedData = Array.from(franchiseMap.values());
-        }
-        
-        mappedData = mappedData.filter(anime => {
-            if (settings.restrictAdultContent && anime.isAdult) return false;
-            if (filters.year && anime.releaseYear) {
-                const startYear = parseInt(filters.year.substring(0, 4));
-                if (anime.releaseYear < startYear || anime.releaseYear > startYear + 9) return false;
-            }
-            if (filters.language) {
-              if (filters.language === 'Sub' && !anime.hasSub) return false;
-              if (filters.language === 'Dub' && !anime.hasDub) return false;
-            }
-            if (filters.studio && anime.studio) {
-                if (anime.studio.toLowerCase() !== filters.studio.toLowerCase()) return false;
-            }
-            if(query && !isSearchOrFilter) {
-                const lowerQuery = query.toLowerCase();
-                const titleMatch = anime.title.toLowerCase().includes(lowerQuery);
-                const genreMatch = anime.genres.some(g => g.toLowerCase().includes(lowerQuery));
-                if(!titleMatch && !genreMatch) return false;
-            }
-            return true;
+        const params = new URLSearchParams({
+            page: pageNum.toString(),
+            limit: ANIME_PAGE_SIZE.toString(),
+            sfw: settings.restrictAdultContent ? 'true' : 'false'
         });
-        
-        if (!isSearchOrFilter) {
-            if (sort === 'alphabetical') mappedData.sort((a, b) => a.title.localeCompare(b.title));
-            else if (sort === 'release_date') mappedData.sort((a, b) => (b.releaseYear || 0) - (a.releaseYear || 0));
-            else mappedData.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-        }
-        
-        if (page === 1) {
-            setAnimeList(mappedData);
-        } else {
-            setAnimeList(prevList => {
-                const existingIds = new Set(prevList.map(a => a.id));
-                const newItems = mappedData.filter(a => !existingIds.has(a.id));
-                return [...prevList, ...newItems];
-            });
-        }
-        setHasMore(data.pagination?.has_next_page ?? false);
 
-        if(!isSearchOrFilter && page === 1) {
-          setTopAnimeList(mappedData);
+        if (searchFilters.query) params.append('q', searchFilters.query);
+        if (searchFilters.genres.length > 0) params.append('genres', searchFilters.genres.join(','));
+        if (searchFilters.types.length > 0) params.append('type', searchFilters.types.join(',').toLowerCase());
+        if (searchFilters.statuses.length > 0) {
+            const jikanStatuses = searchFilters.statuses.map(s => {
+                if (s === 'Ongoing') return 'airing';
+                if (s === 'Completed') return 'complete';
+                if (s === 'Upcoming') return 'upcoming';
+                return '';
+            }).filter(Boolean).join(',');
+            if (jikanStatuses) params.append('status', jikanStatuses);
+        }
+        
+        switch (searchFilters.sort) {
+            case 'release_date': params.append('order_by', 'start_date'); params.append('sort', 'desc'); break;
+            case 'alphabetical': params.append('order_by', 'title'); params.append('sort', 'asc'); break;
+            default: params.append('order_by', 'members'); params.append('sort', 'desc'); break;
         }
 
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'An unknown error occurred.');
-      } finally {
-        if (page === 1) {
-            setIsLoading(false);
-        } else {
+        try {
+            const res = await fetch(`https://api.jikan.moe/v4/anime?${params.toString()}`);
+            if (res.status === 429) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                return fetchJikanGridData(pageNum, searchFilters, isNewSearch);
+            }
+            if (!res.ok) throw new Error('Failed to fetch from Jikan API');
+            
+            const data = await res.json();
+            const mappedData: Anime[] = data.data.map(mapJikanToAnime).filter((a: Anime | null): a is Anime => a !== null);
+            
+            setGridAnime(prev => isNewSearch ? mappedData : [...prev, ...mappedData]);
+            setHasMore(data.pagination?.has_next_page ?? false);
+            if(isNewSearch) setCurrentPage(1);
+
+        } catch (error) {
+            console.error(error);
+            setHasMore(false);
+        } finally {
+            setIsGridLoading(false);
             setIsLoadingMore(false);
         }
-      }
+    }, [settings.restrictAdultContent]);
+    
+    useEffect(() => {
+        const fetchInitialData = async () => {
+            setIsCarouselLoading(true);
+            try {
+                const [topRes, seasonNowRes] = await Promise.all([
+                    fetch('https://api.jikan.moe/v4/top/anime?limit=15'),
+                    fetch('https://api.jikan.moe/v4/seasons/now?limit=20'),
+                ]);
+
+                if (topRes.ok) {
+                    const topData = await topRes.json();
+                    setFeaturedAnime(topData.data.map(mapJikanToAnime).filter(Boolean));
+                }
+                
+                if (seasonNowRes.ok) {
+                    const seasonNowData = await seasonNowRes.json();
+                    const seasonNowAnime = deduplicateFranchises(seasonNowData.data.map(mapJikanToAnime).filter(Boolean));
+                    setTrendingAnime(seasonNowAnime.slice(0, 10)); // For header
+                }
+            } catch (error) {
+                console.error("Failed to fetch initial carousel data", error);
+            } finally {
+                setIsCarouselLoading(false);
+            }
+        };
+        fetchInitialData();
+    }, []);
+
+    const hasActiveFilters = useMemo(() => {
+        return filters.query || filters.genres.length > 0 || filters.types.length > 0 || filters.statuses.length > 0;
+    }, [filters]);
+    
+    useEffect(() => {
+        setStagedFilters(filters);
+    }, [filters]);
+
+    useEffect(() => {
+        fetchJikanGridData(1, filters, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [filters]);
+    
+    useEffect(() => {
+        if (isSidebarOpen) document.body.classList.add('body-no-scroll');
+        else document.body.classList.remove('body-no-scroll');
+        return () => document.body.classList.remove('body-no-scroll');
+    }, [isSidebarOpen]);
+
+    useLayoutEffect(() => {
+        const prevPage = prevPageRef.current;
+        if (scrollPositionRef.current !== null) {
+            window.scrollTo({ top: scrollPositionRef.current, behavior: 'auto' });
+            scrollPositionRef.current = null;
+        } 
+        else if (page === 'home' && prevPage !== 'home') {
+            window.scrollTo({ top: homePageScrollPosition.current, behavior: 'auto' });
+        } else if (page !== 'home' && page !== prevPage) {
+            window.scrollTo(0, 0);
+        }
+    }, [page, gridAnime]);
+
+    const loadMoreGrid = useCallback(() => {
+        if (hasMore && !isLoadingMore) {
+            const newPage = currentPage + 1;
+            setCurrentPage(newPage);
+            fetchJikanGridData(newPage, filters, false);
+        }
+    }, [hasMore, isLoadingMore, currentPage, filters, fetchJikanGridData]);
+
+    const handleStagedFilterChange = (newFilters: Partial<Filter>) => setStagedFilters(prev => ({ ...prev, ...newFilters }));
+    const handleApplyFilters = () => {
+        scrollPositionRef.current = window.scrollY;
+        setFilters(stagedFilters);
+        setIsSidebarOpen(false);
+        navigateTo('home');
+    };
+    const handleResetFilters = (scrollToTop = true) => {
+        const resetState = { query: '', genres: [], types: [], statuses: [], years: [], languages: [], studios: [], sort: 'popularity' };
+        if (scrollToTop) {
+            homePageScrollPosition.current = 0;
+            window.scrollTo(0, 0);
+        }
+        setFilters(resetState);
+        setStagedFilters(resetState);
+        navigateTo('home');
+    };
+    const handleSearchSubmit = (query: string) => { 
+        const newFilters = { ...filters, query };
+        homePageScrollPosition.current = 0;
+        window.scrollTo(0, 0);
+        setFilters(newFilters);
+        setIsSearchOpen(false);
+        navigateTo('home');
+    };
+    const handleSortChange = (sort: Filter['sort']) => {
+        scrollPositionRef.current = window.scrollY;
+        const newFilters = { ...filters, sort };
+        setFilters(newFilters);
+        setStagedFilters(newFilters);
+    };
+
+    const handleNotificationClick = (notification: Notification) => {
+        // Needs a robust way to find anime if not in pre-loaded lists
+        // For now, let's assume we can construct a minimal object and let the player fetch full details
+        const animeStub: Anime = {
+            id: notification.animeId,
+            title: 'Loading...', // Player will fetch the real title
+            thumbnail: '', bannerImage: '', synopsis: '', genres: [], releaseYear: null, status: 'Ongoing', totalEpisodes: null, rating: null, type: null, studio: '', hasSub: false, hasDub: false, runtime: null, avgEpisodeDuration: null, isAdult: false, title_english: null, title_japanese: '',
+        };
+        handleAnimeSelect(animeStub);
+    }
+
+    const handleSurpriseMe = useCallback(() => {
+        const availableAnime = gridAnime.length > 0 ? gridAnime : featuredAnime;
+        if (availableAnime.length > 0) {
+            const randomAnime = availableAnime[Math.floor(Math.random() * availableAnime.length)];
+            if (randomAnime) {
+                handleAnimeSelect(randomAnime);
+            }
+        }
+        setIsSidebarOpen(false);
+    }, [gridAnime, featuredAnime, handleAnimeSelect]);
+    
+    const handleGenreSelect = (genre: string) => {
+        const newFilters: Filter = {
+            query: '', genres: [genre], types: [], statuses: [], years: [], languages: [], studios: [], sort: 'popularity'
+        };
+        homePageScrollPosition.current = 0;
+        window.scrollTo(0, 0);
+        setFilters(newFilters);
+        navigateTo('home');
     };
     
-    fetchAnime();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters, page, genreMap, settings.restrictAdultContent]);
-
-  const loadMore = useCallback(() => {
-    if (!isLoading && !isLoadingMore && hasMore) {
-        setPage(prevPage => prevPage + 1);
-    }
-  }, [isLoading, isLoadingMore, hasMore]);
-
-  const handleSelectAnime = useCallback((anime: Anime) => {
-    setSelectedAnime(anime);
-    setView('player');
-    window.scrollTo(0, 0);
-  }, []);
-
-  const handleGoHome = () => {
-    setSelectedAnime(null);
-    setView('home');
-    setFilters(currentFilters => {
-        const emptyFilters = {};
-        if (Object.keys(currentFilters).length > 0) {
-            setAnimeList([]);
-            setPage(1);
-            setHasMore(true);
-            sessionStorage.removeItem('anistream-filters');
-            return emptyFilters;
+    const pageContent = useMemo(() => {
+        const fullAnimeList = [...featuredAnime, ...gridAnime];
+        switch(page) {
+            case 'player': return selectedAnime && <Player anime={selectedAnime} onGoBack={() => navigateTo('home')} onSelectRelated={handleAnimeSelect} allAnime={fullAnimeList} onGenreSelect={handleGenreSelect} />;
+            case 'profile': return <ProfilePage onGoBack={() => navigateTo('home')} allAnime={fullAnimeList} onSelectAnime={handleAnimeSelect} />;
+            case 'clubs': return <ClubsPage onGoBack={() => navigateTo('home')} onClubSelect={handleClubSelect} />;
+            case 'club-detail': return selectedClub && <ClubDetailPage club={selectedClub} onGoBack={() => navigateTo('clubs')} onSelectAnime={handleAnimeSelect} />;
+            case 'magazines': return <MagazinesPage onGoBack={() => navigateTo('home')} />;
+            case 'trending': return <TrendingPage onAnimeSelect={handleAnimeSelect} />;
+            case 'schedule': return <SchedulePage onAnimeSelect={handleAnimeSelect} />;
+            case 'history': return <HistoryPage onAnimeSelect={handleAnimeSelect} allAnime={fullAnimeList} />;
+            case 'news': return <NewsPage onAnimeSelect={handleAnimeSelect} />;
+            case 'manga': return <MangaPage onGoBack={() => navigateTo('home')} />;
+            case 'beginners': return <BeginnerAnimePage onGoBack={() => navigateTo('home')} onAnimeSelect={handleAnimeSelect} />;
+            case 'home':
+            default:
+                const isDefaultHome = !hasActiveFilters;
+                return (
+                    <>
+                        {isDefaultHome && <FeaturedCarousel animeList={featuredAnime} onAnimeSelect={handleAnimeSelect} isLoading={isCarouselLoading} />}
+                        
+                        {isDefaultHome && settings.showWatchHistoryOnHome && (
+                            <ContinueWatching 
+                                allAnime={fullAnimeList}
+                                onSelectAnime={handleAnimeSelect} 
+                                onShowWatchlist={() => setIsWatchLaterOpen(true)} 
+                            />
+                        )}
+                        
+                        <AnimeGrid
+                            title={isDefaultHome ? "Discover Anime" : (filters.query ? `Results for "${filters.query}"` : "Filtered Results")}
+                            animeList={gridAnime}
+                            onAnimeSelect={handleAnimeSelect}
+                            filters={filters}
+                            isLoading={isGridLoading && gridAnime.length === 0}
+                            onLoadMore={loadMoreGrid}
+                            hasMore={hasMore}
+                            isLoadingMore={isLoadingMore}
+                            sortValue={filters.sort}
+                            onSortChange={handleSortChange}
+                        />
+                    </>
+                );
         }
-        return currentFilters;
-    });
-  };
-
-  const handleShowWatchLater = () => {
-      setIsWatchlistOpen(true);
-  };
-
-  const handleShowProfile = () => {
-    setView('profile');
-    closeSidebar();
-  }
-  
-  const handleApplyFilters = (newFilters: Filter) => {
-      sessionStorage.setItem('anistream-filters', JSON.stringify(newFilters));
-      setFilters(currentFilters => {
-          if (JSON.stringify(currentFilters) !== JSON.stringify(newFilters)) {
-              setAnimeList([]);
-              setPage(1);
-              setHasMore(true);
-          }
-          return newFilters;
-      });
-      setView('home');
-      closeSidebar();
-  }
-
-  const handleSortChange = (newSort: Filter['sort']) => {
-    const newFilters = { ...filters, sort: newSort };
-    sessionStorage.setItem('anistream-filters', JSON.stringify(newFilters));
-    setFilters(currentFilters => {
-        if (currentFilters.sort !== newSort) {
-            setAnimeList([]);
-            setPage(1);
-            setHasMore(true);
-        }
-        return newFilters;
-    });
-  };
-
-  const handleSearchSubmit = (query: string) => {
-    const newFilters: Filter = { query: query.trim() };
-    if (filters.sort) { // Preserve sorting preference
-        newFilters.sort = filters.sort;
-    }
-    sessionStorage.setItem('anistream-filters', JSON.stringify(newFilters));
-    setFilters(currentFilters => {
-        if (JSON.stringify(currentFilters) !== JSON.stringify(newFilters)) {
-            setAnimeList([]);
-            setPage(1);
-            setHasMore(true);
-        }
-        return newFilters;
-    });
-    setIsSearchOpen(false);
-    setView('home');
-    setSelectedAnime(null);
-  };
-
-  const handleNotificationClick = (notification: Notification) => {
-    if (notification.animeId) {
-        const anime = topAnimeList.find(a => a.id === notification.animeId) || animeList.find(a => a.id === notification.animeId);
-        if (anime) {
-            handleSelectAnime(anime);
-        }
-    }
-  };
-
-  const handleSurpriseMe = async () => {
-    let retries = 5;
-    while (retries > 0) {
-      try {
-        const response = await fetch('https://api.jikan.moe/v4/random/anime');
-        if (!response.ok) throw new Error(`Failed to fetch a random anime (status: ${response.status}).`);
-        
-        const { data: item } = await response.json();
-        
-        if (!item?.mal_id) {
-          retries--;
-          continue;
-        }
-
-        let totalMinutes = 0;
-        const hourMatch = item.duration?.match(/(\d+)\s*hr/);
-        const minMatch = item.duration?.match(/(\d+)\s*min/);
-        if (hourMatch?.[1]) totalMinutes += parseInt(hourMatch[1], 10) * 60;
-        if (minMatch?.[1]) totalMinutes += parseInt(minMatch[1], 10);
-        
-        let avgEpDuration: number | null = null;
-        if (item.duration && item.duration.includes('per ep')) {
-          const epMinMatch = item.duration.match(/(\d+)\s*min/);
-          if (epMinMatch && epMinMatch[1]) {
-            avgEpDuration = parseInt(epMinMatch[1], 10);
-          }
-        }
-
-        const randomAnime: Anime = {
-          id: item.mal_id,
-          title: item.title_english || item.title,
-          thumbnail: item.images.jpg.large_image_url,
-          bannerImage: item.images.jpg.large_image_url,
-          synopsis: item.synopsis || 'No synopsis available.',
-          genres: item.genres.map((g: any) => g.name),
-          releaseYear: item.year,
-          status: item.status === 'Finished Airing' ? 'Completed' : item.status === 'Currently Airing' ? 'Ongoing' : 'Upcoming',
-          totalEpisodes: item.episodes,
-          rating: item.score,
-          type: item.type,
-          studio: item.studios.length > 0 ? item.studios[0].name : 'Unknown',
-          hasSub: true,
-          hasDub: !!item.title_english,
-          runtime: totalMinutes > 0 ? totalMinutes : null,
-          avgEpisodeDuration: avgEpDuration,
-          isAdult: item.rating === 'Rx - Hentai',
-        };
-        
-        if (settings.restrictAdultContent && randomAnime.isAdult) {
-          retries--;
-          continue;
-        }
-
-        handleSelectAnime(randomAnime);
-        return;
-
-      } catch (e) {
-        console.error(e);
-        setError(e instanceof Error ? e.message : 'An unknown error occurred while fetching a random anime.');
-        return;
-      }
-    }
-    console.warn("Could not find a suitable random anime after multiple attempts.");
-  };
-
-  const handleEscKey = useCallback((event: KeyboardEvent) => {
-    if (event.key === 'Escape') {
-      if (isSidebarOpen) closeSidebar();
-      if (isAuthModalOpen) setIsAuthModalOpen(false);
-      if (isSearchOpen) setIsSearchOpen(false);
-      if (isWatchlistOpen) setIsWatchlistOpen(false);
-      if (view === 'profile') setView('home');
-    }
-  }, [isSidebarOpen, isAuthModalOpen, isSearchOpen, isWatchlistOpen, view]);
-
-  useEffect(() => {
-    document.addEventListener('keydown', handleEscKey);
-    return () => document.removeEventListener('keydown', handleEscKey);
-  }, [handleEscKey]);
-
-  const getGridTitle = () => {
-      if (view === 'list') return "My Watch Later List";
-      if (filters.query) return `Search Results for "${filters.query}"`;
-      if (filters.genres && filters.genres.length > 0) return `${filters.genres.join(', ')} Anime`;
-      if (Object.values(filters).some(v => Array.isArray(v) ? v.length > 0 : !!v)) return "Filtered Results";
-      return "Trending";
-  }
-  
-  const isHomePage = !Object.values(filters).some(v => Array.isArray(v) ? v.length > 0 : !!v) && view === 'home';
-
-  const renderContent = () => {
-    if (view === 'player' && selectedAnime) {
-      return <Player anime={selectedAnime} onGoBack={handleGoHome} onSelectRelated={handleSelectAnime} allAnime={[...animeList, ...beginnerAnimeList]} />;
-    }
-
-    if (view === 'profile') {
-        return <ProfilePage onGoBack={handleGoHome} allAnime={[...animeList, ...topAnimeList, ...beginnerAnimeList]} onSelectAnime={handleSelectAnime}/>
-    }
-    
-    const listToDisplay = view === 'list' ? watchLaterList : animeList;
-
-    const mainGridTitle = getGridTitle();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [page, hasActiveFilters, isCarouselLoading, isGridLoading, isLoadingMore, hasMore, featuredAnime, gridAnime, filters, settings.showWatchHistoryOnHome, selectedAnime, selectedClub]);
 
     return (
-      <>
-        {isHomePage && <FeaturedCarousel animeList={topAnimeList.slice(0, 5)} onAnimeSelect={handleSelectAnime} isLoading={isLoading} />}
-        {isHomePage && isLoggedIn && <ContinueWatching allAnime={[...topAnimeList, ...beginnerAnimeList]} onShowWatchlist={handleShowWatchLater} onSelectAnime={handleSelectAnime} />}
-        
-        {isHomePage && (
-            <AnimeGrid 
-                animeList={beginnerAnimeList} 
-                onAnimeSelect={handleSelectAnime} 
-                title="Perfect for Beginners" 
-                filters={{}} 
-                isLoading={isLoadingBeginner} 
-                onLoadMore={() => {}}
-                hasMore={false}
-                isLoadingMore={false}
+        <div ref={appRef} className="bg-[rgb(var(--bg-gradient-start))] text-[rgb(var(--text-primary))]">
+            <Header
+                onMenuClick={() => setIsSidebarOpen(true)}
+                onLoginClick={() => setIsLoginOpen(true)}
+                onSearchClick={() => setIsSearchOpen(true)}
+                onShowWatchLater={() => setIsWatchLaterOpen(true)}
+                onNavigate={navigateTo}
+                onNotificationClick={handleNotificationClick}
+                trendingAnime={trendingAnime}
+                onTrendingAnimeClick={handleSearchSubmit}
             />
-        )}
-        
-        {error && <div className="text-center p-12 text-[rgb(var(--color-danger))]">{error}</div>}
-        
-        {!error && <AnimeGrid 
-            animeList={listToDisplay} 
-            onAnimeSelect={handleSelectAnime} 
-            title={mainGridTitle} 
-            filters={filters} 
-            isLoading={isLoading && listToDisplay.length === 0} 
-            onLoadMore={loadMore}
-            hasMore={hasMore}
-            isLoadingMore={isLoadingMore}
-            onSortChange={handleSortChange}
-        />}
-      </>
-    );
-  };
-
-  return (
-    <div className="bg-gradient-to-b from-[rgb(var(--bg-gradient-start))] via-[rgb(var(--bg-gradient-via))] to-[rgb(var(--bg-gradient-end))] min-h-screen text-[rgb(var(--text-primary))] font-sans transition-colors duration-500">
-      <Header 
-        onMenuClick={toggleSidebar} 
-        onLoginClick={() => setIsAuthModalOpen(true)}
-        onSearchClick={() => setIsSearchOpen(true)}
-        onShowWatchLater={handleShowWatchLater}
-        onShowProfile={handleShowProfile}
-        onLogoClick={handleGoHome}
-        onNotificationClick={handleNotificationClick}
-      />
-      <Sidebar 
-        isOpen={isSidebarOpen} 
-        onClose={closeSidebar} 
-        onApplyFilters={handleApplyFilters}
-        currentFilters={filters}
-        onShowWatchLater={handleShowWatchLater}
-        onShowProfile={handleShowProfile}
-        onLogoClick={handleGoHome}
-        onSurpriseMe={handleSurpriseMe}
-      />
-      {isAuthModalOpen && <AuthModal onClose={() => setIsAuthModalOpen(false)} />}
-      {isSearchOpen && <SearchOverlay onClose={() => setIsSearchOpen(false)} onAnimeSelect={handleSelectAnime} onSearchSubmit={handleSearchSubmit} />}
-      {isWatchlistOpen && <WatchlistOverlay onClose={() => setIsWatchlistOpen(false)} onSelectAnime={handleSelectAnime}/>}
-
-      <main className="pt-20">
-        <div key={`${view}-${selectedAnime?.id || 'home'}`} className="animate-cinematic-fade-in">
-          {renderContent()}
+            <Sidebar
+                isOpen={isSidebarOpen}
+                onClose={() => setIsSidebarOpen(false)}
+                filters={stagedFilters}
+                onFilterChange={handleStagedFilterChange}
+                onApplyFilters={handleApplyFilters}
+                onResetFilters={() => handleResetFilters(true)}
+                onNavigate={navigateTo}
+                onSurpriseMe={handleSurpriseMe}
+                settings={settings}
+                updateSettings={updateSettings}
+            />
+            {isSearchOpen && <SearchOverlay onClose={() => setIsSearchOpen(false)} onAnimeSelect={handleAnimeSelect} onSearchSubmit={handleSearchSubmit} />}
+            {isLoginOpen && <AuthModal onClose={() => setIsLoginOpen(false)} />}
+            {isWatchLaterOpen && <WatchlistOverlay onClose={() => setIsWatchLaterOpen(false)} onSelectAnime={handleAnimeSelect} />}
+            
+            <main className={`${page === 'home' && !hasActiveFilters ? '' : 'pt-20'}`}>
+                {pageContent}
+            </main>
+            
+            <GoToTopButton />
+            <Footer />
         </div>
-      </main>
-      <Footer />
-      <GoToTopButton />
-
-       <style>{`
-        /* This style block can be removed as animations are now global in index.html */
-       `}</style>
-    </div>
-  );
+    );
 };
 
 export default App;

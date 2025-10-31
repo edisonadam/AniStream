@@ -3,21 +3,37 @@ import type { Settings, Theme, ColorPreset } from '../types';
 
 const defaultSettings: Settings = {
   theme: 'dark',
-  colorPreset: 'cyber-cyan',
+  colorPreset: 'violet-fusion',
   autoplayNext: true,
   autoSkipIntro: false,
   autoSkipOutro: false,
-  videoServer: 'embed-api',
+  videoServer: 'kiwi',
   vidsrcDomain: 'vsrc.su',
   forceDesktopMode: false,
-  episodeViewStyle: 'default',
+  episodeViewStyle: 'auto',
   blurEpisodeThumbnails: true,
   restrictAdultContent: true,
+  displayTitleLanguage: 'english',
+  malUsername: '',
+  // New settings defaults from master prompt
+  autoSyncAniList: false,
+  syncThreshold: 80,
+  hideSpoilers: false,
+  defaultPageAction: 'watch',
+  borderRadius: 50, // 50%
+  showWatchHistoryOnHome: true,
+  cardLayout: 'classic',
+  cardSize: 'medium',
+  characterNameLanguage: 'romaji',
+  showComments: true,
+  defaultLanguage: 'sub',
+  forceMaxQuality: false,
 };
 
 interface SettingsContextType {
   settings: Settings;
   updateSettings: (newSettings: Partial<Settings>) => void;
+  restoreDefaults: () => void;
 }
 
 export const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -33,7 +49,13 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     try {
       const storedSettings = localStorage.getItem('anistream-settings');
       if (storedSettings) {
-        setSettings({ ...defaultSettings, ...JSON.parse(storedSettings) });
+        // Merge stored settings with defaults to ensure new settings are applied
+        const parsed = JSON.parse(storedSettings);
+        // Delete legacy setting if it exists
+        if (parsed.primaryAccentColor) {
+          delete parsed.primaryAccentColor;
+        }
+        setSettings({ ...defaultSettings, ...parsed });
       }
     } catch (e) {
       console.error("Failed to load settings from localStorage", e);
@@ -41,11 +63,14 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
   }, []);
 
   useEffect(() => {
-    // Apply theme and color preset to the root element
+    // Apply theme, color preset, and custom styles to the root element
     const root = document.documentElement;
     root.setAttribute('data-theme', settings.theme);
     root.setAttribute('data-color-preset', settings.colorPreset);
     
+    // Apply dynamic styles for border radius
+    root.style.setProperty('--border-radius-multiplier', (settings.borderRadius / 50).toString());
+
     // Persist settings to localStorage
     try {
       localStorage.setItem('anistream-settings', JSON.stringify(settings));
@@ -58,8 +83,14 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     setSettings(prev => ({ ...prev, ...newSettings }));
   }, []);
 
+  const restoreDefaults = useCallback(() => {
+    if (window.confirm("Are you sure you want to restore all settings to their default values?")) {
+        setSettings(defaultSettings);
+    }
+  }, []);
+
   return (
-    <SettingsContext.Provider value={{ settings, updateSettings }}>
+    <SettingsContext.Provider value={{ settings, updateSettings, restoreDefaults }}>
       {children}
     </SettingsContext.Provider>
   );

@@ -1,10 +1,10 @@
-
-
 import React, { useState } from 'react';
 import type { Anime } from '../types';
 import { useWatchLater } from '../hooks/useWatchLater';
 import { useAuth } from '../hooks/useAuth';
 import { PlusIcon, CheckIcon, DotsVerticalIcon, StarIcon } from './icons/Icons';
+import { useSettings } from '../hooks/useSettings';
+import { getDisplayTitle } from '../utils';
 
 interface AnimeCardProps {
   anime: Anime;
@@ -29,6 +29,7 @@ const formatDuration = (minutes: number | null): string => {
 const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect }) => {
   const { addToWatchLater, removeFromWatchLater, isInWatchLater } = useWatchLater();
   const { isLoggedIn } = useAuth();
+  const { settings } = useSettings();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const inWatchLater = isInWatchLater(anime.id);
 
@@ -46,23 +47,22 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect }) => {
       e.stopPropagation();
       setIsMenuOpen(prev => !prev);
   }
+  
+  const displayTitle = getDisplayTitle(anime, settings);
 
   return (
-    <div className="group relative overflow-hidden rounded-3xl shadow-lg cursor-pointer transform transition-all duration-300 hover:shadow-2xl hover:shadow-[rgb(var(--shadow-color))/0.5]"
-      style={{ transition: 'transform 0.3s ease, box-shadow 0.3s ease' }}
-      onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-8px) scale(1.03)'; }}
-      onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0px) scale(1)'; }}
+    <div className="group relative overflow-hidden rounded-xl shadow-lg cursor-pointer transform transition-all duration-300 hover:shadow-2xl hover:shadow-[rgb(var(--shadow-color))/0.4] hover:scale-105"
       onClick={() => onSelect(anime)}
       onKeyDown={(e) => e.key === 'Enter' && onSelect(anime)}
       role="button"
       tabIndex={0}
-      aria-label={`Play ${anime.title}`}
+      aria-label={`Play ${displayTitle}`}
     >
       <div className="aspect-[2/3] w-full">
-        <img src={anime.thumbnail} alt={anime.title} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+        <img src={anime.thumbnail} alt={displayTitle} className="w-full h-full object-cover" />
       </div>
 
-      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-100 transition-opacity duration-300"></div>
 
       <div className="absolute top-2 left-2 flex flex-col gap-1.5 z-10">
         {anime.rating && anime.rating > 0 && (
@@ -71,18 +71,14 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect }) => {
                 <span>{anime.rating.toFixed(1)}</span>
             </div>
         )}
-        {anime.isAdult && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/50 text-white backdrop-blur-md">+18</span>}
         {anime.type && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/50 text-white backdrop-blur-md">{anime.type.toUpperCase()}</span>}
-        {anime.hasSub && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/50 text-white backdrop-blur-md">SUB</span>}
-        {anime.hasDub && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/50 text-white backdrop-blur-md">DUB</span>}
       </div>
       
-      {anime.runtime && anime.type === 'Movie' && <span className="absolute bottom-12 right-2 px-2 py-0.5 text-xs font-bold rounded-full bg-black/70 text-white backdrop-blur-sm z-10">{formatDuration(anime.runtime)}</span>}
-      {anime.avgEpisodeDuration && anime.type !== 'Movie' && <span className="absolute bottom-12 right-2 px-2 py-0.5 text-xs font-bold rounded-full bg-black/70 text-white backdrop-blur-sm z-10">~{anime.avgEpisodeDuration}m/ep</span>}
+      {anime.avgEpisodeDuration && anime.type !== 'Movie' && <span className="absolute top-2 right-2 px-2 py-0.5 text-xs font-bold rounded-full bg-black/70 text-white backdrop-blur-sm z-10">~{anime.avgEpisodeDuration}m</span>}
 
 
       {isLoggedIn && (
-        <div className="absolute top-2 right-2">
+        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
             <button onClick={handleMenuToggle} className="p-1.5 bg-black/50 rounded-full text-white hover:bg-[rgb(var(--color-primary))/0.8] transition-colors">
                 <DotsVerticalIcon />
             </button>
@@ -90,7 +86,7 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect }) => {
                 <div className="absolute top-full right-0 mt-1 bg-[rgb(var(--surface-2))] rounded-lg shadow-lg p-1 z-10 w-40">
                     <button onClick={handleWatchLaterClick} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] rounded-md">
                         {inWatchLater ? <CheckIcon/> : <PlusIcon/>}
-                        <span>{inWatchLater ? 'In Watch Later' : 'Watch Later'}</span>
+                        <span>{inWatchLater ? 'In Watchlist' : 'Add to Watchlist'}</span>
                     </button>
                 </div>
             )}
@@ -99,7 +95,7 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect }) => {
 
       <div className="absolute bottom-0 left-0 right-0 p-3">
         <h3 className="text-white font-bold text-sm truncate group-hover:text-[rgb(var(--color-primary-accent))] transition-colors">
-          {anime.title}
+          {displayTitle}
         </h3>
       </div>
     </div>

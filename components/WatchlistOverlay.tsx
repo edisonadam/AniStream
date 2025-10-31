@@ -1,8 +1,11 @@
 
+
 import React, { useEffect } from 'react';
 import { useWatchLater } from '../hooks/useWatchLater';
 import { CloseIcon, PlayIcon, StarIcon } from './icons/Icons';
 import type { Anime } from '../types';
+import { useSettings } from '../hooks/useSettings';
+import { getDisplayTitle } from '../utils';
 
 interface WatchlistOverlayProps {
     onClose: () => void;
@@ -11,6 +14,7 @@ interface WatchlistOverlayProps {
 
 const WatchlistOverlay: React.FC<WatchlistOverlayProps> = ({ onClose, onSelectAnime }) => {
     const { watchLaterList, removeFromWatchLater } = useWatchLater();
+    const { settings } = useSettings();
 
     useEffect(() => {
         document.body.style.overflow = 'hidden';
@@ -39,9 +43,9 @@ const WatchlistOverlay: React.FC<WatchlistOverlayProps> = ({ onClose, onSelectAn
                         <div className="space-y-4">
                             {watchLaterList.map(anime => (
                                 <div key={anime.id} className="flex items-center gap-4 bg-[rgb(var(--surface-2))/0.5] p-3 rounded-xl hover:bg-[rgb(var(--surface-2))] transition-colors">
-                                    <img src={anime.thumbnail} alt={anime.title} className="w-16 h-24 object-cover rounded-md flex-shrink-0" />
+                                    <img src={anime.thumbnail} alt={getDisplayTitle(anime, settings)} className="w-16 h-24 object-cover rounded-md flex-shrink-0" />
                                     <div className="flex-1 min-w-0">
-                                        <h3 className="font-bold text-[rgb(var(--text-primary))] truncate">{anime.title}</h3>
+                                        <h3 className="font-bold text-[rgb(var(--text-primary))] truncate">{getDisplayTitle(anime, settings)}</h3>
                                         <p className="text-sm text-[rgb(var(--text-muted))] truncate">
                                             {anime.type && <span className="font-semibold">{anime.type}</span>}
                                             {anime.type && anime.genres.length > 0 && <span> &bull; </span>}

@@ -12,10 +12,13 @@ interface AnimeGridProps {
   onLoadMore: () => void;
   hasMore: boolean;
   isLoadingMore: boolean;
+  sortValue: Filter['sort'];
   onSortChange?: (sort: Filter['sort']) => void;
 }
 
-const AnimeGrid: React.FC<AnimeGridProps> = ({ onAnimeSelect, animeList, title, filters, isLoading, onLoadMore, hasMore, isLoadingMore, onSortChange }) => {
+const ANIME_PAGE_SIZE = 25; // As defined in App.tsx fetch logic
+
+const AnimeGrid: React.FC<AnimeGridProps> = ({ onAnimeSelect, animeList, title, filters, isLoading, onLoadMore, hasMore, isLoadingMore, sortValue, onSortChange }) => {
   const hasActiveFilters = Object.values(filters).some(v => {
     if (Array.isArray(v)) return v.length > 0;
     return !!v;
@@ -34,7 +37,7 @@ const AnimeGrid: React.FC<AnimeGridProps> = ({ onAnimeSelect, animeList, title, 
           onLoadMore();
         }
       },
-      { rootMargin: '400px' } // Load content when it's 400px away from the viewport for a smoother experience
+      { rootMargin: '1600px' } // Load content when it's 1600px away from the viewport for a super smooth experience
     );
 
     const currentElement = lastElementRef.current;
@@ -85,7 +88,7 @@ const AnimeGrid: React.FC<AnimeGridProps> = ({ onAnimeSelect, animeList, title, 
             <label htmlFor="sort-by" className="text-sm font-semibold text-[rgb(var(--text-muted))]">Sort by:</label>
             <select
               id="sort-by"
-              value={filters.sort || 'popularity'}
+              value={sortValue || 'popularity'}
               onChange={(e) => onSortChange(e.target.value as Filter['sort'])}
               className="bg-[rgb(var(--surface-2))] border border-[rgb(var(--border-color))] rounded-lg px-3 py-1.5 text-sm text-[rgb(var(--text-primary))] focus:ring-1 focus:ring-[rgb(var(--border-focus))] focus:border-[rgb(var(--border-focus))] transition-all"
             >
@@ -106,7 +109,8 @@ const AnimeGrid: React.FC<AnimeGridProps> = ({ onAnimeSelect, animeList, title, 
         <>
             <div ref={gridContainerRef} className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
               {animeList.map((anime, index) => (
-                <div key={anime.id} className="animate-subtle-fade-in-up" style={{ animationDelay: `${index * 100}ms` }}>
+                <div key={anime.id} className="animate-subtle-fade-in-up" style={{ animationDelay: `${(index % ANIME_PAGE_SIZE) * 30}ms` }}>
+                    {/* FIX: Corrected a typo in the `onSelect` prop. The `onAnimeSelect` prop from `AnimeGridProps` should have been used, but it was incorrectly referenced as `onSelect`. */}
                     <AnimeCard anime={anime} onSelect={onAnimeSelect} />
                 </div>
               ))}

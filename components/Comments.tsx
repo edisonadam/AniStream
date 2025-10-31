@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Comment as CommentType, Anime } from '../types';
 import { useAuth } from '../hooks/useAuth';
@@ -81,7 +79,9 @@ const Comments: React.FC<CommentsProps> = ({ anime }) => {
       text: text.trim(),
       timestamp: Date.now(),
       parentId: parentComment?.id,
-      replyingTo: parentComment?.user.username
+      replyingTo: parentComment?.user.username,
+      animeTitle: anime.title,
+      animeThumbnail: anime.thumbnail,
     };
     
     const updatedComments = [newComment, ...comments];
@@ -135,7 +135,7 @@ const Comments: React.FC<CommentsProps> = ({ anime }) => {
         <div key={comment.id} className="flex items-start space-x-3">
             <img src={comment.user.avatar} alt={comment.user.username} className="w-10 h-10 rounded-full bg-[rgb(var(--color-primary))/0.3] mt-1 flex-shrink-0" />
             <div className="flex-1">
-                <div className="bg-[rgb(var(--surface-3))/0.5] rounded-3xl rounded-tl-lg p-4">
+                <div className="bg-[rgb(var(--surface-3))/0.5] rounded-[2rem] rounded-tl-xl p-4">
                     <div className="flex items-baseline space-x-2">
                         <p className="font-semibold text-[rgb(var(--color-primary-accent))]">{comment.user.username}</p>
                         <p className="text-xs text-[rgb(var(--text-muted))]">{new Date(comment.timestamp).toLocaleString()}</p>
@@ -177,7 +177,7 @@ const Comments: React.FC<CommentsProps> = ({ anime }) => {
   return (
     <div className="mt-12">
       <h3 className="text-2xl font-bold mb-4 text-[rgb(var(--text-primary))]">Comments</h3>
-      <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl rounded-3xl p-6">
+      <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl rounded-[2rem] p-6">
         {isLoggedIn && user ? (
           <div className="mb-6 flex items-start space-x-3">
             <img src={user.avatar} alt={user.username} className="w-10 h-10 rounded-full bg-[rgb(var(--color-primary))/0.3] flex-shrink-0" />

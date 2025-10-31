@@ -4,10 +4,10 @@ import { useSettings } from '../hooks/useSettings';
 import { useProfileData } from '../hooks/useProfileData';
 import { useContinueWatching } from '../hooks/useContinueWatching';
 import { useWatchLater } from '../hooks/useWatchLater';
-import { ChevronLeftIcon, MoonIcon, SunIcon, CloseIcon } from './icons/Icons';
-import { COLOR_PRESETS, VIDEO_SERVERS, VIDSRC_DOMAINS } from '../constants';
+import { ChevronLeftIcon, CloseIcon } from './icons/Icons';
 import type { Anime, ContinueWatchingInfo, ViewingHistoryItem, Rating, User } from '../types';
 import AnimeCard from './AnimeCard';
+import SettingsPage from './SettingsPage'; // Import the new settings page component
 
 interface ProfilePageProps {
     onGoBack: () => void;
@@ -18,9 +18,8 @@ interface ProfilePageProps {
 type Tab = 'profile' | 'friends' | 'settings';
 
 const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectAnime }) => {
-    const { user, updateUser, logout, isLoggedIn } = useAuth();
-    const { settings, updateSettings } = useSettings();
-    const { history, ratings, getRating, clearHistory, friends, removeFriend } = useProfileData();
+    const { user, updateUser, logout } = useAuth();
+    const { history, ratings, friends, removeFriend } = useProfileData();
     const { continueWatchingList } = useContinueWatching();
     const { watchLaterList } = useWatchLater();
 
@@ -28,26 +27,44 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
     const [isEditingProfile, setIsEditingProfile] = useState(false);
     const [editUsername, setEditUsername] = useState(user?.username || '');
     const [editAvatar, setEditAvatar] = useState(user?.avatar || '');
-
+    
     const animeMap = useMemo(() => {
-        return allAnime.reduce((acc, anime) => {
-            acc[anime.id] = anime;
-            return acc;
-        }, {} as Record<number, Anime>);
-    }, [allAnime]);
+        const map = new Map<number, Anime>();
+        allAnime.forEach(anime => map.set(anime.id, anime));
+        // Add anime from lists that might not be in the initial `allAnime` prop
+        continueWatchingList.forEach(item => { if (!map.has(item.animeId)) map.set(item.animeId, { id: item.animeId, title: 'Loading...' } as Anime); });
+        watchLaterList.forEach(item => { if (!map.has(item.id)) map.set(item.id, item); });
+        history.forEach(item => { if (!map.has(item.animeId)) map.set(item.animeId, { id: item.animeId, title: 'Loading...' } as Anime); });
+        return map;
+    }, [allAnime, continueWatchingList, watchLaterList, history]);
+
+    const userStats = useMemo(() => {
+        const totalAnime = new Set(history.map(h => h.animeId)).size;
+        
+        const totalMinutesWatched = history.reduce((acc, h) => {
+            const anime = animeMap.get(h.animeId);
+            return acc + (anime?.avgEpisodeDuration || 24); // Assume 24 mins if not available
+        }, 0);
+
+        const daysWatched = totalMinutesWatched / 60 / 24;
+
+        const averageScore = ratings.length > 0
+            ? ratings.reduce((acc, r) => acc + r.rating, 0) / ratings.length * 10
+            : 0;
+
+        return {
+            totalAnime,
+            daysWatched: daysWatched.toFixed(1),
+            averageScore: averageScore.toFixed(2),
+        };
+    }, [history, ratings, animeMap]);
+
 
     const handleProfileSave = (e: React.FormEvent) => {
         e.preventDefault();
         updateUser({ username: editUsername, avatar: editAvatar });
         setIsEditingProfile(false);
     };
-    
-    const handleClearData = () => {
-        if (window.confirm("Are you sure you want to clear all your data? This will clear your history and ratings.")) {
-            clearHistory();
-            // In a real app, you'd also clear ratings here.
-        }
-    }
 
     const ProfileTabContent = () => (
       <div className="space-y-12">
@@ -73,7 +90,13 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
                 <>
                     <img src={user?.avatar} alt={user?.username} className="w-24 h-24 rounded-full mx-auto mb-4 ring-4 ring-[rgb(var(--color-primary))]/50" />
                     <h2 className="text-3xl font-bold">{user?.username}</h2>
-                    <div className="mt-4 flex gap-2 justify-center">
+                    <p className="text-sm text-[rgb(var(--text-muted))]">Joined: {new Date(user?.joinedDate || Date.now()).toLocaleDateString()}</p>
+                    <div className="mt-6 flex justify-center gap-4 text-center">
+                        <div><p className="text-2xl font-bold">{userStats.totalAnime}</p><p className="text-xs text-[rgb(var(--text-muted))]">Total Anime</p></div>
+                        <div><p className="text-2xl font-bold">{userStats.daysWatched}</p><p className="text-xs text-[rgb(var(--text-muted))]">Days Watched</p></div>
+                        <div><p className="text-2xl font-bold">{userStats.averageScore}</p><p className="text-xs text-[rgb(var(--text-muted))]">Average Score</p></div>
+                    </div>
+                    <div className="mt-6 flex gap-2 justify-center">
                         <button onClick={() => setIsEditingProfile(true)} className="px-4 py-2 bg-white/10 rounded-full font-semibold hover:bg-white/20">Edit Profile</button>
                         <button onClick={logout} className="px-4 py-2 bg-[rgb(var(--color-danger))]/20 text-[rgb(var(--color-danger))] rounded-full font-semibold hover:bg-[rgb(var(--color-danger))]/40">Logout</button>
                     </div>
@@ -81,10 +104,10 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
             )}
         </div>
         
-        <DataSection title="Continue Watching" data={continueWatchingList} renderItem={(item: ContinueWatchingInfo) => animeMap[item.animeId] && <AnimeCard anime={animeMap[item.animeId]} onSelect={onSelectAnime} />} />
+        <DataSection title="Continue Watching" data={continueWatchingList} renderItem={(item: ContinueWatchingInfo) => animeMap.get(item.animeId) && <AnimeCard anime={animeMap.get(item.animeId)!} onSelect={onSelectAnime} />} />
         <DataSection title="My Watchlist" data={watchLaterList} renderItem={(item: Anime) => <AnimeCard anime={item} onSelect={onSelectAnime} />} />
-        <DataSection title="Viewing History" data={history} renderItem={(item: ViewingHistoryItem) => animeMap[item.animeId] && <AnimeCard anime={animeMap[item.animeId]} onSelect={onSelectAnime} />} />
-        <DataSection title="My Ratings" data={ratings} renderItem={(item: Rating) => animeMap[item.animeId] && <AnimeCard anime={animeMap[item.animeId]} onSelect={onSelectAnime} />} />
+        <DataSection title="Viewing History" data={history} renderItem={(item: ViewingHistoryItem) => animeMap.get(item.animeId) && <AnimeCard anime={animeMap.get(item.animeId)!} onSelect={onSelectAnime} />} />
+        <DataSection title="My Ratings" data={ratings} renderItem={(item: Rating) => animeMap.get(item.animeId) && <AnimeCard anime={animeMap.get(item.animeId)!} onSelect={onSelectAnime} />} />
       </div>
     );
     
@@ -114,132 +137,11 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
         </div>
     );
     
-    const SettingsTabContent = () => (
-      <div className="max-w-2xl mx-auto space-y-8">
-        {/* Appearance Settings */}
-        <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 p-6 rounded-2xl">
-          <h3 className="text-xl font-bold mb-4 text-[rgb(var(--color-primary-accent))]">Appearance</h3>
-          <div className="space-y-4">
-             <div className="flex justify-between items-center">
-                <label className="font-semibold text-[rgb(var(--text-secondary))]">Theme</label>
-                <div className="flex items-center bg-[rgb(var(--surface-3))] rounded-full p-1">
-                    <button onClick={() => updateSettings({ theme: 'light' })} className={`px-3 py-1 text-sm rounded-full flex items-center gap-2 ${settings.theme === 'light' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))]' : 'text-[rgb(var(--text-muted))]'}`}><SunIcon className="w-4 h-4" /> Light</button>
-                    <button onClick={() => updateSettings({ theme: 'dark' })} className={`px-3 py-1 text-sm rounded-full flex items-center gap-2 ${settings.theme === 'dark' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))]' : 'text-[rgb(var(--text-muted))]'}`}><MoonIcon className="w-4 h-4"/> Dark</button>
-                </div>
-            </div>
-             <div className="space-y-2">
-                <label className="font-semibold text-[rgb(var(--text-secondary))]">Color Preset</label>
-                <div className="grid grid-cols-2 gap-2">
-                    {COLOR_PRESETS.map(preset => (
-                        <button key={preset.id} onClick={() => updateSettings({ colorPreset: preset.id })} className={`w-full p-2 rounded-xl text-left font-semibold transition-colors ${settings.colorPreset === preset.id ? 'bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))] ring-2 ring-offset-2 ring-offset-[rgb(var(--surface-2))] ring-[rgb(var(--color-primary))]' : 'bg-white/5 hover:bg-white/10'}`}>{preset.name}</button>
-                    ))}
-                </div>
-            </div>
-            <div className="flex flex-col pt-4 border-t border-white/10">
-                <div className="flex justify-between items-center">
-                    <label className="font-semibold text-[rgb(var(--text-secondary))]">Force desktop mode</label>
-                    <button onClick={() => updateSettings({ forceDesktopMode: !settings.forceDesktopMode })} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${settings.forceDesktopMode ? 'bg-[rgb(var(--color-primary))]' : 'bg-[rgb(var(--surface-4))]'}`}>
-                        <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${settings.forceDesktopMode ? 'translate-x-6' : 'translate-x-1'}`} />
-                    </button>
-                </div>
-                 <p className="text-sm text-[rgb(var(--text-muted))] mt-1">Keep the desktop layout active even on smaller screens.</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Playback Settings */}
-        <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 p-6 rounded-2xl">
-          <h3 className="text-xl font-bold mb-4 text-[rgb(var(--color-primary-accent))]">Playback & Content</h3>
-           <div className="space-y-4">
-            <div className="flex flex-col">
-              <div className="flex justify-between items-center">
-                <label htmlFor="restrict-adult-toggle" className={`font-semibold ${isLoggedIn ? 'text-[rgb(var(--text-secondary))]' : 'text-[rgb(var(--text-muted))]'}`}>Restrict Adult Content</label>
-                <button
-                    id="restrict-adult-toggle"
-                    onClick={() => updateSettings({ restrictAdultContent: !settings.restrictAdultContent })}
-                    disabled={!isLoggedIn}
-                    className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${settings.restrictAdultContent ? 'bg-[rgb(var(--color-primary))]' : 'bg-[rgb(var(--surface-4))]'} ${!isLoggedIn ? 'cursor-not-allowed opacity-50' : ''}`}
-                    aria-label={`Adult content is currently ${settings.restrictAdultContent ? 'restricted' : 'allowed'}`}
-                >
-                    <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${settings.restrictAdultContent ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
-              </div>
-              {!isLoggedIn && <p className="text-sm text-[rgb(var(--text-muted))] mt-1">You must be logged in to change this setting.</p>}
-            </div>
-             <div className="flex justify-between items-center pt-4 border-t border-white/10">
-                <label className="font-semibold text-[rgb(var(--text-secondary))]">Autoplay Next Episode</label>
-                <button onClick={() => updateSettings({ autoplayNext: !settings.autoplayNext })} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${settings.autoplayNext ? 'bg-[rgb(var(--color-primary))]' : 'bg-[rgb(var(--surface-4))]'}`}>
-                    <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${settings.autoplayNext ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
-            </div>
-            <div className="flex justify-between items-center pt-4 border-t border-white/10">
-                <label className="font-semibold text-[rgb(var(--text-secondary))]">Auto Skip Intro</label>
-                <button onClick={() => updateSettings({ autoSkipIntro: !settings.autoSkipIntro })} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${settings.autoSkipIntro ? 'bg-[rgb(var(--color-primary))]' : 'bg-[rgb(var(--surface-4))]'}`}>
-                    <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${settings.autoSkipIntro ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
-            </div>
-            <div className="flex justify-between items-center pt-4 border-t border-white/10">
-                <label className="font-semibold text-[rgb(var(--text-secondary))]">Auto Skip Outro</label>
-                <button onClick={() => updateSettings({ autoSkipOutro: !settings.autoSkipOutro })} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${settings.autoSkipOutro ? 'bg-[rgb(var(--color-primary))]' : 'bg-[rgb(var(--surface-4))]'}`}>
-                    <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${settings.autoSkipOutro ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
-            </div>
-             <div className="flex justify-between items-center pt-4 border-t border-white/10">
-                <label className="font-semibold text-[rgb(var(--text-secondary))]">Blur Episode Thumbnails</label>
-                <button onClick={() => updateSettings({ blurEpisodeThumbnails: !settings.blurEpisodeThumbnails })} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${settings.blurEpisodeThumbnails ? 'bg-[rgb(var(--color-primary))]' : 'bg-[rgb(var(--surface-4))]'}`}>
-                    <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${settings.blurEpisodeThumbnails ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
-            </div>
-            <div className="flex flex-col sm:flex-row justify-between items-center pt-4 border-t border-white/10">
-                <label className="font-semibold text-[rgb(var(--text-secondary))] mb-2 sm:mb-0">Default Video Server</label>
-                <div className="flex items-center bg-[rgb(var(--surface-3))] rounded-full p-1">
-                    {VIDEO_SERVERS.map(server => (
-                        <button key={server.id} onClick={() => updateSettings({ videoServer: server.id })} className={`px-4 py-1.5 text-sm rounded-full transition-all ${settings.videoServer === server.id ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>{server.name}</button>
-                    ))}
-                </div>
-            </div>
-             <div className="flex flex-col sm:flex-row justify-between items-center pt-4 border-t border-white/10">
-                <label className="font-semibold text-[rgb(var(--text-secondary))] mb-2 sm:mb-0">Default Episode View</label>
-                <div className="flex items-center bg-[rgb(var(--surface-3))] rounded-full p-1">
-                    <button onClick={() => updateSettings({ episodeViewStyle: 'default' })} className={`px-4 py-1.5 text-sm capitalize rounded-full transition-all ${settings.episodeViewStyle === 'default' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>{`Default`}</button>
-                    <button onClick={() => updateSettings({ episodeViewStyle: 'compact' })} className={`px-4 py-1.5 text-sm capitalize rounded-full transition-all ${settings.episodeViewStyle === 'compact' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>{`Compact`}</button>
-                    <button onClick={() => updateSettings({ episodeViewStyle: 'grid' })} className={`px-4 py-1.5 text-sm capitalize rounded-full transition-all ${settings.episodeViewStyle === 'grid' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>{`Grid`}</button>
-                </div>
-            </div>
-            {settings.videoServer === 'vidsrc' && (
-                <div className="flex flex-col sm:flex-row justify-between items-center pt-4 border-t border-white/10">
-                    <label htmlFor="vidsrc-domain-select" className="font-semibold text-[rgb(var(--text-secondary))] mb-2 sm:mb-0">Dub Server Domain</label>
-                    <select
-                        id="vidsrc-domain-select"
-                        value={settings.vidsrcDomain}
-                        onChange={(e) => updateSettings({ vidsrcDomain: e.target.value })}
-                        className="w-full sm:w-auto bg-[rgb(var(--surface-input))/0.2] border border-white/10 rounded-xl px-3 py-2 text-[rgb(var(--text-primary))] focus:ring-2 focus:ring-[rgb(var(--border-focus))] focus:border-[rgb(var(--border-focus))] transition-all"
-                    >
-                        {VIDSRC_DOMAINS.map(domain => (
-                            <option key={domain} value={domain}>{domain}</option>
-                        ))}
-                    </select>
-                </div>
-            )}
-          </div>
-        </div>
-        
-        {/* Data Management */}
-         <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 p-6 rounded-2xl">
-            <h3 className="text-xl font-bold mb-4 text-[rgb(var(--color-danger))]">Data Management</h3>
-            <div className="space-y-2">
-                <p className="text-sm text-[rgb(var(--text-muted))]">This will permanently delete your viewing history and ratings.</p>
-                <button onClick={handleClearData} className="px-4 py-2 bg-[rgb(var(--color-danger))]/20 text-[rgb(var(--color-danger))] rounded-xl font-semibold hover:bg-[rgb(var(--color-danger))]/40">Clear My Data</button>
-            </div>
-         </div>
-      </div>
-    );
-
     const renderActiveTab = () => {
         switch(activeTab) {
             case 'profile': return <ProfileTabContent />;
             case 'friends': return <FriendsTabContent />;
-            case 'settings': return <SettingsTabContent />;
+            case 'settings': return <SettingsPage />;
             default: return <ProfileTabContent />;
         }
     }

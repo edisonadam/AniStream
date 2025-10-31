@@ -7,6 +7,7 @@ interface WatchLaterContextType {
   addToWatchLater: (anime: Anime) => void;
   removeFromWatchLater: (animeId: number) => void;
   isInWatchLater: (animeId: number) => boolean;
+  overwriteWatchLaterList: (animeList: Anime[]) => void;
 }
 
 export const WatchLaterContext = createContext<WatchLaterContextType | undefined>(undefined);
@@ -66,8 +67,13 @@ export const WatchLaterProvider: React.FC<WatchLaterProviderProps> = ({ children
     return watchLaterList.some(item => item.id === animeId);
   }, [watchLaterList]);
 
+  const overwriteWatchLaterList = (animeList: Anime[]) => {
+    setWatchLaterList(animeList);
+    persistList(animeList);
+  };
+
   return (
-    <WatchLaterContext.Provider value={{ watchLaterList, addToWatchLater, removeFromWatchLater, isInWatchLater }}>
+    <WatchLaterContext.Provider value={{ watchLaterList, addToWatchLater, removeFromWatchLater, isInWatchLater, overwriteWatchLaterList }}>
       {children}
     </WatchLaterContext.Provider>
   );

@@ -92,7 +92,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }
 
   const login = (username: string) => {
-    const newUser: User = { username, avatar: `https://api.dicebear.com/8.x/bottts-neutral/svg?seed=${username}` };
+    const newUser: User = { 
+        username, 
+        avatar: `https://api.dicebear.com/8.x/bottts-neutral/svg?seed=${username}`,
+        joinedDate: Date.now()
+    };
     persistUser(newUser);
   };
 

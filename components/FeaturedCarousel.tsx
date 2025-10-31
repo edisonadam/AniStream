@@ -1,10 +1,10 @@
-
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Anime } from '../types';
-import { ChevronLeftIcon, ChevronRightIcon, InfoIcon, PlusIcon, StarIcon, CheckIcon } from './icons/Icons';
+import { ChevronLeftIcon, ChevronRightIcon, PlayIcon, PlusIcon, StarIcon, CheckIcon } from './icons/Icons';
 import { useWatchLater } from '../hooks/useWatchLater';
 import { useAuth } from '../hooks/useAuth';
+import { useSettings } from '../hooks/useSettings';
+import { getDisplayTitle } from '../utils';
 
 interface FeaturedCarouselProps {
   animeList: Anime[];
@@ -16,6 +16,7 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
   const [currentIndex, setCurrentIndex] = useState(0);
   const { addToWatchLater, isInWatchLater } = useWatchLater();
   const { isLoggedIn } = useAuth();
+  const { settings } = useSettings();
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   
@@ -43,7 +44,7 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
 
   const startAutoPlay = useCallback(() => {
     stopAutoPlay();
-    intervalRef.current = setInterval(nextSlide, 5000);
+    intervalRef.current = setInterval(nextSlide, 7000); // Slower rotation
   }, [stopAutoPlay, nextSlide]);
 
   useEffect(() => {
@@ -58,7 +59,7 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
     resetTimeout();
     timeoutRef.current = setTimeout(() => {
       startAutoPlay();
-    }, 5000); // Resume after 5s of inactivity
+    }, 10000); // Resume after 10s of inactivity
   }, [stopAutoPlay, resetTimeout, startAutoPlay]);
 
   const goToSlide = (index: number) => {
@@ -101,7 +102,7 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
 
   if (isLoading) {
     return (
-        <section className="relative w-full h-[60vh] md:h-[85vh] bg-[rgb(var(--surface-2))] animate-pulse">
+        <section className="relative w-full h-[90vh] bg-[rgb(var(--surface-2))] animate-pulse">
             <div className="absolute bottom-10 md:bottom-20 left-4 md:left-12 max-w-xl z-20 space-y-4">
                 <div className="h-10 md:h-16 bg-[rgb(var(--surface-3))] rounded-lg w-3/4"></div>
                 <div className="h-6 bg-[rgb(var(--surface-3))] rounded-md w-1/2"></div>
@@ -120,48 +121,48 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
 
   const currentSlide = slides[currentIndex];
   const inWatchLater = isInWatchLater(currentSlide.id);
+  const displayTitle = getDisplayTitle(currentSlide, settings);
 
   return (
     <section 
-      className="relative w-full h-[60vh] md:h-[85vh] overflow-hidden group"
+      className="relative w-full h-[90vh] overflow-hidden group mb-8"
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
       {/* Slides */}
       {slides.map((slide, index) => (
-        <div key={slide.id} className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${index === currentIndex ? 'opacity-100' : 'opacity-0'}`}>
-          <img src={slide.bannerImage} alt={slide.title} className={`w-full h-full object-cover ${index === currentIndex ? 'animate-ken-burns' : ''}`} />
+        <div key={slide.id} className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${index === currentIndex ? 'opacity-100' : 'opacity-0'}`}>
+          <img src={slide.bannerImage} alt={getDisplayTitle(slide, settings)} className={`w-full h-full object-cover ${index === currentIndex ? 'animate-ken-burns' : ''}`} />
         </div>
       ))}
 
       {/* Gradient Fades */}
-      <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-[rgb(var(--bg-gradient-via))] via-[rgb(var(--bg-gradient-via))/0.7] to-transparent z-10"></div>
-      <div className="absolute bottom-0 left-0 w-full h-64 bg-gradient-to-t from-[rgb(var(--bg-gradient-via))] via-[rgb(var(--bg-gradient-via))/0.8] to-transparent z-10"></div>
-      <div className="absolute inset-0 bg-gradient-to-r from-black/50 to-transparent w-1/2 z-10"></div>
+      <div className="absolute top-0 left-0 w-full h-48 bg-gradient-to-b from-[rgb(var(--bg-gradient-start))] to-transparent z-10"></div>
+      <div className="absolute bottom-0 left-0 w-full h-96 bg-gradient-to-t from-[rgb(var(--bg-gradient-start))] to-transparent z-10"></div>
+      <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent w-3/4 z-10"></div>
 
       {/* Content */}
       <div className="absolute bottom-10 md:bottom-20 left-4 md:left-12 text-white max-w-2xl z-20">
-        <div className="bg-black/20 backdrop-blur-lg p-6 md:p-8 rounded-3xl border border-white/10 shadow-2xl shadow-black/30">
           <div key={currentIndex} className="animate-subtle-fade-in-up">
-            <h2 className="text-4xl md:text-6xl font-bold mb-3 drop-shadow-2xl" style={{textShadow: '0 4px 20px rgba(0,0,0,0.9)'}}>
-              {currentSlide.title}
+            <h2 className="text-4xl md:text-6xl font-black mb-3 drop-shadow-2xl" style={{textShadow: '0 4px 20px rgba(0,0,0,0.9)'}}>
+              {displayTitle}
             </h2>
-            <div className="flex items-center flex-wrap gap-x-4 gap-y-2 mb-4 text-[rgb(var(--text-secondary))]" style={{textShadow: '0 2px 8px rgba(0,0,0,0.7)'}}>
-                {currentSlide.isAdult && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/50 text-white backdrop-blur-md">+18</span>}
-                {currentSlide.type && <span className="font-semibold">{currentSlide.type}</span>}
+            <div className="flex items-center flex-wrap gap-x-4 gap-y-2 mb-4 text-gray-300 font-medium" style={{textShadow: '0 2px 8px rgba(0,0,0,0.7)'}}>
+                {currentSlide.type && <span>{currentSlide.type}</span>}
                 {currentSlide.rating && (
                     <div className="flex items-center gap-1.5">
                         <StarIcon className="w-5 h-5 text-[rgb(var(--color-warning))]" />
-                        <span className="font-semibold">{currentSlide.rating.toFixed(1)}</span>
+                        <span>{currentSlide.rating.toFixed(1)}</span>
                     </div>
                 )}
-                <p className="hidden sm:block">{currentSlide.genres.slice(0, 3).join(' • ')}</p>
+                <span>{currentSlide.genres.slice(0, 3).join(' • ')}</span>
             </div>
+            <p className="line-clamp-3 text-gray-200 mb-6 max-w-lg">{currentSlide.synopsis}</p>
             <div className="flex items-center gap-3">
-              <button onClick={() => onAnimeSelect(currentSlide)} className="flex items-center gap-2 px-5 py-3 bg-[rgb(var(--color-primary))] text-white rounded-full font-semibold hover:bg-[rgb(var(--color-primary-hover))] transition-transform duration-300 hover:scale-105 shadow-lg shadow-[rgb(var(--shadow-color))/0.4] hover:shadow-[rgb(var(--shadow-color))/0.6]">
-                <InfoIcon />
-                <span>More Info</span>
+              <button onClick={() => onAnimeSelect(currentSlide)} className="flex items-center gap-2 px-6 py-3 bg-[rgb(var(--color-primary))] text-white rounded-full font-bold hover:bg-[rgb(var(--color-primary-hover))] transition-transform duration-300 hover:scale-105 shadow-lg shadow-[rgb(var(--shadow-color))/0.4] hover:shadow-[rgb(var(--shadow-color))/0.6]">
+                <PlayIcon className="w-6 h-6"/>
+                <span>Watch Now</span>
               </button>
               {isLoggedIn && (
                 <button
@@ -169,26 +170,30 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
                   disabled={inWatchLater}
                   className="flex items-center gap-2 px-5 py-3 bg-white/10 text-white rounded-full font-semibold hover:bg-white/20 transition-colors backdrop-blur-sm disabled:opacity-70 disabled:cursor-not-allowed">
                   {inWatchLater ? <CheckIcon/> : <PlusIcon/>}
-                  <span>{inWatchLater ? 'Added' : 'Add to Watchlist'}</span>
+                  <span>{inWatchLater ? 'In Watchlist' : 'Add to Watchlist'}</span>
                 </button>
               )}
             </div>
           </div>
-        </div>
       </div>
       
       {/* Navigation */}
-      <button onClick={goToPrev} className="absolute top-1/2 left-4 transform -translate-y-1/2 p-2 bg-black/30 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-[rgb(var(--color-primary))/0.5] z-20" aria-label="Previous slide">
-        <ChevronLeftIcon />
+      <button onClick={goToPrev} className="absolute top-1/2 left-4 transform -translate-y-1/2 p-3 bg-black/30 rounded-full text-white opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-[rgb(var(--color-primary))] hover:scale-110 z-20" aria-label="Previous slide">
+        <ChevronLeftIcon className="w-8 h-8"/>
       </button>
-      <button onClick={goToNext} className="absolute top-1/2 right-4 transform -translate-y-1/2 p-2 bg-black/30 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-[rgb(var(--color-primary))/0.5] z-20" aria-label="Next slide">
-        <ChevronRightIcon />
+      <button onClick={goToNext} className="absolute top-1/2 right-4 transform -translate-y-1/2 p-3 bg-black/30 rounded-full text-white opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-[rgb(var(--color-primary))] hover:scale-110 z-20" aria-label="Next slide">
+        <ChevronRightIcon className="w-8 h-8"/>
       </button>
 
       {/* Indicators */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2 z-20">
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex space-x-2 z-20">
         {slides.map((_, index) => (
-          <button key={index} onClick={() => goToSlide(index)} className={`w-3 h-3 rounded-full transition-all duration-300 ${currentIndex === index ? 'bg-[rgb(var(--shadow-color))] scale-125' : 'bg-gray-500/50 hover:bg-gray-400'}`}></button>
+          <button 
+            key={index} 
+            onClick={() => goToSlide(index)} 
+            className={`w-8 h-1.5 rounded-full transition-all duration-300 ${currentIndex === index ? 'bg-[rgb(var(--color-primary-accent))]' : 'bg-gray-500/50 hover:bg-gray-400'}`}
+            aria-label={`Go to slide ${index + 1}`}
+          ></button>
         ))}
       </div>
     </section>

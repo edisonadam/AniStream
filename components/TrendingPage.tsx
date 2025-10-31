@@ -1,0 +1,59 @@
+import React, { useState, useEffect } from 'react';
+import type { Anime } from '../types';
+import { mapJikanToAnime } from '../api';
+import AnimeCardSkeleton from './AnimeCardSkeleton';
+import AnimeCard from './AnimeCard';
+
+interface TrendingPageProps {
+  onAnimeSelect: (anime: Anime) => void;
+}
+
+const TrendingPage: React.FC<TrendingPageProps> = ({ onAnimeSelect }) => {
+    const [trending, setTrending] = useState<Anime[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fetchTrending = async () => {
+            setIsLoading(true);
+            setError(null);
+            try {
+                const res = await fetch(`https://api.jikan.moe/v4/top/anime?filter=bypopularity&limit=25`);
+                if (!res.ok) throw new Error('Failed to fetch trending anime.');
+                const data = await res.json();
+                const mapped = data.data.map(mapJikanToAnime).filter(Boolean);
+                setTrending(mapped);
+            } catch (e) {
+                setError(e instanceof Error ? e.message : 'An error occurred.');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchTrending();
+    }, []);
+
+    return (
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-subtle-fade-in-up">
+            <h1 className="text-3xl font-bold text-[rgb(var(--text-primary))] mb-8" style={{ textShadow: `0 0 8px rgb(var(--shadow-color) / 0.5)` }}>
+                Trending Anime
+            </h1>
+            {isLoading ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
+                    {Array.from({ length: 12 }).map((_, index) => <AnimeCardSkeleton key={index} />)}
+                </div>
+            ) : error ? (
+                <p className="text-center text-red-500">{error}</p>
+            ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
+                    {trending.map((anime, index) => (
+                        <div key={anime.id} className="animate-subtle-fade-in-up" style={{ animationDelay: `${index * 30}ms` }}>
+                            <AnimeCard anime={anime} onSelect={onAnimeSelect} />
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default TrendingPage;

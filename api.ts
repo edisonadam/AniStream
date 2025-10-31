@@ -1,5 +1,4 @@
-
-import type { VideoServer } from './types';
+import type { Anime, Character, VoiceActor, VideoServer, NewsPromo, Manga } from './types';
 
 /**
  * Builds a video source URL based on the selected server.
@@ -21,8 +20,64 @@ export const buildSourceUrl = (
 ): string | null => {
     if (!mediaType || !tmdbId) return null;
 
+    const params = new URLSearchParams();
+    if (autoplayNext) {
+        params.set('autoplay', '1');
+        if (mediaType === 'tv') {
+            params.set('autonext', '1');
+        }
+    }
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+
     switch (server) {
-        case 'embed-api': { // Server 1
+        // Vidsrc main family
+        case 'vidsrc':
+        case 'hop':
+        case 'izy':
+        case 'bee':
+        case 'bun':
+        case 'kuz': {
+            const domain = vidsrcDomain || 'vsrc.su';
+            if (mediaType === 'movie') {
+                return `https://${domain}/embed/movie/${tmdbId}${queryString}`;
+            }
+            if (mediaType === 'tv' && season !== undefined && episode !== undefined) {
+                return `https://${domain}/embed/tv/${tmdbId}/${season}-${episode}${queryString}`;
+            }
+            return null;
+        }
+
+        // Vidsrc PK family
+        case 'jet':
+        case 'telli': {
+            if (mediaType === 'movie') {
+                return `https://embed.vidsrc.pk/movie/${tmdbId}${queryString}`;
+            }
+            if (mediaType === 'tv' && season !== undefined && episode !== undefined) {
+                return `https://embed.vidsrc.pk/tv/${tmdbId}/${season}-${episode}${queryString}`;
+            }
+            return null;
+        }
+        
+        // Vidk and Plyr family (using a common 2embed pattern)
+        case 'vidk':
+        case 'plyr': {
+            const domain = server === 'vidk' ? 'vidsrc.to' : 'multiembed.mov';
+            if (mediaType === 'tv' && season !== undefined && episode !== undefined) {
+                return `https://${domain}/embed/tv?tmdb=${tmdbId}&s=${season}&e=${episode}${queryString.replace('?','&')}`;
+            }
+            if (mediaType === 'movie') {
+                return `https://${domain}/embed/movie?tmdb=${tmdbId}${queryString.replace('?','&')}`;
+            }
+            return null;
+        }
+
+        // Generic embed-api family (default/fallback)
+        case 'kiwi':
+        case 'videembed':
+        case 'vidbinge':
+        case 'animepahe':
+        default: {
             const url = new URL('https://player.embed-api.stream/');
             url.searchParams.set('id', tmdbId.toString());
             if (mediaType === 'tv') {
@@ -35,64 +90,162 @@ export const buildSourceUrl = (
             }
             return url.toString();
         }
-        case 'vidsrc': { // Server 2 - Vidsrc (Path-based format)
-            const domain = vidsrcDomain || 'vsrc.su';
-            let baseUrl = '';
-            if (mediaType === 'movie') {
-                baseUrl = `https://${domain}/embed/movie/${tmdbId}`;
-            } else if (mediaType === 'tv') {
-                if (season === undefined || episode === undefined) return null;
-                baseUrl = `https://${domain}/embed/tv/${tmdbId}/${season}-${episode}`;
-            } else {
-                return null;
-            }
-
-            const params = new URLSearchParams();
-            if (autoplayNext) {
-                params.set('autoplay', '1');
-                if (mediaType === 'tv') {
-                    params.set('autonext', '1');
-                }
-            }
-            
-            const queryString = params.toString();
-            return queryString ? `${baseUrl}?${queryString}` : baseUrl;
-        }
-        case 'vidsrc-pk': { // Server 3 - VidSrc PK
-            let baseUrl = '';
-            if (mediaType === 'movie') {
-                baseUrl = `https://embed.vidsrc.pk/movie/${tmdbId}`;
-            } else if (mediaType === 'tv') {
-                if (season === undefined || episode === undefined) return null;
-                baseUrl = `https://embed.vidsrc.pk/tv/${tmdbId}/${season}-${episode}`;
-            } else {
-                return null;
-            }
-
-            const params = new URLSearchParams();
-            if (autoplayNext) {
-                params.set('autoplay', '1');
-                if (mediaType === 'tv') {
-                    params.set('autonext', '1');
-                }
-            }
-
-            const queryString = params.toString();
-            return queryString ? `${baseUrl}?${queryString}` : baseUrl;
-        }
-        default: {
-             // Fallback to the first server if something is wrong
-            const url = new URL('https://player.embed-api.stream/');
-            url.searchParams.set('id', tmdbId.toString());
-             if (mediaType === 'tv') {
-                if (season === undefined || episode === undefined) return null;
-                url.searchParams.set('s', season.toString());
-                url.searchParams.set('e', episode.toString());
-            }
-            if (autoplayNext) {
-                url.searchParams.set('autoplay', '1');
-            }
-            return url.toString();
-        }
     }
 };
+
+/**
+ * Maps a raw item from the Jikan API to the application's Anime type.
+ * @param item The raw item from the Jikan API response.
+ * @returns An Anime object or null if the item is invalid.
+ */
+export const mapJikanToAnime = (item: any): Anime | null => {
+    if (!item || !item.mal_id) {
+        return null;
+    }
+
+    let totalMinutes = 0;
+    const hourMatch = item.duration?.match(/(\d+)\s*hr/);
+    const minMatch = item.duration?.match(/(\d+)\s*min/);
+    if (hourMatch?.[1]) totalMinutes += parseInt(hourMatch[1], 10) * 60;
+    if (minMatch?.[1]) totalMinutes += parseInt(minMatch[1], 10);
+    
+    let avgEpisodeDuration: number | null = null;
+    if (item.duration && item.duration.includes('per ep')) {
+        const epMinMatch = item.duration.match(/(\d+)\s*min/);
+        if (epMinMatch && epMinMatch[1]) {
+            avgEpisodeDuration = parseInt(epMinMatch[1], 10);
+        }
+    }
+
+    return {
+        id: item.mal_id,
+        title: item.title_english || item.title || 'Untitled',
+        title_english: item.title_english || null,
+        title_japanese: item.title_japanese || '',
+        thumbnail: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url || '',
+        bannerImage: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url || '',
+        synopsis: item.synopsis || 'No synopsis available.',
+        genres: (item.genres || []).map((g: any) => g.name),
+        releaseYear: item.year || (item.aired?.from ? new Date(item.aired.from).getFullYear() : null),
+        status: item.status === 'Finished Airing' ? 'Completed' : item.status === 'Currently Airing' ? 'Ongoing' : 'Upcoming',
+        totalEpisodes: item.episodes || null,
+        rating: item.score || null,
+        type: item.type || null,
+        studio: (item.studios || []).length > 0 ? item.studios[0].name : 'Unknown',
+        hasSub: true, // Default assumption
+        hasDub: !!item.title_english, // Default assumption
+        runtime: totalMinutes > 0 ? totalMinutes : null,
+        avgEpisodeDuration: avgEpisodeDuration,
+        isAdult: item.rating === 'Rx - Hentai',
+        malUrl: item.url,
+        startDate: item.aired?.from,
+        endDate: item.aired?.to,
+        season: item.season ? item.season.charAt(0).toUpperCase() + item.season.slice(1) : undefined,
+        nextAiringEpisode: item.airing && item.broadcast?.string ? {
+            at: new Date(item.aired.to).getTime(),
+            episode: (item.episodes || 0) + 1,
+        } : undefined,
+    };
+};
+
+/**
+ * Maps a raw item from the Jikan API to the application's Manga type.
+ * @param item The raw item from the Jikan API response.
+ * @returns An Manga object or null if the item is invalid.
+ */
+export const mapJikanToManga = (item: any): Manga | null => {
+    if (!item || !item.mal_id) {
+        return null;
+    }
+    return {
+        id: item.mal_id,
+        title: item.title_english || item.title || 'Untitled',
+        title_english: item.title_english || null,
+        title_japanese: item.title_japanese || '',
+        thumbnail: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url || '',
+        synopsis: item.synopsis || 'No synopsis available.',
+        genres: (item.genres || []).map((g: any) => g.name),
+        score: item.score || null,
+        type: item.type || null,
+        chapters: item.chapters || null,
+        volumes: item.volumes || null,
+        status: item.status,
+        authors: (item.authors || []).map((a: any) => ({ name: a.name })),
+        malUrl: item.url,
+    };
+};
+
+/**
+ * Maps a raw character item from the Jikan API to the application's Character type.
+ * @param item The raw character item from the Jikan API response.
+ * @returns A Character object or null if the item is invalid.
+ */
+export const mapJikanToCharacter = (item: any): Character | null => {
+    if (!item || !item.character?.mal_id) {
+        return null;
+    }
+
+    const voiceActors: VoiceActor[] = (item.voice_actors || []).map((va: any) => ({
+        id: va.person.mal_id,
+        name: va.person.name,
+        image: va.person.images?.jpg?.image_url || '',
+        language: va.language,
+    })).filter((va: VoiceActor) => va.id && va.name && va.image); // Filter out incomplete VAs
+
+    return {
+        id: item.character.mal_id,
+        name: item.character.name,
+        image: item.character.images?.jpg?.image_url || '',
+        role: item.role,
+        voiceActors: voiceActors,
+    };
+};
+
+/**
+ * Fetches and processes a user's anime list from MyAnimeList via the Jikan API.
+ * @param username The MyAnimeList username.
+ * @returns A promise that resolves to an array of Anime objects.
+ */
+export const fetchMalUserAnimeList = async (username: string): Promise<Anime[]> => {
+    let allAnime: Anime[] = [];
+    let page = 1;
+    let hasMore = true;
+
+    while (hasMore) {
+        // Fetch only 'watching' and 'plan_to_watch' statuses
+        const response = await fetch(`https://api.jikan.moe/v4/users/${username}/animelist?status=watching&status=plan_to_watch&page=${page}`);
+        if (response.status === 429) { // Handle rate limiting
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            continue;
+        }
+        if (!response.ok) {
+            throw new Error(`Failed to fetch MAL list for user "${username}". The user may not exist or their list might be private.`);
+        }
+        
+        const result = await response.json();
+        const mappedData = (result.data || [])
+            .map((item: any) => mapJikanToAnime(item.anime))
+            .filter((anime): anime is Anime => anime !== null);
+        
+        allAnime = [...allAnime, ...mappedData];
+        
+        hasMore = result.pagination?.has_next_page ?? false;
+        page++;
+        if (hasMore) await new Promise(resolve => setTimeout(resolve, 400)); // Respect rate limit
+    }
+
+    return allAnime;
+};
+
+/**
+ * Fetches the latest promotional videos, which serve as "news" or "updates".
+ * @returns A promise that resolves to an array of NewsPromo objects.
+ */
+export const fetchNewsPromos = async (): Promise<NewsPromo[]> => {
+    const response = await fetch(`https://api.jikan.moe/v4/watch/promos`);
+    if (!response.ok) {
+        throw new Error('Failed to fetch latest promos/news.');
+    }
+    const result = await response.json();
+    return result.data || [];
+}
