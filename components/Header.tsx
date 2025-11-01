@@ -158,7 +158,13 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
                   </button>
                   <div className={`origin-top-right absolute right-0 mt-2 w-56 rounded-2xl shadow-lg shadow-[rgb(var(--shadow-color))/0.3] bg-[rgb(var(--surface-2))] border border-white/10 transition-all duration-300 ease-out transform ${isProfileOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'}`}>
                       <div className="p-2 space-y-1" role="menu">
-                        <div className="px-3 py-2 text-sm text-[rgb(var(--text-primary))] font-semibold border-b border-white/10 mb-1">{user.username}</div>
+                        <div className="flex justify-between items-center px-3 py-2 text-sm text-[rgb(var(--text-primary))] font-semibold border-b border-white/10 mb-1">
+                          <span>{user.username}</span>
+                          <span className="flex items-center gap-1 text-yellow-400">
+                            💎
+                            <span>{aniTokens.toLocaleString()}</span>
+                          </span>
+                        </div>
                         <button onClick={() => handleProfileLink('profile')} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] hover:text-[rgb(var(--text-primary))] rounded-lg transition-colors">
                             <UserIcon className="w-5 h-5"/>
                             <span>Profile & Settings</span>
@@ -167,12 +173,9 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
                             <BookmarkIcon className="w-5 h-5"/>
                             <span>Watchlist</span>
                         </button>
-                        <button onClick={() => handleProfileLink('currency')} className="flex items-center justify-between w-full text-left px-3 py-2 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] hover:text-[rgb(var(--text-primary))] rounded-lg transition-colors">
-                            <div className="flex items-center gap-3">
-                                <span className="font-bold text-base">💎</span>
-                                <span>AniTokens</span>
-                            </div>
-                            <span className="font-semibold text-yellow-400">{aniTokens.toLocaleString()}</span>
+                        <button onClick={() => handleProfileLink('currency')} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] hover:text-[rgb(var(--text-primary))] rounded-lg transition-colors">
+                            <span className="font-bold text-base">💎</span>
+                            <span>AniTokens</span>
                         </button>
                          <button onClick={() => handleProfileLink('comment-meter')} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] hover:text-[rgb(var(--text-primary))] rounded-lg transition-colors">
                             <MessageCircleIcon className="w-5 h-5"/>

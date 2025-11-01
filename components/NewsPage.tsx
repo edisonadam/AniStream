@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import type { Anime, NewsPromo } from '../types';
 import { fetchNewsPromos, mapJikanToAnime } from '../api';
@@ -7,6 +6,13 @@ import { PlayIcon } from './icons/Icons';
 interface NewsPageProps {
   onAnimeSelect: (anime: Anime) => void;
 }
+
+const updateLogs = [
+  { version: '1.1.2', date: '2024-07-28', changes: ['Added alphabetical browse feature to home page.', 'Integrated AniTokens display in user profile dropdown.', 'Improved player loading sequence and error handling.', 'Fixed minor CSS bugs on mobile view.'] },
+  { version: '1.1.1', date: '2024-07-25', changes: ['Launched the Community Hub with user posts and clubs directory.', 'User detail modal implemented to view profiles from comments.', 'Enhanced touch-hover effects for better mobile interaction.'] },
+  { version: '1.1.0', date: '2024-07-22', changes: ['Major UI overhaul: new "Liquid Glass" design.', 'Added light mode and multiple color presets.', 'Introduced AniTokens and Comment Meter for community engagement.'] }
+];
+
 
 const NewsPage: React.FC<NewsPageProps> = ({ onAnimeSelect }) => {
   const [promos, setPromos] = useState<NewsPromo[]>([]);
@@ -63,7 +69,7 @@ const NewsPage: React.FC<NewsPageProps> = ({ onAnimeSelect }) => {
     return (match && match[2].length === 11) ? match[2] : null;
   };
 
-  const renderContent = () => {
+  const renderPromosContent = () => {
     if (isLoading) {
       return Array.from({ length: 6 }).map((_, i) => (
         <div key={i} className="bg-[rgb(var(--surface-2))] rounded-2xl animate-pulse">
@@ -118,10 +124,33 @@ const NewsPage: React.FC<NewsPageProps> = ({ onAnimeSelect }) => {
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-subtle-fade-in-up">
       <h1 className="text-3xl font-bold text-[rgb(var(--text-primary))] mb-8" style={{ textShadow: `0 0 8px rgb(var(--shadow-color) / 0.5)` }}>
-        Latest Updates & Promos
+        Updates & Logs
       </h1>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {renderContent()}
+      
+      <div className="mb-16">
+        <h2 className="text-2xl font-bold text-[rgb(var(--color-primary-accent))] mb-6">Update Logs</h2>
+        <div className="space-y-6">
+          {updateLogs.map(log => (
+            <div key={log.version} className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl p-6 rounded-2xl border border-white/10">
+              <div className="flex flex-wrap justify-between items-baseline gap-2">
+                <h3 className="text-xl font-bold text-[rgb(var(--text-primary))]">Version {log.version}</h3>
+                <p className="text-sm text-[rgb(var(--text-muted))]">{log.date}</p>
+              </div>
+              <ul className="list-disc list-inside mt-3 space-y-1 text-[rgb(var(--text-secondary))]">
+                {log.changes.map((change, index) => (
+                  <li key={index}>{change}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+         <h2 className="text-2xl font-bold text-[rgb(var(--color-primary-accent))] mb-6">Latest Promos</h2>
+         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {renderPromosContent()}
+         </div>
       </div>
     </div>
   );

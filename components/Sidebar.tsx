@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Filter, Settings, Page } from '../types';
-import { CloseIcon, UsersIcon, BookOpenIcon, GiftIcon, MoonIcon, SunIcon, HomeIcon, TrendingUpIcon, CalendarIcon, HistoryIcon, InfoIcon, AcademicCapIcon, EyeIcon, EyeOffIcon, MessageCircleIcon, SparklesIcon, ChevronDownIcon, ClipboardIcon, ShieldCheckIcon, HeartIcon, NewspaperIcon, RefreshCwIcon } from './icons/Icons';
+import { CloseIcon, UsersIcon, BookOpenIcon, GiftIcon, MoonIcon, SunIcon, HomeIcon, TrendingUpIcon, CalendarIcon, HistoryIcon, InfoIcon, AcademicCapIcon, EyeIcon, EyeOffIcon, MessageCircleIcon, SparklesIcon, ChevronDownIcon, ClipboardIcon, ShieldCheckIcon, HeartIcon, NewspaperIcon } from './icons/Icons';
 import Logo from './Logo';
 import { ANIME_TYPES, ANIME_STATUSES, YEAR_OPTIONS, LANGUAGE_OPTIONS, STUDIO_OPTIONS, GENRES, TAG_OPTIONS } from '../constants';
 
@@ -125,7 +125,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             <SideButton icon={<TrendingUpIcon />} label="Trending" onClick={() => handleNavigation('trending')} />
             <SideButton icon={<CalendarIcon />} label="Schedule" onClick={() => handleNavigation('schedule')} />
             <SideButton icon={<HistoryIcon />} label="History" onClick={() => handleNavigation('history')} />
-            <SideButton icon={<RefreshCwIcon />} label="Updates" onClick={() => handleNavigation('news')} />
+            <SideButton icon={<InfoIcon />} label="Updates & Logs" onClick={() => handleNavigation('news')} />
           </div>
 
           <div className="p-4 space-y-2 border-b border-white/10">
@@ -152,7 +152,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           <FilterSection title="Status" isOpen={openSections.has('Status')} onToggle={() => toggleSection('Status')}>
             <div className="flex flex-wrap gap-2">{ANIME_STATUSES.map(s => <FilterButton key={s} name={s} isSelected={filters.statuses.includes(s)} onClick={() => handleMultiSelect('statuses', s)} />)}</div>
           </FilterSection>
-          <FilterSection title="MAL Tags" isOpen={openSections.has('MAL Tags')} onToggle={() => toggleSection('MAL Tags')}>
+          <FilterSection title="Tags" isOpen={openSections.has('Tags')} onToggle={() => toggleSection('Tags')}>
             <div className="flex flex-wrap gap-2">{TAG_OPTIONS.map(t => <FilterButton key={t} name={t} isSelected={filters.tags.includes(t)} onClick={() => handleMultiSelect('tags', t)} />)}</div>
           </FilterSection>
           <FilterSection title="Year" isOpen={openSections.has('Year')} onToggle={() => toggleSection('Year')}>
