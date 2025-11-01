@@ -90,6 +90,8 @@ const App: React.FC = () => {
     const homePageScrollPosition = useRef(0);
     const pageBeforePlayerRef = useRef<{page: Page, filters: Filter}>({page: 'home', filters});
     const prevPageRef = useRef<Page | undefined>(undefined);
+    const pageScrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
 
     // CRITICAL FIX: Preloader removal logic.
     useEffect(() => {
@@ -102,6 +104,71 @@ const App: React.FC = () => {
             }, 500); // Must match transition duration
         }
     }, []);
+
+    // Effect for main page scrollbar styling
+    useEffect(() => {
+        const htmlElement = document.documentElement;
+        let isPageHovering = false; // Tracks if the mouse is currently over the page content
+
+        const handlePageScrollActivity = () => {
+            htmlElement.classList.add('active-scroll');
+            if (pageScrollTimeoutRef.current) {
+                clearTimeout(pageScrollTimeoutRef.current);
+            }
+            pageScrollTimeoutRef.current = setTimeout(() => {
+                if (!isPageHovering) { // Only remove if not hovering
+                    htmlElement.classList.remove('active-scroll');
+                }
+            }, 2000); // 2 seconds delay after last scroll activity
+        };
+
+        const handlePageMouseEnter = () => {
+            isPageHovering = true;
+            htmlElement.classList.add('active-scroll');
+            if (pageScrollTimeoutRef.current) {
+                clearTimeout(pageScrollTimeoutRef.current); // Clear any pending hide
+            }
+        };
+
+        const handlePageMouseLeave = () => {
+            isPageHovering = false;
+            // Set a timeout to hide the scrollbar if no further interaction and mouse is truly off
+            if (pageScrollTimeoutRef.current) {
+                clearTimeout(pageScrollTimeoutRef.current);
+            }
+            pageScrollTimeoutRef.current = setTimeout(() => {
+                if (!htmlElement.matches(':hover')) { // Double-check if mouse is truly gone
+                    htmlElement.classList.remove('active-scroll');
+                }
+            }, 500); // Shorter delay to fade out quickly if mouse leaves
+        };
+
+        // Attach event listeners for window scroll and html element hover
+        window.addEventListener('scroll', handlePageScrollActivity, { passive: true });
+        htmlElement.addEventListener('mouseenter', handlePageMouseEnter);
+        htmlElement.addEventListener('mouseleave', handlePageMouseLeave);
+
+        // Initial check: if the page is already scrolled, show the scrollbar immediately
+        if (window.scrollY > 0) {
+            htmlElement.classList.add('active-scroll');
+            // Set a timeout to hide it if no further interaction
+            pageScrollTimeoutRef.current = setTimeout(() => {
+                if (!isPageHovering) {
+                    htmlElement.classList.remove('active-scroll');
+                }
+            }, 2000);
+        }
+
+        return () => {
+            // Cleanup: remove all event listeners and clear any pending timeouts
+            window.removeEventListener('scroll', handlePageScrollActivity);
+            htmlElement.removeEventListener('mouseenter', handlePageMouseEnter);
+            htmlElement.removeEventListener('mouseleave', handlePageMouseLeave);
+            if (pageScrollTimeoutRef.current) {
+                clearTimeout(pageScrollTimeoutRef.current);
+            }
+        };
+    }, []); // Empty dependency array ensures this effect runs once on mount and cleans up on unmount
 
 
     // Content Protection

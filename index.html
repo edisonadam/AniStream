@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark" data-color-preset="abyssal-blue">
+<html lang="en" data-theme="dark" data-color-preset="abyssal-blue" class="scroll-fade-container">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
@@ -154,14 +154,11 @@
         transition-delay: 0s;
       }
 
-      /* Hover over the thumb itself */
-      ::-webkit-scrollbar-thumb:hover {
-        background: var(--scrollbar-thumb-hover);
-        opacity: 1;
-        transition-delay: 0s;
+      html { 
+        scroll-behavior: smooth; 
+        scrollbar-width: thin; /* For Firefox */
+        scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track); /* For Firefox */
       }
-
-      html { scroll-behavior: smooth; }
       body {
         font-family: 'Inter', sans-serif;
         background-color: rgb(var(--bg-gradient-start));
