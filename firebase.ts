@@ -1,9 +1,11 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
+import { getDatabase } from "firebase/database";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBAOfPGLgDUMKS-joXJdYX8kVIORODnuSg",
   authDomain: "anistream-c79ed.firebaseapp.com",
+  databaseURL: "https://anistream-c79ed-default-rtdb.firebaseio.com",
   projectId: "anistream-c79ed",
   storageBucket: "anistream-c79ed.appspot.com",
   messagingSenderId: "68995428871",
@@ -13,3 +15,4 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+export const db = getDatabase(app);

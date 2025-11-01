@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import type { Filter, Settings, Page } from '../types';
 import { CloseIcon, UsersIcon, BookOpenIcon, GiftIcon, MoonIcon, SunIcon, HomeIcon, TrendingUpIcon, CalendarIcon, HistoryIcon, InfoIcon, AcademicCapIcon, EyeIcon, EyeOffIcon, MessageCircleIcon, LevelUpIcon, ChevronDownIcon, ClipboardIcon, ShieldCheckIcon, HeartIcon, NewspaperIcon } from './icons/Icons';
 import Logo from './Logo';
@@ -27,8 +28,8 @@ const SideButton: React.FC<{ icon: React.ReactNode; label: string; onClick: () =
     </button>
 );
 
-const FilterSection: React.FC<{ title: string; children: React.ReactNode; isOpen: boolean; onToggle: () => void; }> = ({ title, children, isOpen, onToggle }) => (
-    <div className="py-2 border-b border-white/10">
+const FilterSection: React.FC<{ title: string; children: React.ReactNode; isOpen: boolean; onToggle: () => void; sectionRef: React.Ref<HTMLDivElement>; }> = ({ title, children, isOpen, onToggle, sectionRef }) => (
+    <div ref={sectionRef} className="py-2 border-b border-white/10">
       <button onClick={onToggle} className="w-full flex justify-between items-center font-semibold text-lg text-[rgb(var(--text-primary))] px-4 py-2 hover:bg-[rgb(var(--surface-3))/0.5] transition-colors rounded-md">
         <span>{title}</span>
         <ChevronDownIcon className={`w-5 h-5 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
@@ -48,14 +49,31 @@ const Sidebar: React.FC<SidebarProps> = ({
     settings, updateSettings, isLoggedIn, onLoginClick
 }) => {
   const [openSections, setOpenSections] = useState<Set<string>>(new Set(['Genres', 'Type']));
+  const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({}); // Store refs
+
+  const [isScrollActive, setIsScrollActive] = useState(false);
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scrollableContentRef = useRef<HTMLDivElement>(null);
 
   const toggleSection = (title: string) => {
       setOpenSections(prev => {
           const newSet = new Set(prev);
-          if (newSet.has(title)) {
-              newSet.delete(title);
-          } else {
+          const willOpen = !newSet.has(title);
+
+          if (willOpen) {
               newSet.add(title);
+          } else {
+              newSet.delete(title);
+          }
+          
+          if (willOpen) {
+            // Give DOM a moment to render the expanded content before scrolling
+            setTimeout(() => {
+              const element = sectionRefs.current[title];
+              if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+              }
+            }, 350); // Match or slightly exceed the CSS transition duration
           }
           return newSet;
       });
@@ -101,67 +119,110 @@ const Sidebar: React.FC<SidebarProps> = ({
     </button>
   );
 
+  const handleScrollActivity = useCallback(() => {
+    setIsScrollActive(true);
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+    scrollTimeoutRef.current = setTimeout(() => {
+      setIsScrollActive(false);
+    }, 2000); // 2 seconds delay
+  }, []);
+
+  useEffect(() => {
+    const scrollElement = scrollableContentRef.current;
+    if (scrollElement) {
+      scrollElement.addEventListener('scroll', handleScrollActivity, { passive: true });
+      scrollElement.addEventListener('mouseenter', handleScrollActivity);
+      scrollElement.addEventListener('mouseleave', () => {
+        if (scrollTimeoutRef.current) {
+          clearTimeout(scrollTimeoutRef.current);
+        }
+        scrollTimeoutRef.current = setTimeout(() => {
+          setIsScrollActive(false);
+        }, 500); // Shorter delay to fade out quickly if mouse leaves
+      });
+    }
+
+    return () => {
+      if (scrollElement) {
+        scrollElement.removeEventListener('scroll', handleScrollActivity);
+        scrollElement.removeEventListener('mouseenter', handleScrollActivity);
+        scrollElement.removeEventListener('mouseleave', () => {
+          if (scrollTimeoutRef.current) {
+            clearTimeout(scrollTimeoutRef.current);
+          }
+          setIsScrollActive(false); // Immediately hide on unmount/cleanup
+        });
+      }
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, [handleScrollActivity]);
+
   return (
     <>
       <div
-        className={`fixed inset-0 bg-black/60 z-40 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        className={`fixed inset-0 bg-black/60 z-40 transition-opacity duration-300 lg:hidden ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         onClick={onClose}
       />
       <aside
-        className={`fixed top-0 left-0 h-full w-72 sm:w-80 bg-[rgb(var(--surface-1))/0.7] backdrop-blur-2xl border-r border-white/10 z-50 transform transition-transform duration-300 ease-in-out flex flex-col ${
+        className={`fixed top-0 left-0 w-72 sm:w-80 bg-[rgb(var(--surface-1))/0.7] backdrop-blur-2xl border-r border-white/10 z-50 transform transition-transform duration-300 ease-in-out ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        } lg:translate-x-0 lg:flex-shrink-0 h-screen flex flex-col`}
       >
-        <div className="flex-shrink-0 flex justify-between items-center p-4 border-b border-white/10 h-[65px]">
+        <div className="lg:hidden flex-shrink-0 flex justify-between items-center p-4 border-b border-white/10">
           <Logo onClick={handleGoHome} />
           <button onClick={onClose} className="text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))]">
             <CloseIcon />
           </button>
         </div>
         
-        <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
-          <div className="p-4 space-y-2 border-b border-white/10">
-            <SideButton icon={<HomeIcon />} label="Home" onClick={handleGoHome} />
-            <SideButton icon={<TrendingUpIcon />} label="Trending" onClick={() => handleNavigation('trending')} />
-            <SideButton icon={<CalendarIcon />} label="Schedule" onClick={() => handleNavigation('schedule')} />
-            <SideButton icon={<HistoryIcon />} label="History" onClick={() => handleNavigation('history')} />
-            <SideButton icon={<InfoIcon />} label="Updates & Logs" onClick={() => handleNavigation('news')} />
-          </div>
+        <div ref={scrollableContentRef} className={`flex-1 overflow-y-auto scroll-fade-container ${isScrollActive ? 'active-scroll' : ''}`} style={{ scrollbarWidth: 'thin' }}>
+            <div className="p-4 space-y-2 border-b border-white/10">
+              <SideButton icon={<HomeIcon />} label="Home" onClick={handleGoHome} />
+              <SideButton icon={<TrendingUpIcon />} label="Trending" onClick={() => handleNavigation('trending')} />
+              <SideButton icon={<CalendarIcon />} label="Schedule" onClick={() => handleNavigation('schedule')} />
+              <SideButton icon={<HistoryIcon />} label="History" onClick={() => handleNavigation('history')} />
+              <SideButton icon={<InfoIcon />} label="Updates & Logs" onClick={() => handleNavigation('news')} />
+            </div>
 
-          <div className="p-4 space-y-2 border-b border-white/10">
-            <SideButton icon={<BookOpenIcon />} label="Manga" onClick={() => handleNavigation('manga')} />
-            <SideButton icon={<AcademicCapIcon />} label="For Beginners" onClick={() => handleNavigation('beginners')} />
-            <SideButton icon={<GiftIcon />} label="Surprise Me!" onClick={onSurpriseMe} />
-            <SideButton icon={<MessageCircleIcon />} label="Community Hub" onClick={() => handleNavigation('community')} />
-             {isLoggedIn && <SideButton icon={<LevelUpIcon />} label="Level Up" onClick={() => handleNavigation('comment-meter')} />}
-            <SideButton icon={<NewspaperIcon />} label="Magazines" onClick={() => handleNavigation('magazines')} />
-          </div>
-
-          <div className="p-4 space-y-2 border-b border-white/10">
-            <SideButton icon={<InfoIcon />} label="About Us" onClick={() => handleNavigation('about')} />
-            <SideButton icon={<ClipboardIcon />} label="Rules" onClick={() => handleNavigation('rules')} />
-            <SideButton icon={<HeartIcon />} label="Donation" onClick={() => handleNavigation('donation')} />
-          </div>
-          
-          <FilterSection title="Genres" isOpen={openSections.has('Genres')} onToggle={() => toggleSection('Genres')}>
+            <div className="p-4 space-y-2 border-b border-white/10">
+              <SideButton icon={<BookOpenIcon />} label="Manga" onClick={() => handleNavigation('manga')} />
+              <SideButton icon={<AcademicCapIcon />} label="For Beginners" onClick={() => handleNavigation('beginners')} />
+              <SideButton icon={<GiftIcon />} label="Surprise Me!" onClick={onSurpriseMe} />
+              <SideButton icon={<MessageCircleIcon />} label="Community Hub" onClick={() => handleNavigation('community')} />
+              <SideButton icon={<UsersIcon />} label="Watch2Gether" onClick={() => window.open('https://w2g.tv/', '_blank', 'noopener,noreferrer')} />
+              {isLoggedIn && <SideButton icon={<LevelUpIcon />} label="Level Up" onClick={() => handleNavigation('comment-meter')} />}
+              <SideButton icon={<NewspaperIcon />} label="Magazines" onClick={() => handleNavigation('magazines')} />
+            </div>
+            
+            <div className="p-4 space-y-2 border-b border-white/10">
+              <SideButton icon={<InfoIcon />} label="About Us" onClick={() => handleNavigation('about')} />
+              <SideButton icon={<ClipboardIcon />} label="Rules" onClick={() => handleNavigation('rules')} />
+              <SideButton icon={<HeartIcon />} label="Donation" onClick={() => handleNavigation('donation')} />
+            </div>
+       
+          <FilterSection title="Genres" isOpen={openSections.has('Genres')} onToggle={() => toggleSection('Genres')} sectionRef={(el) => (sectionRefs.current['Genres'] = el)}>
             <div className="flex flex-wrap gap-2">{GENRES.map(g => <FilterButton key={g} name={g} isSelected={filters.genres.includes(g)} onClick={() => handleMultiSelect('genres', g)} />)}</div>
           </FilterSection>
-          <FilterSection title="Type" isOpen={openSections.has('Type')} onToggle={() => toggleSection('Type')}>
+          <FilterSection title="Type" isOpen={openSections.has('Type')} onToggle={() => toggleSection('Type')} sectionRef={(el) => (sectionRefs.current['Type'] = el)}>
             <div className="flex flex-wrap gap-2">{ANIME_TYPES.map(t => <FilterButton key={t} name={t} isSelected={filters.types.includes(t)} onClick={() => handleMultiSelect('types', t)} />)}</div>
           </FilterSection>
-          <FilterSection title="Status" isOpen={openSections.has('Status')} onToggle={() => toggleSection('Status')}>
+          <FilterSection title="Status" isOpen={openSections.has('Status')} onToggle={() => toggleSection('Status')} sectionRef={(el) => (sectionRefs.current['Status'] = el)}>
             <div className="flex flex-wrap gap-2">{ANIME_STATUSES.map(s => <FilterButton key={s} name={s} isSelected={filters.statuses.includes(s)} onClick={() => handleMultiSelect('statuses', s)} />)}</div>
           </FilterSection>
-          <FilterSection title="Tags" isOpen={openSections.has('Tags')} onToggle={() => toggleSection('Tags')}>
+          <FilterSection title="Tags" isOpen={openSections.has('Tags')} onToggle={() => toggleSection('Tags')} sectionRef={(el) => (sectionRefs.current['Tags'] = el)}>
             <div className="flex flex-wrap gap-2">{TAG_OPTIONS.map(t => <FilterButton key={t} name={t} isSelected={filters.tags.includes(t)} onClick={() => handleMultiSelect('tags', t)} />)}</div>
           </FilterSection>
-          <FilterSection title="Year" isOpen={openSections.has('Year')} onToggle={() => toggleSection('Year')}>
+          <FilterSection title="Year" isOpen={openSections.has('Year')} onToggle={() => toggleSection('Year')} sectionRef={(el) => (sectionRefs.current['Year'] = el)}>
             <div className="flex flex-wrap gap-2">{YEAR_OPTIONS.map(y => <FilterButton key={y} name={y} isSelected={filters.years.includes(y)} onClick={() => handleMultiSelect('years', y)} />)}</div>
           </FilterSection>
-          <FilterSection title="Language" isOpen={openSections.has('Language')} onToggle={() => toggleSection('Language')}>
+          <FilterSection title="Language" isOpen={openSections.has('Language')} onToggle={() => toggleSection('Language')} sectionRef={(el) => (sectionRefs.current['Language'] = el)}>
             <div className="flex flex-wrap gap-2">{LANGUAGE_OPTIONS.map(l => <FilterButton key={l} name={l} isSelected={filters.languages.includes(l)} onClick={() => handleMultiSelect('languages', l)} />)}</div>
           </FilterSection>
-          <FilterSection title="Studio" isOpen={openSections.has('Studio')} onToggle={() => toggleSection('Studio')}>
+          <FilterSection title="Studio" isOpen={openSections.has('Studio')} onToggle={() => toggleSection('Studio')} sectionRef={(el) => (sectionRefs.current['Studio'] = el)}>
             <div className="flex flex-wrap gap-2">{STUDIO_OPTIONS.map(s => <FilterButton key={s} name={s} isSelected={filters.studios.includes(s)} onClick={() => handleMultiSelect('studios', s)} />)}</div>
           </FilterSection>
         </div>

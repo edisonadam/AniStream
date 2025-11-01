@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark" data-color-preset="abyssal-blue">
   <head>
-    <meta charset="UTF-g" />
+    <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ANISTREAM - Your Anime Universe</title>
@@ -32,6 +32,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/artplayer/dist/skin/default.css">
     <style>
       :root, :root[data-color-preset="abyssal-blue"] {
         /* THEME: Abyssal Blue (Default) */
@@ -132,8 +133,33 @@
       /* Base Scrollbar */
       ::-webkit-scrollbar { width: 8px; }
       ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
-      ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
-      ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+      
+      /* Default hidden state for the thumb */
+      ::-webkit-scrollbar-thumb {
+        background: var(--scrollbar-thumb);
+        border-radius: 4px;
+        opacity: 0; /* Initially hidden */
+        transition: opacity 0.5s ease-out; /* Smooth transition for hiding/showing */
+      }
+
+      /* Always visible on hover over the scrollable area */
+      .scroll-fade-container:hover::-webkit-scrollbar-thumb {
+        opacity: 1;
+        transition-delay: 0s; /* Show immediately on hover */
+      }
+
+      /* Programmatically visible (e.g., during scroll activity) */
+      .scroll-fade-container.active-scroll::-webkit-scrollbar-thumb {
+        opacity: 1;
+        transition-delay: 0s;
+      }
+
+      /* Hover over the thumb itself */
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--scrollbar-thumb-hover);
+        opacity: 1;
+        transition-delay: 0s;
+      }
 
       html { scroll-behavior: smooth; }
       body {
@@ -186,6 +212,13 @@
         animation: subtle-fade-in-up 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         animation-fill-mode: both;
       }
+      @keyframes modal-pop-in {
+        from { opacity: 0; transform: translateY(40px) scale(0.95); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+      .animate-modal-pop-in {
+        animation: modal-pop-in 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+      }
       @keyframes ken-burns-slow {
         0% { transform: scale(1) translate(0, 0); }
         100% { transform: scale(1.05) translate(-2%, 1%); }
@@ -232,6 +265,17 @@
       }
       @keyframes spin { to { transform: rotate(360deg); } }
 
+      /* Modal Zoom Effect */
+      #root {
+        transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), filter 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        will-change: transform, filter;
+      }
+      body.modal-zoom-effect-active #root {
+        transform: scale(0.92);
+        filter: blur(4px) brightness(0.7);
+        pointer-events: none;
+      }
+
       /* Touch Hover Enhancement */
       .anime-card-touch-target.touch-hover {
         transform: scale(1.05);
@@ -272,14 +316,16 @@
     "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "react": "https://aistudiocdn.com/react@^19.2.0",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react-dom": "https://aistudiocdn.com/react-dom@^19.2.0",
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.27.0",
     "firebase/app": "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
     "firebase/auth": "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
+    "firebase/database": "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js",
     "firebase/": "https://aistudiocdn.com/firebase@^12.5.0/"
   }
 }
 </script>
-<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<script src="https://cdn.jsdelivr.net/npm/artplayer/dist/artplayer.js"></script>
 </head>
   <body>
     <div id="preloader">
@@ -287,6 +333,8 @@
       <div class="spinner"></div>
     </div>
     <div id="root"></div>
+    <div id="modal-root"></div>
+    <div id="sidebar-root"></div>
     <script type="module" src="/index.tsx"></script>
     <script>
       if ('serviceWorker' in navigator) {

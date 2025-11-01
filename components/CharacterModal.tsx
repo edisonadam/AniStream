@@ -56,11 +56,9 @@ const CharacterModal: React.FC<CharacterModalProps> = ({ character, onClose }) =
   }, [character.id, character]);
 
   useEffect(() => {
-    document.body.classList.add('has-modal'); // Add a class to signify a modal is open, without locking scroll
     const handleEsc = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', handleEsc);
     return () => {
-      document.body.classList.remove('has-modal'); // Clean up the class on unmount
       window.removeEventListener('keydown', handleEsc);
     };
   }, [onClose]);
@@ -147,8 +145,8 @@ const CharacterModal: React.FC<CharacterModalProps> = ({ character, onClose }) =
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center animate-cinematic-fade-in" onClick={onClose}>
-      <div className="bg-[rgb(var(--surface-2))/0.8] backdrop-blur-2xl border border-white/10 rounded-3xl w-[90%] max-w-3xl max-h-[90vh] relative flex flex-col animate-subtle-fade-in-up" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center animate-cinematic-fade-in p-4" onClick={onClose}>
+      <div className="bg-[rgb(var(--surface-2))/0.8] backdrop-blur-2xl border border-white/10 rounded-3xl w-full max-w-3xl max-h-[90vh] relative flex flex-col animate-modal-pop-in" onClick={e => e.stopPropagation()}>
         <div className="flex-shrink-0 p-4 border-b border-white/10 flex justify-between items-center">
           <h3 className="text-xl font-bold text-[rgb(var(--text-primary))]">Character Details</h3>
           <button onClick={onClose} className="text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))]">

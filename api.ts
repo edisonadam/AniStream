@@ -1,4 +1,4 @@
-import type { Anime, Character, VoiceActor, VideoServer, NewsPromo, Manga } from './types';
+import type { Anime, Character, VoiceActor, VideoServer, NewsPromo, Manga, WatchlistStatus } from './types';
 
 /**
  * A wrapper for the fetch API that includes automatic retries on rate limiting (429) or network errors.
@@ -94,7 +94,9 @@ export const buildSourceUrl = (
         
         // Vidk and Plyr family (using a common 2embed pattern)
         case 'vidk':
-        case 'plyr': {
+        case 'plyr':
+        case '2embed':
+        case 'multiembed': {
             const domain = server === 'vidk' ? 'vidsrc.to' : 'multiembed.mov';
             if (mediaType === 'tv' && season !== undefined && episode !== undefined) {
                 return `https://${domain}/embed/tv?tmdb=${tmdbId}&s=${season}&e=${episode}${queryString.replace('?','&')}`;
@@ -107,9 +109,15 @@ export const buildSourceUrl = (
 
         // Generic embed-api family (default/fallback)
         case 'kiwi':
-        case 'videembed':
+        case 'vidembed':
         case 'vidbinge':
         case 'animepahe':
+        case 'mappletv':
+        case 'vidlink':
+        case 'primewire':
+        case 'embedsu':
+        case 'autoembed':
+        case 'movieapi':
         default: {
             const url = new URL('https://player.embed-api.stream/');
             url.searchParams.set('id', tmdbId.toString());
@@ -298,6 +306,8 @@ export const fetchNewsPromos = async (): Promise<NewsPromo[]> => {
 
 const ANILIST_API_URL = 'https://graphql.anilist.co';
 
+type MediaListStatus = 'CURRENT' | 'PLANNING' | 'COMPLETED' | 'DROPPED' | 'PAUSED' | 'REPEATING';
+
 async function fetchAnilist(query: string, variables: object, token?: string) {
     const headers: HeadersInit = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
     if (token) {
@@ -403,6 +413,57 @@ export const getAnilistId = async (malId: number): Promise<number | null> => {
     }
 };
 
+const mapToAnilistStatus = (status: WatchlistStatus): MediaListStatus => {
+    switch(status) {
+        case 'Watching': return 'CURRENT';
+        case 'Plan to Watch': return 'PLANNING';
+        case 'Completed': return 'COMPLETED';
+        case 'Dropped': return 'DROPPED';
+        case 'On-Hold': return 'PAUSED';
+        default: return 'PLANNING';
+    }
+};
+
+export const updateAnilistEntry = async (
+    malId: number,
+    token: string,
+    data: { status?: WatchlistStatus, progress?: number }
+): Promise<void> => {
+    if (!token || (!data.status && data.progress === undefined)) return;
+
+    const anilistId = await getAnilistId(malId);
+    if (!anilistId) {
+        console.warn(`Could not find AniList ID for MAL ID ${malId} to sync.`);
+        return;
+    }
+
+    const mutation = `
+        mutation ($mediaId: Int, $status: MediaListStatus, $progress: Int) {
+            SaveMediaListEntry(mediaId: $mediaId, status: $status, progress: $progress) {
+                id
+                status
+                progress
+            }
+        }
+    `;
+
+    const variables: { mediaId: number; status?: MediaListStatus; progress?: number } = { mediaId: anilistId };
+    if (data.status) {
+        variables.status = mapToAnilistStatus(data.status);
+    }
+    if (data.progress !== undefined) {
+        variables.progress = data.progress;
+    }
+
+    try {
+        await fetchAnilist(mutation, variables, token);
+        console.log(`Synced data to AniList for anime ${malId}:`, data);
+    } catch (error) {
+        console.error("Failed to sync data to AniList", error);
+    }
+};
+
+// Maintained for backward compatibility for now
 export const updateAnilistProgress = async (anilistId: number, episode: number, token: string): Promise<void> => {
     const mutation = `
         mutation ($mediaId: Int, $progress: Int) {

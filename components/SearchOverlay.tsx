@@ -129,15 +129,12 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose, onAnimeSelect, o
                     <li key={anime.id} onClick={() => handleSelect(anime)} className="flex items-center gap-4 p-3 rounded-2xl cursor-pointer hover:bg-[rgb(var(--color-primary))/0.3] transition-colors">
                         <div className="relative flex-shrink-0 w-12 h-16 bg-[rgb(var(--surface-3))] rounded-lg overflow-hidden">
                             <img src={anime.thumbnail} alt={getDisplayTitle(anime, settings)} className="w-full h-full object-cover" />
-                            <div className="absolute top-1 left-1 flex flex-col items-start gap-1 z-10">
-                                {anime.isAdult && <span className="px-1 py-0.5 text-[9px] font-bold rounded-sm bg-black/50 text-white backdrop-blur-md">+18</span>}
-                                {anime.type && <span className="px-1 py-0.5 text-[9px] font-bold rounded-sm bg-black/50 text-white backdrop-blur-md">{anime.type.toUpperCase()}</span>}
-                            </div>
                         </div>
                         <div className="flex-1 min-w-0">
                             <p className="font-semibold text-[rgb(var(--text-primary))] truncate">{getDisplayTitle(anime, settings)}</p>
                             <div className="flex items-center gap-1.5 text-xs text-[rgb(var(--text-muted))] mt-1">
-                                {anime.releaseYear && <span>{anime.releaseYear} • </span>}
+                                {anime.releaseYear && <span>{anime.releaseYear}</span>}
+                                {anime.type && <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-sm bg-black/50 text-white backdrop-blur-md">{anime.type.toUpperCase()}</span>}
                                 {(anime.hasSub || anime.hasDub) && (
                                     <span className={`px-1.5 py-0.5 text-[10px] font-bold rounded-full text-white ${
                                         anime.hasSub && anime.hasDub

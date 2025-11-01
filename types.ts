@@ -64,7 +64,7 @@ export interface Filter {
   letter?: string;
 }
 
-export type VideoServer = 'kiwi' | 'jet' | 'telli' | 'hop' | 'izy' | 'bee' | 'bun_kuz' | 'embed-api' | 'vidsrc' | 'vidsrc-pk' | 'vidbinge' | 'animepahe' | 'videembed' | 'bun' | 'kuz' | 'vidk' | 'plyr';
+export type VideoServer = 'kiwi' | 'jet' | 'telli' | 'hop' | 'izy' | 'bee' | 'bun_kuz' | 'embed-api' | 'vidsrc' | 'vidsrc-pk' | 'vidbinge' | 'animepahe' | 'vidembed' | 'bun' | 'kuz' | 'vidk' | 'plyr' | 'mappletv' | 'vidlink' | 'primewire' | 'embedsu' | 'multiembed' | 'autoembed' | '2embed' | 'movieapi';
 
 export interface Season {
   season_number: number;
@@ -114,10 +114,11 @@ export interface Comment {
 
 export type Theme = 'light' | 'dark';
 export type ColorPreset = 'abyssal-blue' | 'violet-fusion' | 'cyber-cyan' | 'sunset-orange';
-export type EpisodeViewStyle = 'auto' | 'default' | 'compact' | 'grid';
+export type EpisodeViewStyle = 'compact' | 'grid' | 'horizontal';
 export type DefaultLanguage = 'sub' | 'dub' | 'ssub';
-export type Page = 'home' | 'player' | 'profile' | 'club-detail' | 'magazines' | 'trending' | 'schedule' | 'history' | 'news' | 'manga' | 'beginners' | 'search' | 'community' | 'comment-meter' | 'currency' | 'about' | 'rules' | 'donation';
+export type Page = 'home' | 'player' | 'profile' | 'club-detail' | 'magazines' | 'trending' | 'schedule' | 'history' | 'news' | 'manga' | 'beginners' | 'search' | 'community' | 'comment-meter' | 'currency' | 'about' | 'rules' | 'donation' | 'watch-together';
 
+export type WatchlistStatus = 'Watching' | 'Completed' | 'On-Hold' | 'Dropped' | 'Plan to Watch';
 
 export interface Settings {
   theme: Theme;
@@ -137,6 +138,10 @@ export interface Settings {
   showComments: boolean;
   defaultLanguage: DefaultLanguage;
   loadMoreMode: 'auto' | 'manual';
+  hideFillerEpisodes: boolean;
+  rememberVolume: boolean;
+  rememberPlaybackSpeed: boolean;
+  showSeekThumbnails: boolean;
 }
 
 export interface WatchProgressInfo {
@@ -264,4 +269,28 @@ export interface CommunityPost {
   user: CommunityUser;
   text: string;
   timestamp: number;
+}
+
+// Watch Together Types
+export interface PlayerState {
+  isPlaying: boolean;
+  currentTime: number;
+  timestamp: number;
+}
+
+export interface ChatMessage {
+  id: string;
+  user: { uid: string; username: string; avatar: string; };
+  text: string;
+  timestamp: number;
+}
+
+export interface Room {
+  hostId: string;
+  animeId: number;
+  currentSeason: number;
+  currentEpisode: number;
+  playerState: PlayerState;
+  participants: Record<string, { username: string; avatar: string }>;
+  chat: Record<string, ChatMessage>;
 }

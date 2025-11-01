@@ -31,21 +31,11 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
   const { settings } = useSettings();
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
   
   const notificationRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
   const unreadCount = notifications.filter(n => !n.read).length;
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll();
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
 
   const handleClickOutside = (event: MouseEvent) => {
     if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) setIsNotificationOpen(false);
@@ -80,7 +70,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
   }
 
   return (
-    <header className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${isScrolled ? 'bg-[rgb(var(--surface-1))/0.9] backdrop-blur-xl border-b border-[rgb(var(--border-color))] shadow-lg' : 'bg-[rgb(var(--surface-1))/0.5] backdrop-blur-xl border-b border-transparent'}`}>
+    <header className="sticky top-0 z-50 bg-[rgb(var(--surface-1))/0.9] backdrop-blur-xl border-b border-[rgb(var(--border-color))] shadow-lg">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           {/* Left Section */}

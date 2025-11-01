@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
+import ReactDOM from 'react-dom'; // Import ReactDOM
 import type { Anime, Club, Filter, Notification, Settings, Page, User } from './types';
 import { useSettings } from './hooks/useSettings';
 import { mapJikanToAnime, fetchWithRetry } from './api';
@@ -38,6 +39,7 @@ import AboutPage from './components/AboutPage';
 import RulesPage from './components/RulesPage';
 import DonationPage from './components/DonationPage';
 import AlphabeticalBrowse from './components/AlphabeticalBrowse';
+import WatchTogetherPage from './components/WatchTogetherPage';
 
 const ANIME_PAGE_SIZE = 25;
 
@@ -47,6 +49,7 @@ const App: React.FC = () => {
     const [selectedClub, setSelectedClub] = useState<Club | null>(null);
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [isUserDetailModalOpen, setIsUserDetailModalOpen] = useState(false);
+    const [watchTogetherRoomId, setWatchTogetherRoomId] = useState<string | null>(null);
 
     // State for carousels and grids
     const [featuredAnime, setFeaturedAnime] = useState<Anime[]>([]);
@@ -73,6 +76,11 @@ const App: React.FC = () => {
     const [isLoginOpen, setIsLoginOpen] = useState(false);
     const [loginReason, setLoginReason] = useState<string | null>(null);
     const [isWatchlistOpen, setIsWatchlistOpen] = useState(false);
+
+    // Embed Mode State
+    const [isEmbedMode, setIsEmbedMode] = useState(false);
+    const [embedAnime, setEmbedAnime] = useState<Anime | null>(null);
+    const [isEmbedLoading, setIsEmbedLoading] = useState(false);
 
     const { settings, updateSettings } = useSettings();
     const { isLoggedIn } = useAuth();
@@ -131,18 +139,66 @@ const App: React.FC = () => {
         setPage('home');
         setSelectedAnime(null);
         setSelectedClub(null);
+        setWatchTogetherRoomId(null);
+        window.history.pushState({}, '', window.location.pathname);
     }, [handleResetFilters]);
 
     const navigateTo = useCallback((newPage: Page) => {
-        if (page !== 'player' && page !== 'profile' && page !== 'club-detail') {
+        if (page !== 'player' && page !== 'profile' && page !== 'club-detail' && page !== 'watch-together') {
             homePageScrollPosition.current = window.scrollY;
         }
         setPage(newPage);
     }, [page]);
+
+    const handleEnterRoom = (roomId: string) => {
+        setWatchTogetherRoomId(roomId);
+        setPage('watch-together');
+        const url = new URL(window.location.href);
+        url.searchParams.set('room', roomId);
+        window.history.pushState({}, '', url);
+    };
     
-    // This effect handles URL parameters for PWA shortcuts.
+    // This effect handles URL parameters for PWA shortcuts and embed mode.
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
+        
+        // Check for Watch Together room
+        const roomParam = urlParams.get('room');
+        if (roomParam) {
+            handleEnterRoom(roomParam);
+            return;
+        }
+
+        // Check for embed mode first
+        const embedParam = urlParams.get('embed');
+        const animeIdParam = urlParams.get('animeId');
+
+        if (embedParam === 'true' && animeIdParam) {
+            setIsEmbedMode(true);
+            setIsEmbedLoading(true);
+
+            const fetchEmbedAnime = async () => {
+                try {
+                    const res = await fetchWithRetry(`https://api.jikan.moe/v4/anime/${animeIdParam}/full`);
+                    if (!res.ok) throw new Error('Failed to fetch anime for embed');
+                    const data = await res.json();
+                    const mapped = mapJikanToAnime(data.data);
+                    if (mapped) {
+                        setEmbedAnime(mapped);
+                    } else {
+                        throw new Error('Could not process anime data for embed');
+                    }
+                } catch (error) {
+                    console.error(error);
+                } finally {
+                    setIsEmbedLoading(false);
+                }
+            };
+            fetchEmbedAnime();
+            return; // Exit early if in embed mode
+        }
+
+
         const pageParam = urlParams.get('page') as Page;
         const validPages: Page[] = ['trending', 'schedule', 'history', 'news', 'manga', 'community', 'beginners', 'comment-meter', 'magazines', 'currency', 'about', 'rules', 'donation'];
 
@@ -170,6 +226,7 @@ const App: React.FC = () => {
 
     const goBackFromPlayer = useCallback(() => {
         setSelectedAnime(null);
+        setFilters(pageBeforePlayerRef.current.filters);
         setPage(pageBeforePlayerRef.current.page);
     }, []);
 
@@ -249,6 +306,7 @@ const App: React.FC = () => {
             setIsGridLoading(true);
             setPreloadedData(null);
         } else {
+            // Fix: Corrected the state setter from `setIsLoading` to `setIsLoadingMore` for loading more grid data.
             setIsLoadingMore(true);
         }
     
@@ -351,12 +409,23 @@ const App: React.FC = () => {
     }, [filters]);
 
     useEffect(() => {
-        if (page !== 'player') {
+        if (page !== 'player' && page !== 'watch-together') {
             setGridAnime([]);
             fetchJikanGridData(1, filters, true);
         }
     }, [filters, fetchJikanGridData, page]);
     
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth >= 1024) { // lg breakpoint
+                setIsSidebarOpen(false);
+            }
+        };
+        window.addEventListener('resize', handleResize);
+        handleResize(); // Initial check
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
     useEffect(() => {
         if (isSidebarOpen) document.body.classList.add('body-no-scroll');
         else document.body.classList.remove('body-no-scroll');
@@ -542,7 +611,8 @@ const App: React.FC = () => {
     
     const pageContent = useMemo(() => {
         switch(page) {
-            case 'player': return selectedAnime && <Player anime={selectedAnime} onGoBack={goBackFromPlayer} onSelectRelated={handleAnimeSelect} allAnime={allAnime} onGenreSelect={handleGenreSelect} onUserSelect={handleUserSelect} />;
+            case 'player': return selectedAnime && <Player anime={selectedAnime} onGoBack={goBackFromPlayer} onSelectRelated={handleAnimeSelect} allAnime={allAnime} onGenreSelect={handleGenreSelect} onUserSelect={handleUserSelect} onEnterRoom={handleEnterRoom} />;
+            case 'watch-together': return watchTogetherRoomId && <WatchTogetherPage roomId={watchTogetherRoomId} onExit={goHome} />;
             case 'profile': return <ProfilePage onGoBack={goHome} allAnime={allAnime} onSelectAnime={handleAnimeSelect} />;
             case 'club-detail': return selectedClub && <ClubDetailPage club={selectedClub} onGoBack={() => navigateTo('community')} onSelectAnime={handleAnimeSelect} />;
             case 'magazines': return <MagazinesPage onGoBack={goHome} />;
@@ -603,11 +673,30 @@ const App: React.FC = () => {
                 );
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [page, hasActiveFilters, isCarouselLoading, isGridLoading, isLoadingMore, hasMore, featuredAnime, gridAnime, allAnime, filters, settings.showWatchHistoryOnHome, settings.showComments, settings.loadMoreMode, selectedAnime, selectedClub]);
+    }, [page, watchTogetherRoomId, hasActiveFilters, isCarouselLoading, isGridLoading, isLoadingMore, hasMore, featuredAnime, gridAnime, allAnime, filters, settings.showWatchHistoryOnHome, settings.showComments, settings.loadMoreMode, selectedAnime, selectedClub]);
+
+    if (isEmbedMode) {
+        if (isEmbedLoading || !embedAnime) {
+            return (
+                <div className="w-screen h-screen bg-black flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-[rgb(var(--color-primary))]"></div>
+                </div>
+            );
+        }
+        return <Player anime={embedAnime} onGoBack={() => {}} onSelectRelated={() => {}} allAnime={[]} onGenreSelect={() => {}} onUserSelect={() => {}} isEmbed={true} onEnterRoom={() => {}} />;
+    }
+    
+    const showHeaderAndSidebar = page !== 'watch-together';
+    const showLoginPrompt = page === 'home' && !hasActiveFilters && !isLoggedIn;
+
+    const sidebarRoot = document.getElementById('sidebar-root');
 
     return (
-        <div ref={appRef} className="bg-[rgb(var(--bg-gradient-start))] text-[rgb(var(--text-primary))]">
-            <Header
+        <div 
+            ref={appRef} 
+            className="bg-[rgb(var(--bg-gradient-start))] text-[rgb(var(--text-primary))]"
+        >
+            {showHeaderAndSidebar && <Header
                 onMenuClick={() => setIsSidebarOpen(true)}
                 onLoginClick={() => handleLoginRequest()}
                 onSearchClick={() => setIsSearchOpen(true)}
@@ -617,34 +706,45 @@ const App: React.FC = () => {
                 onNotificationClick={handleNotificationClick}
                 trendingAnime={trendingAnime}
                 onTrendingAnimeClick={handleSearchSubmit}
-            />
-            <Sidebar
-                isOpen={isSidebarOpen}
-                onClose={() => setIsSidebarOpen(false)}
-                filters={stagedFilters}
-                onFilterChange={handleStagedFilterChange}
-                onApplyFilters={handleApplyFilters}
-                onResetFilters={() => { handleResetFilters(true); }}
-                onNavigate={navigateTo}
-                onGoHome={goHome}
-                onSurpriseMe={handleSurpriseMe}
-                settings={settings}
-                updateSettings={updateSettings}
-                isLoggedIn={isLoggedIn}
-                onLoginClick={handleLoginRequest}
-            />
+            />}
+            
             {isSearchOpen && <SearchOverlay onClose={() => setIsSearchOpen(false)} onAnimeSelect={handleAnimeSelect} onSearchSubmit={handleSearchSubmit} />}
             {isLoginOpen && <AuthModal onClose={() => { setIsLoginOpen(false); setLoginReason(null); }} reason={loginReason} />}
             {isWatchlistOpen && <WatchlistOverlay onClose={() => setIsWatchlistOpen(false)} onSelectAnime={handleAnimeSelect} />}
             {isUserDetailModalOpen && selectedUser && <UserDetailModal user={selectedUser} onClose={() => setIsUserDetailModalOpen(false)} />}
             
-            <main className={`${page === 'home' && !hasActiveFilters ? '' : 'pt-20'}`}>
-                {page === 'home' && !hasActiveFilters && <LoginPrompt onLoginClick={() => handleLoginRequest()} />}
-                {pageContent}
-            </main>
+            {/* Sidebar is now rendered using a Portal */}
+            {showHeaderAndSidebar && sidebarRoot && ReactDOM.createPortal(
+                <Sidebar
+                    isOpen={isSidebarOpen}
+                    onClose={() => setIsSidebarOpen(false)}
+                    filters={stagedFilters}
+                    onFilterChange={handleStagedFilterChange}
+                    onApplyFilters={handleApplyFilters}
+                    onResetFilters={() => { handleResetFilters(true); }}
+                    onNavigate={navigateTo}
+                    onGoHome={goHome}
+                    onSurpriseMe={handleSurpriseMe}
+                    settings={settings}
+                    updateSettings={updateSettings}
+                    isLoggedIn={isLoggedIn}
+                    onLoginClick={handleLoginRequest}
+                />,
+                sidebarRoot
+            )}
+
+            <div className={showHeaderAndSidebar ? "" : ""}>
+                <div className="lg:pl-80">
+                    <main>
+                        {showLoginPrompt && <LoginPrompt onLoginClick={() => handleLoginRequest()} />}
+                        {pageContent}
+                    </main>
+                    
+                    {showHeaderAndSidebar && <Footer onNavigate={navigateTo} />}
+                </div>
+            </div>
             
             <GoToTopButton />
-            <Footer onNavigate={navigateTo} />
         </div>
     );
 };

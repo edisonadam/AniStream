@@ -6,12 +6,12 @@ import { useProfileData } from '../hooks/useProfileData';
 import { getDisplayTitle } from '../utils';
 import { useSettings } from '../hooks/useSettings';
 
-interface WatchTogetherModalProps {
+interface InviteFriendModalProps {
   anime: Anime;
   onClose: () => void;
 }
 
-const WatchTogetherModal: React.FC<WatchTogetherModalProps> = ({ anime, onClose }) => {
+const InviteFriendModal: React.FC<InviteFriendModalProps> = ({ anime, onClose }) => {
     const { user } = useAuth();
     const { friends, addNotification } = useProfileData();
     const { settings } = useSettings();
@@ -45,14 +45,14 @@ const WatchTogetherModal: React.FC<WatchTogetherModalProps> = ({ anime, onClose 
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center animate-cinematic-fade-in" onClick={onClose}>
             <div className="bg-[rgb(var(--surface-2))/0.8] backdrop-blur-xl border border-white/10 rounded-3xl w-[90%] max-w-md m-4 p-6 relative" onClick={e => e.stopPropagation()}>
                 <button onClick={onClose} className="absolute top-3 right-3 text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))]"><CloseIcon /></button>
-                <h3 className="text-xl font-bold mb-4 text-[rgb(var(--text-primary))]">Watch Together</h3>
+                <h3 className="text-xl font-bold mb-4 text-[rgb(var(--text-primary))]">Invite Friend</h3>
                 {inviteSent ? (
                     <div className="text-center py-8">
                         <p className="text-lg font-semibold text-[rgb(var(--color-secondary-accent))]">Invites Sent!</p>
                     </div>
                 ) : friends.length > 0 ? (
                     <>
-                        <p className="text-sm text-[rgb(var(--text-muted))] mb-4">Select friends to invite to watch <span className="font-bold">{getDisplayTitle(anime, settings)}</span>.</p>
+                        <p className="text-sm text-[rgb(var(--text-muted))] mb-4">Select friends to send an invitation to watch <span className="font-bold">{getDisplayTitle(anime, settings)}</span>.</p>
                         <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
                             {friends.map(friend => (
                                 <label key={friend.username} htmlFor={`friend-${friend.username}`} className="flex items-center gap-3 p-2 rounded-xl text-left hover:bg-[rgb(var(--surface-3))] transition-colors cursor-pointer">
@@ -74,4 +74,4 @@ const WatchTogetherModal: React.FC<WatchTogetherModalProps> = ({ anime, onClose 
     );
 }
 
-export default WatchTogetherModal;
+export default InviteFriendModal;

@@ -5,6 +5,7 @@ import { useWatchlist } from '../hooks/useWatchlist';
 import { useAuth } from '../hooks/useAuth';
 import { useSettings } from '../hooks/useSettings';
 import { getDisplayTitle } from '../utils';
+import { updateAnilistEntry } from '../api';
 
 interface FeaturedCarouselProps {
   animeList: Anime[];
@@ -99,6 +100,15 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
     }
   };
 
+  const handleAddToWatchlist = () => {
+      if (inWatchlist) return;
+      const status = 'Plan to Watch';
+      addToWatchlist(currentSlide, status);
+      if (settings.autoSyncAniList && settings.anilistToken) {
+          updateAnilistEntry(currentSlide.id, settings.anilistToken, { status });
+      }
+  };
+
 
   if (isLoading) {
     return (
@@ -166,7 +176,7 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
               </button>
               {isLoggedIn && (
                 <button
-                  onClick={() => !inWatchlist && addToWatchlist(currentSlide)}
+                  onClick={handleAddToWatchlist}
                   disabled={inWatchlist}
                   className="flex items-center gap-2 px-5 py-3 bg-white/10 text-white rounded-full font-semibold hover:bg-white/20 transition-colors backdrop-blur-sm disabled:opacity-70 disabled:cursor-not-allowed">
                   {inWatchlist ? <CheckIcon/> : <PlusIcon/>}

@@ -13,20 +13,20 @@ const SettingsSection: React.FC<{ title: string; children: React.ReactNode }> = 
     </div>
 );
 
-const Toggle: React.FC<{ label: string; note?: string; checked: boolean; onChange: () => void; }> = ({ label, note, checked, onChange }) => (
-    <div className="flex flex-col pt-4 border-t border-white/10">
+const Toggle: React.FC<{ label: string; tooltip?: string; checked: boolean; onChange: () => void; }> = ({ label, tooltip, checked, onChange }) => (
+    <div className="flex flex-col pt-4 border-t border-white/10" title={tooltip}>
         <div className="flex justify-between items-center">
             <label className="font-semibold text-[rgb(var(--text-secondary))]">{label}</label>
-            <button onClick={onChange} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${checked ? 'bg-[rgb(var(--color-primary))]' : 'bg-[rgb(var(--surface-4))]'}`}>
+            <button onClick={onChange} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${checked ? 'bg-[rgb(var(--color-primary))]' : 'bg-[rgb(var(--surface-4))]'}`} aria-checked={checked} role="switch">
                 <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`} />
             </button>
         </div>
-        {note && <p className="text-sm text-[rgb(var(--text-muted))] mt-1">{note}</p>}
+        {tooltip && <p className="text-sm text-[rgb(var(--text-muted))] mt-1">{tooltip}</p>}
     </div>
 );
 
-const Dropdown: React.FC<{label: string, options: {value: string, label: string}[], selected: string, onChange: (value: any) => void}> = ({ label, options, selected, onChange }) => (
-    <div className="flex flex-col sm:flex-row justify-between items-center pt-4 border-t border-white/10">
+const Dropdown: React.FC<{label: string, tooltip?: string, options: {value: string, label: string}[], selected: string, onChange: (value: any) => void}> = ({ label, tooltip, options, selected, onChange }) => (
+    <div className="flex flex-col sm:flex-row justify-between items-center pt-4 border-t border-white/10" title={tooltip}>
         <label className="font-semibold text-[rgb(var(--text-secondary))] mb-2 sm:mb-0">{label}</label>
         <select
             value={selected}
@@ -146,24 +146,29 @@ const SettingsPage: React.FC = () => {
         document.body.removeChild(link);
         URL.revokeObjectURL(href);
     };
-    
-    const handleAccountMerge = () => {
-        if (window.confirm("WARNING: This is a one-way process. The stats and data of the account you are merging FROM will be PERMANENTLY LOST. Only the data of your CURRENT account will remain. Do you wish to proceed?")) {
-            alert("Account merging is not yet implemented. This is a placeholder for a future secure account merging flow.");
-        }
-    };
 
     return (
         <div className="max-w-4xl mx-auto space-y-8">
-            <SettingsSection title="Account Merging">
-                <div className="space-y-2 text-sm text-[rgb(var(--text-muted))] bg-[rgb(var(--color-danger))]/20 border border-[rgb(var(--color-danger))]/50 p-4 rounded-lg">
-                    <p className="font-bold text-[rgb(var(--color-danger))]">DANGER ZONE: IRREVERSIBLE ACTION</p>
-                    <p>Merging will transfer this account's data to another, permanently deleting the other account's original data (watchlist, history, etc.).</p>
-                    <p>This cannot be undone.</p>
-                </div>
-                 <button onClick={handleAccountMerge} className="w-full text-center font-semibold text-white bg-[rgb(var(--color-danger))] hover:bg-red-700 py-2 rounded-lg">
-                    Initiate Account Merge
-                </button>
+            <SettingsSection title="Appearance">
+                <Dropdown label="Color Preset" selected={settings.colorPreset} onChange={v => updateSettings({ colorPreset: v })} options={COLOR_PRESETS.map(p => ({ value: p.id, label: p.name }))} tooltip="Change the primary color theme of the website." />
+                <Dropdown label="Title Language" selected={settings.displayTitleLanguage} onChange={v => updateSettings({ displayTitleLanguage: v })} options={[{value: 'english', label: 'English'}, {value: 'japanese', label: 'Japanese'}]} tooltip="Choose whether to display anime titles in English or Japanese (Romaji)." />
+                <Dropdown label="Load More Style" selected={settings.loadMoreMode} onChange={v => updateSettings({ loadMoreMode: v })} options={[{value: 'auto', label: 'Automatic (Infinite Scroll)'}, {value: 'manual', label: 'Manual (Button)'}]} tooltip="How new content is loaded on grid pages." />
+                <Toggle label="Watch History on Home Page" checked={settings.showWatchHistoryOnHome} onChange={() => updateSettings({ showWatchHistoryOnHome: !settings.showWatchHistoryOnHome })} tooltip="Show or hide the 'Continue Watching' section on the home page." />
+            </SettingsSection>
+
+            <SettingsSection title="Content & Player">
+                <Toggle label="Restrict Adult Content" checked={settings.restrictAdultContent} onChange={() => updateSettings({ restrictAdultContent: !settings.restrictAdultContent })} tooltip="Hides explicit content (e.g., Hentai, Erotica). Requires login to disable." />
+                 <Toggle label="Show Comments Section" checked={settings.showComments} onChange={() => updateSettings({ showComments: !settings.showComments })} tooltip="Show or hide the comments section on the player page." />
+                 <Toggle label="Blur Episode Thumbnails" checked={settings.blurEpisodeThumbnails} onChange={() => updateSettings({ blurEpisodeThumbnails: !settings.blurEpisodeThumbnails })} tooltip="Blur thumbnails in the episode list to avoid spoilers." />
+                 <Toggle label="Hide Filler Episodes" checked={settings.hideFillerEpisodes} onChange={() => updateSettings({ hideFillerEpisodes: !settings.hideFillerEpisodes })} tooltip="Automatically hide episodes marked as filler in the player." />
+                 <Dropdown label="Default Provider" selected={settings.videoServer} onChange={v => updateSettings({ videoServer: v })} options={VIDEO_SERVERS.map(s => ({ value: s.id, label: s.name }))} tooltip="Choose your preferred video source provider." />
+                <Dropdown label="Default Language" selected={settings.defaultLanguage} onChange={v => updateSettings({ defaultLanguage: v })} options={[{value: 'sub', label: 'Subtitles'}, {value: 'dub', label: 'Dubbing'}, {value: 'ssub', label: 'S-Sub'}]} tooltip="Select your preferred audio/subtitle language."/>
+                <Toggle label="Auto Play Next Episode" checked={settings.autoplayNext} onChange={() => updateSettings({ autoplayNext: !settings.autoplayNext })} tooltip="Automatically play the next episode when the current one ends." />
+                <Toggle label="Auto Skip Intro" checked={settings.autoSkipIntro} onChange={() => updateSettings({ autoSkipIntro: !settings.autoSkipIntro })} tooltip="Automatically skip intros if timestamps are available." />
+                 <Toggle label="Auto Skip Outro" checked={settings.autoSkipOutro} onChange={() => updateSettings({ autoSkipOutro: !settings.autoSkipOutro })} tooltip="Automatically skip outros if timestamps are available." />
+                 <Toggle label="Remember Player Volume" checked={settings.rememberVolume} onChange={() => updateSettings({ rememberVolume: !settings.rememberVolume })} tooltip="Saves and restores the player volume between sessions." />
+                <Toggle label="Remember Playback Speed" checked={settings.rememberPlaybackSpeed} onChange={() => updateSettings({ rememberPlaybackSpeed: !settings.rememberPlaybackSpeed })} tooltip="Saves and restores the playback speed between sessions." />
+                <Toggle label="Show Seek Thumbnails (Beta)" checked={settings.showSeekThumbnails} onChange={() => updateSettings({ showSeekThumbnails: !settings.showSeekThumbnails })} tooltip="Show a thumbnail preview when hovering over the seek bar. May not be available for all sources." />
             </SettingsSection>
             
             <SettingsSection title="MyAnimeList Integration">
@@ -180,7 +185,7 @@ const SettingsPage: React.FC = () => {
                 <TextInput label="Auth Token" type="password" value={settings.anilistToken} onChange={v => updateSettings({ anilistToken: v })} placeholder="Enter AniList auth token" />
                 <p className="text-xs text-[rgb(var(--text-muted))] !mt-2 text-right">Get your token from AniList's <a href="https://anilist.co/settings/developer" target="_blank" rel="noopener noreferrer" className="text-[rgb(var(--color-primary-accent))] hover:underline">developer settings</a>.</p>
                 <div className="pt-4 border-t border-white/10 flex justify-between items-center">
-                    <Toggle label="Auto Sync Progress" checked={settings.autoSyncAniList} onChange={() => updateSettings({ autoSyncAniList: !settings.autoSyncAniList })} note="Automatically update episode progress on your AniList profile." />
+                    <Toggle label="Auto Sync Progress" checked={settings.autoSyncAniList} onChange={() => updateSettings({ autoSyncAniList: !settings.autoSyncAniList })} tooltip="Automatically update episode progress on your AniList profile." />
                     <button onClick={() => handleImport('anilist')} disabled={!settings.anilistUsername || isImporting === 'anilist'} className="px-4 py-2 bg-[rgb(var(--color-primary))] text-sm text-[rgb(var(--text-on-primary))] rounded-xl font-semibold hover:bg-[rgb(var(--color-primary-hover))] disabled:opacity-50 disabled:cursor-wait">
                         {isImporting === 'anilist' ? 'Importing...' : 'Import from AniList'}
                     </button>
@@ -206,31 +211,10 @@ const SettingsPage: React.FC = () => {
                     </div>
                 </div>
             </SettingsSection>
-
-            <SettingsSection title="Appearance">
-                <Dropdown label="Color Preset" selected={settings.colorPreset} onChange={v => updateSettings({ colorPreset: v })} options={COLOR_PRESETS.map(p => ({ value: p.id, label: p.name }))} />
-                <Dropdown label="Title Language" selected={settings.displayTitleLanguage} onChange={v => updateSettings({ displayTitleLanguage: v })} options={[{value: 'english', label: 'English'}, {value: 'japanese', label: 'Japanese'}]} />
-                <Dropdown label="Load More Style" selected={settings.loadMoreMode} onChange={v => updateSettings({ loadMoreMode: v })} options={[{value: 'auto', label: 'Automatic (Infinite Scroll)'}, {value: 'manual', label: 'Manual (Button)'}]} />
-                <Toggle label="Watch History on Home Page" checked={settings.showWatchHistoryOnHome} onChange={() => updateSettings({ showWatchHistoryOnHome: !settings.showWatchHistoryOnHome })} />
-            </SettingsSection>
-
-            <SettingsSection title="Content & Comments">
-                <Toggle label="Restrict Adult Content" note="Hides explicit content (Hentai, Erotica)." checked={settings.restrictAdultContent} onChange={() => updateSettings({ restrictAdultContent: !settings.restrictAdultContent })} />
-                 <Toggle label="Show Comments Section" checked={settings.showComments} onChange={() => updateSettings({ showComments: !settings.showComments })} />
-                 <Toggle label="Blur Episode Thumbnails" checked={settings.blurEpisodeThumbnails} onChange={() => updateSettings({ blurEpisodeThumbnails: !settings.blurEpisodeThumbnails })} />
-            </SettingsSection>
-
-            <SettingsSection title="Media Player">
-                <Dropdown label="Default Provider" selected={settings.videoServer} onChange={v => updateSettings({ videoServer: v })} options={VIDEO_SERVERS.map(s => ({ value: s.id, label: s.name }))} />
-                <Dropdown label="Default Language" selected={settings.defaultLanguage} onChange={v => updateSettings({ defaultLanguage: v })} options={[{value: 'sub', label: 'Subtitles'}, {value: 'dub', label: 'Dubbing'}, {value: 'ssub', label: 'S-Sub'}]} />
-                <Toggle label="Auto Play Next Episode" checked={settings.autoplayNext} onChange={() => updateSettings({ autoplayNext: !settings.autoplayNext })} />
-                <Toggle label="Auto Skip Intro" checked={settings.autoSkipIntro} onChange={() => updateSettings({ autoSkipIntro: !settings.autoSkipIntro })} />
-                 <Toggle label="Auto Skip Outro" checked={settings.autoSkipOutro} onChange={() => updateSettings({ autoSkipOutro: !settings.autoSkipOutro })} />
-            </SettingsSection>
-
-             <SettingsSection title="Other Utilities">
-                <button onClick={handleClearWatchHistory} className="w-full text-left font-semibold text-[rgb(var(--color-danger))] hover:underline">Clear Watch History</button>
-                <button onClick={restoreDefaults} className="w-full text-left font-semibold text-[rgb(var(--color-warning))] pt-4 border-t border-white/10 hover:underline">Restore Default Settings</button>
+            
+            <SettingsSection title="Danger Zone">
+                <button onClick={handleClearWatchHistory} className="w-full text-center font-semibold text-[rgb(var(--color-danger))] hover:underline">Clear Watch History</button>
+                <button onClick={restoreDefaults} className="w-full text-center font-semibold text-[rgb(var(--color-warning))] pt-4 border-t border-white/10 hover:underline">Restore Default Settings</button>
             </SettingsSection>
         </div>
     );

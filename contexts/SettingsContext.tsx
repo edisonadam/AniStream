@@ -19,6 +19,10 @@ const defaultSettings: Settings = {
   showComments: true,
   defaultLanguage: 'sub',
   loadMoreMode: 'manual',
+  hideFillerEpisodes: false,
+  rememberVolume: true,
+  rememberPlaybackSpeed: false,
+  showSeekThumbnails: false,
 };
 
 interface SettingsContextType {

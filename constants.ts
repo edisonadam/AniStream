@@ -1,4 +1,4 @@
-import type { ColorPreset, VideoServer, DefaultLanguage, Anime } from './types';
+import type { ColorPreset, VideoServer, DefaultLanguage, Anime, WatchlistStatus } from './types';
 
 export const GENRES_MAP: Record<string, number> = {
     'Action': 1, 'Adventure': 2, 'Comedy': 4, 'Drama': 8, 'Fantasy': 10, 'Horror': 14,
@@ -10,6 +10,7 @@ export const GENRES = Object.keys(GENRES_MAP);
 
 export const ANIME_TYPES = ['TV', 'Movie', 'OVA', 'Special', 'ONA'];
 export const ANIME_STATUSES = ['Ongoing', 'Completed', 'Upcoming'];
+export const WATCHLIST_STATUSES: WatchlistStatus[] = ['Watching', 'Completed', 'On-Hold', 'Dropped', 'Plan to Watch'];
 export const MANGA_TYPES = ['manga', 'novel', 'lightnovel', 'oneshot', 'doujin', 'manhwa', 'manhua'];
 export const MANGA_STATUSES = ['publishing', 'complete', 'hiatus', 'discontinued', 'upcoming'];
 export const YEAR_OPTIONS = ['2020s', '2010s', '2000s', '1990s'];
@@ -204,17 +205,34 @@ export const COLOR_PRESETS: { id: ColorPreset, name: string }[] = [
     { id: 'sunset-orange', name: 'Sunset Orange' },
 ];
 
-export const VIDEO_SERVERS: { id: VideoServer, name: string, type: DefaultLanguage }[] = [
+export interface ServerOption {
+  id: VideoServer;
+  name: string;
+  type: DefaultLanguage;
+  subServers?: ServerOption[];
+}
+
+export const VIDEO_SERVERS: ServerOption[] = [
     // Sub Servers
-    { id: 'videembed', name: 'VidEmbed', type: 'sub' },
+    {
+        id: 'vidembed', name: 'VidEmbed', type: 'sub', subServers: [
+            { id: 'mappletv', name: 'MappleTV', type: 'sub' },
+            { id: 'vidlink', name: 'VidLink', type: 'sub' },
+            { id: 'primewire', name: 'Primewire', type: 'sub' },
+            { id: 'embedsu', name: 'EmbedSU', type: 'sub' },
+            { id: 'multiembed', name: 'MultiEmbed', type: 'sub' },
+            { id: 'vidbinge', name: 'VidBinge', type: 'sub' },
+            { id: 'vidsrc', name: 'VidSrc', type: 'sub' },
+            { id: 'autoembed', name: 'AutoEmbed', type: 'sub' },
+            { id: '2embed', name: '2Embed', type: 'sub' },
+            { id: 'movieapi', name: 'MovieAPI', type: 'sub' },
+        ]
+    },
     { id: 'kiwi', name: 'Kiwi', type: 'sub' },
     { id: 'jet', name: 'Jet', type: 'sub' },
     { id: 'telli', name: 'Telli', type: 'sub' },
-    { id: 'vidk', name: 'VidK', type: 'sub' },
-    { id: 'plyr', name: 'Plyr', type: 'sub' },
     
     // Dub Servers
-    { id: 'vidsrc', name: 'VidSrc', type: 'dub' },
     { id: 'hop', name: 'Hop', type: 'dub' },
     { id: 'izy', name: 'Izy', type: 'dub' },
     { id: 'bee', name: 'Bee', type: 'dub' },
@@ -222,7 +240,6 @@ export const VIDEO_SERVERS: { id: VideoServer, name: string, type: DefaultLangua
     { id: 'kuz', name: 'Kuz', type: 'dub' },
 
     // S-Sub servers (same as dub per request)
-    { id: 'vidsrc', name: 'VidSrc', type: 'ssub' },
     { id: 'hop', name: 'Hop', type: 'ssub' },
     { id: 'izy', name: 'Izy', type: 'ssub' },
     { id: 'bee', name: 'Bee', type: 'ssub' },

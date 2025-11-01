@@ -1,20 +1,22 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
+import ReactDOM from 'react-dom';
 import type { Anime, Season, Episode, VideoServer, EpisodeViewStyle, User, Character, DefaultLanguage } from '../types';
-import { ChevronLeftIcon, StarIcon, ChevronRightIcon, ViewGridIcon, ViewListIcon, ViewCarouselIcon, EyeIcon, EyeOffIcon, RewindIcon, FastForwardIcon, RefreshCwIcon, ShareIcon, CloseIcon, DownloadIcon, SparklesIcon, ExternalLinkIcon } from './icons/Icons';
+import { ChevronLeftIcon, StarIcon, ChevronRightIcon, ViewGridIcon, ViewListIcon, ViewCarouselIcon, EyeIcon, EyeOffIcon, RewindIcon, FastForwardIcon, RefreshCwIcon, ShareIcon, CloseIcon, DownloadIcon, SparklesIcon, ExternalLinkIcon, CodeIcon, SearchIcon, PauseIcon, VolumeUpIcon, VolumeOffIcon, SettingsIcon, FullscreenEnterIcon, FullscreenExitIcon, ExclamationTriangleIcon, ScissorsIcon, UsersIcon, UserPlusIcon } from './icons/Icons';
 import AnimeCard from './AnimeCard';
 import Comments from './Comments';
 import { useSettings } from '../hooks/useSettings';
 import { useWatchProgress } from '../hooks/useWatchProgress';
 import { useProfileData } from '../hooks/useProfileData';
 import { useAuth } from '../hooks/useAuth';
-import { VIDEO_SERVERS, VIDSRC_DOMAINS } from '../constants';
-import { buildSourceUrl, mapJikanToAnime, mapJikanToCharacter, getAnilistId, updateAnilistProgress, fetchWithRetry } from '../api';
+import { NARUTO_FILLER_EPISODES, VIDEO_SERVERS } from '../constants';
+import { mapJikanToAnime, mapJikanToCharacter, updateAnilistEntry, fetchWithRetry, buildSourceUrl } from '../api';
 import { GoogleGenAI } from '@google/genai';
-import DownloadModal from './DownloadModal';
 import { getDisplayTitle } from '../utils';
 import CharacterModal from './CharacterModal';
-
-declare const Hls: any;
+import ClippingModal from './ClippingModal';
+import InviteFriendModal from './WatchTogetherModal';
+import RoomManagerModal from './RoomManagerModal';
+import DownloadModal from './DownloadModal';
 
 const TMDB_API_KEY = '0f463393529890c7bf7e801f907981f8';
 const EPISODES_PER_PAGE = 100;
@@ -26,6 +28,12 @@ interface PlayerProps {
   onSelectRelated: (anime: Anime) => void;
   onGenreSelect: (genre: string) => void;
   onUserSelect: (user: User) => void;
+  isEmbed?: boolean;
+  onEnterRoom: (roomId: string) => void;
+  isWatchTogetherSession?: boolean;
+  isHost?: boolean;
+  onEpisodeChangeByHost?: (season: number, episode: number) => void;
+  onPlayerReady?: (player: any) => void;
 }
 
 interface MediaIds {
@@ -33,6 +41,57 @@ interface MediaIds {
   imdb: string | null;
   mediaType: 'tv' | 'movie' | null;
 }
+
+// Embed Modal Component
+const EmbedModal: React.FC<{ animeId: number; onClose: () => void; }> = ({ animeId, onClose }) => {
+    const [autoplay, setAutoplay] = useState(true);
+    const [mute, setMute] = useState(false);
+    const [theme, setTheme] = useState('dark');
+    const [copied, setCopied] = useState(false);
+
+    const baseUrl = window.location.origin + window.location.pathname;
+    const embedUrl = `${baseUrl}?embed=true&animeId=${animeId}&autoplay=${autoplay ? 1 : 0}&mute=${mute ? 1 : 0}&theme=${theme}`;
+    const iframeCode = `<iframe src="${embedUrl}" width="100%" height="100%" style="aspect-ratio: 16 / 9;" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>`;
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(iframeCode).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        });
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center animate-cinematic-fade-in p-4" onClick={onClose}>
+            <div className="bg-[rgb(var(--surface-2))/0.8] backdrop-blur-xl border border-white/10 rounded-3xl w-full max-w-2xl p-6 relative animate-modal-pop-in" onClick={e => e.stopPropagation()}>
+                <button onClick={onClose} className="absolute top-3 right-3 text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))]"><CloseIcon /></button>
+                <h3 className="text-xl font-bold mb-4 text-[rgb(var(--text-primary))]">Embed Player</h3>
+                
+                <div className="space-y-3 mb-4">
+                    <h4 className="font-semibold text-[rgb(var(--text-secondary))]">Options</h4>
+                    <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                        <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={autoplay} onChange={e => setAutoplay(e.target.checked)} className="h-4 w-4 rounded bg-gray-700 border-gray-600 text-blue-500" /> Autoplay</label>
+                        <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={mute} onChange={e => setMute(e.target.checked)} className="h-4 w-4 rounded bg-gray-700 border-gray-600 text-blue-500" /> Start Muted</label>
+                        <div className="flex items-center gap-2">
+                            <span>Theme:</span>
+                            <label className="flex items-center gap-1 cursor-pointer"><input type="radio" name="theme" value="dark" checked={theme === 'dark'} onChange={e => setTheme(e.target.value)} /> Dark</label>
+                            <label className="flex items-center gap-1 cursor-pointer"><input type="radio" name="theme" value="light" checked={theme === 'light'} onChange={e => setTheme(e.target.value)} /> Light</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-[rgb(var(--text-secondary))] mb-1">Iframe Code</label>
+                    <textarea readOnly value={iframeCode} rows={4} className="w-full bg-[rgb(var(--surface-input))] border border-white/10 rounded-xl p-3 text-sm text-[rgb(var(--text-muted))] font-mono focus:ring-2 focus:ring-[rgb(var(--border-focus))]"></textarea>
+                </div>
+                
+                <button onClick={handleCopy} className="mt-4 w-full py-2.5 bg-[rgb(var(--color-primary))] text-white rounded-full font-semibold hover:bg-[rgb(var(--color-primary-hover))]">
+                    {copied ? 'Copied!' : 'Copy Code'}
+                </button>
+            </div>
+        </div>
+    );
+};
+
 
 const parseSeasonFromTitle = (title: string): number | null => {
     if (!title) return null;
@@ -107,7 +166,7 @@ const StreamErrorMessage: React.FC<{
     );
 }
 
-const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGenreSelect, onUserSelect }) => {
+const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGenreSelect, onUserSelect, isEmbed = false, onEnterRoom, isWatchTogetherSession = false, isHost = false, onEpisodeChangeByHost, onPlayerReady }) => {
   const [playerAnime, setPlayerAnime] = useState<Anime | null>(null);
   const [relatedAnime, setRelatedAnime] = useState<Anime[]>([]);
   const [relatedMovies, setRelatedMovies] = useState<Anime[]>([]);
@@ -133,31 +192,27 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
   
   const [mediaIds, setMediaIds] = useState<MediaIds>({ tmdb: null, imdb: null, mediaType: null });
   
-  const [sourceUrl, setSourceUrl] = useState<string | null>(null);
-  const [streamUrl, setStreamUrl] = useState<string | null>(null);
   const [isLoadingStream, setIsLoadingStream] = useState(false);
   const [streamError, setStreamError] = useState<string | null>(null);
   
-  const [isPlayerFading, setIsPlayerFading] = useState(false);
   const [activeTab, setActiveTab] = useState<'episodes' | 'trailers' | 'characters'>('episodes');
 
   const [isSeasonTransitioning, setIsSeasonTransitioning] = useState(false);
   const [displayTitle, setDisplayTitle] = useState(anime.title);
   
   const [localBlur, setLocalBlur] = useState<boolean | null>(null);
-  const [localEpisodeViewStyle, setLocalEpisodeViewStyle] = useState<EpisodeViewStyle>('default');
+  const [localEpisodeViewStyle, setLocalEpisodeViewStyle] = useState<EpisodeViewStyle>('compact');
   const [episodePage, setEpisodePage] = useState(1);
   const [isPageTransitioning, setIsPageTransitioning] = useState(false);
   
-  const [timestamps, setTimestamps] = useState<{ intro: { start: number; end: number } | null; outro: { start: number; end: number } | null }>({ intro: null, outro: null });
-  const [isLoadingTimestamps, setIsLoadingTimestamps] = useState(false);
-  const [skipMessage, setSkipMessage] = useState('');
-  
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isEmbedModalOpen, setIsEmbedModalOpen] = useState(false);
+  const [isClippingModalOpen, setIsClippingModalOpen] = useState(false);
+  const [isInviteFriendModalOpen, setIsInviteFriendModalOpen] = useState(false);
+  const [isRoomManagerOpen, setIsRoomManagerOpen] = useState(false);
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
   const [failedImages, setFailedImages] = useState<Set<string | number>>(new Set());
-  const [autoRedirected, setAutoRedirected] = useState(false);
-
+  
   const { settings, updateSettings } = useSettings();
   const { user } = useAuth();
   const { updateProgress, getWatchProgress } = useWatchProgress();
@@ -166,14 +221,42 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
   
   const episodeRefs = useRef<Map<number, HTMLButtonElement | null>>(new Map());
   const isNavigatingWithArrows = useRef(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const [surpriseMessage, setSurpriseMessage] = useState<string | null>(null);
   const [isSurpriseLoading, setIsSurpriseLoading] = useState(false);
   const [surpriseError, setSurpriseError] = useState<string | null>(null);
   const [loadingFact, setLoadingFact] = useState<string | null>(null);
+  const [episodeSearchQuery, setEpisodeSearchQuery] = useState('');
 
   const isBlurred = localBlur === null ? settings.blurEpisodeThumbnails : localBlur;
+  
+  const availableServers = useMemo(() => {
+    return VIDEO_SERVERS.filter(s => s.type === settings.defaultLanguage);
+  }, [settings.defaultLanguage]);
+
+  const videoSrc = useMemo(() => {
+    if (mediaIds.mediaType === 'movie') {
+        return buildSourceUrl(settings.videoServer, mediaIds.mediaType, mediaIds.tmdb, undefined, undefined, settings.autoplayNext);
+    }
+    if (mediaIds.mediaType === 'tv') {
+        return buildSourceUrl(settings.videoServer, mediaIds.mediaType, mediaIds.tmdb, currentSeason, currentEpisode, settings.autoplayNext);
+    }
+    return null;
+  }, [settings.videoServer, mediaIds.mediaType, mediaIds.tmdb, currentSeason, currentEpisode, settings.autoplayNext]);
+
+
+  useEffect(() => {
+    if (isEmbedModalOpen || selectedCharacter || isClippingModalOpen || isInviteFriendModalOpen || isRoomManagerOpen || isDownloadModalOpen) {
+        document.body.classList.add('modal-zoom-effect-active');
+    } else {
+        document.body.classList.remove('modal-zoom-effect-active');
+    }
+    // Cleanup function in case component unmounts while modal is open
+    return () => {
+        document.body.classList.remove('modal-zoom-effect-active');
+    };
+  }, [isEmbedModalOpen, selectedCharacter, isClippingModalOpen, isInviteFriendModalOpen, isRoomManagerOpen, isDownloadModalOpen]);
 
   const sortedSeasons = useMemo(() => {
     return [...seasons].sort((a, b) => a.season_number - b.season_number);
@@ -205,18 +288,14 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
   }, [seasons, seriesParts, anime.thumbnail]);
 
 
-  useEffect(() => {
-    setLocalEpisodeViewStyle(settings.episodeViewStyle);
-  }, [settings.episodeViewStyle]);
-
-  const availableServers = useMemo(() => {
-    return VIDEO_SERVERS.filter(server => server.type === settings.defaultLanguage);
-  }, [settings.defaultLanguage]);
-
   const selectEpisode = useCallback((epNum: number) => {
+    if (isWatchTogetherSession && !isHost) return;
+    if (onEpisodeChangeByHost) {
+        onEpisodeChangeByHost(currentSeason, epNum);
+        return;
+    }
     if (currentEpisode === epNum) return;
-    setIsPlayerFading(true);
-    setStreamUrl(null); setSourceUrl(null); setStreamError(null);
+    setStreamError(null);
     const newPage = Math.ceil(epNum / EPISODES_PER_PAGE);
     if (newPage !== episodePage) {
         setIsPageTransitioning(true);
@@ -228,93 +307,36 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
     } else {
         setCurrentEpisode(epNum);
     }
-  }, [currentEpisode, episodePage]);
+  }, [currentEpisode, episodePage, isWatchTogetherSession, isHost, onEpisodeChangeByHost, currentSeason]);
 
   const selectSeason = useCallback((seasonNum: number, startEpisode = 1) => {
+    if (isWatchTogetherSession && !isHost) return;
+    if (onEpisodeChangeByHost) {
+        onEpisodeChangeByHost(seasonNum, startEpisode);
+        return;
+    }
     if (currentSeason === seasonNum || isSeasonTransitioning) return;
-    setIsPlayerFading(true);
-    setStreamUrl(null); setSourceUrl(null); setStreamError(null);
+    setStreamError(null);
     setIsSeasonTransitioning(true);
     setTimeout(() => {
         setCurrentSeason(seasonNum);
         setCurrentEpisode(startEpisode);
         setEpisodePage(Math.ceil(startEpisode / EPISODES_PER_PAGE));
     }, 300);
-  }, [currentSeason, isSeasonTransitioning]);
-
-  const selectServer = useCallback((serverId: VideoServer) => {
-      if (settings.videoServer === serverId) return;
-      setIsPlayerFading(true);
-      updateSettings({ videoServer: serverId });
-  }, [settings.videoServer, updateSettings]);
+  }, [currentSeason, isSeasonTransitioning, isWatchTogetherSession, isHost, onEpisodeChangeByHost]);
   
-  useEffect(() => {
-    if (availableServers.length > 0 && !availableServers.some(s => s.id === settings.videoServer)) {
-        selectServer(availableServers[0].id as VideoServer);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [availableServers, settings.videoServer]);
-
-  const handleNextEpisode = () => {
-    if (mediaIds.mediaType !== 'tv' || !playerAnime) return;
-    isNavigatingWithArrows.current = true;
-    const currentSeasonData = sortedSeasons.find(s => s.season_number === currentSeason);
-    if (!currentSeasonData) return;
-    if (currentEpisode < currentSeasonData.episode_count) {
-        selectEpisode(currentEpisode + 1);
-    } else {
-        const currentSeasonIndex = sortedSeasons.findIndex(s => s.season_number === currentSeason);
-        if (currentSeasonIndex < sortedSeasons.length - 1) {
-            const nextSeason = sortedSeasons[currentSeasonIndex + 1];
-            selectSeason(nextSeason.season_number);
-        }
-    }
-  };
-
-  const handlePrevEpisode = () => {
-    if (mediaIds.mediaType !== 'tv' || !playerAnime) return;
-    isNavigatingWithArrows.current = true;
-    if (currentEpisode > 1) {
-        selectEpisode(currentEpisode - 1);
-    } else {
-        const currentSeasonIndex = sortedSeasons.findIndex(s => s.season_number === currentSeason);
-        if (currentSeasonIndex > 0) {
-            const prevSeason = sortedSeasons[currentSeasonIndex - 1];
-            selectSeason(prevSeason.season_number, prevSeason.episode_count);
-        }
-    }
-  };
-  
-  useEffect(() => {
-    const fetchLoadingFact = async () => {
-        if (!anime) return;
-        try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-            const prompt = `Generate a short, surprising, fun, and little-known fact about the anime "${getDisplayTitle(anime, settings)}". Keep it under 150 characters.`;
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: prompt,
-            });
-            setLoadingFact(response.text);
-        } catch (e) {
-            console.error("Failed to fetch loading fact from Gemini", e);
-        }
-    };
-    fetchLoadingFact();
-  }, [anime, settings]);
-
   useEffect(() => {
     const fetchCriticalDetails = async () => {
         if (!anime?.id) return;
-        window.scrollTo(0, 0);
+        if (!isEmbed) window.scrollTo(0, 0);
         setIsLoading(true); setError(null); setPlayerAnime(null); setDisplayTitle(getDisplayTitle(anime, settings));
         setMediaIds({ tmdb: null, imdb: null, mediaType: null });
         setSeasons([]); setEpisodes([]); setTrailers([]); setCharacters([]); setSeriesParts([]); setRelatedMovies([]); setRawRelationsData(null);
         setActiveTab('episodes'); setLocalBlur(null); setEpisodePage(1);
         setIsLoadingNavigator(true); setIsLoadingTrailers(true); setIsLoadingCharacters(true);
         setFailedImages(new Set());
-        setAutoRedirected(false);
         setNextAiringInfo(null);
+        setEpisodeSearchQuery('');
 
         try {
             const [fullDetailsPromise, externalLinksPromise, relationsPromise] = await Promise.all([
@@ -384,12 +406,19 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
 
             if (foundTmdbId && foundMediaType) {
                  setMediaIds({ tmdb: foundTmdbId, mediaType: foundMediaType, imdb: null });
-                 const tmdbDetailsRes = await fetchWithRetry(`https://api.themoviedb.org/3/${foundMediaType}/${foundTmdbId}?api_key=${TMDB_API_KEY}&append_to_response=external_ids`);
+                 const tmdbDetailsRes = await fetchWithRetry(`https://api.themoviedb.org/3/${foundMediaType}/${foundTmdbId}?api_key=${TMDB_API_KEY}&append_to_response=external_ids,videos`);
                  if (tmdbDetailsRes.ok) {
                      const tmdbData = await tmdbDetailsRes.json();
                      setMediaIds(prev => ({ ...prev, imdb: tmdbData.external_ids?.imdb_id || null }));
                      setPlayerAnime(prev => prev ? { ...prev, bannerImage: tmdbData.backdrop_path ? `https://image.tmdb.org/t/p/original${tmdbData.backdrop_path}` : prev.bannerImage, isAdult: prev.isAdult || tmdbData.adult, runtime: tmdbData.runtime || prev.runtime } : null);
                      
+                     if (tmdbData.videos?.results) {
+                        const tmdbTrailers = tmdbData.videos.results
+                            .filter((v: any) => v.site === 'YouTube' && (v.type === 'Trailer' || v.type === 'Teaser'))
+                            .map((v: any) => ({ key: v.key, name: v.name }));
+                        setTrailers(tmdbTrailers);
+                    }
+
                      if (foundMediaType === 'tv' && tmdbData.seasons) {
                         const validSeasons: Season[] = tmdbData.seasons.filter((s: any) => s.season_number > 0 && s.episode_count > 0).map((s:any): Season => ({ season_number: s.season_number, episode_count: s.episode_count, name: s.name, poster_path: s.poster_path }));
                         setSeasons(validSeasons);
@@ -426,6 +455,54 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [anime.id, settings]);
   
+  const handleNextEpisode = () => {
+    if (mediaIds.mediaType !== 'tv' || !playerAnime) return;
+    isNavigatingWithArrows.current = true;
+    const currentSeasonData = sortedSeasons.find(s => s.season_number === currentSeason);
+    if (!currentSeasonData) return;
+    if (currentEpisode < currentSeasonData.episode_count) {
+        selectEpisode(currentEpisode + 1);
+    } else {
+        const currentSeasonIndex = sortedSeasons.findIndex(s => s.season_number === currentSeason);
+        if (currentSeasonIndex < sortedSeasons.length - 1) {
+            const nextSeason = sortedSeasons[currentSeasonIndex + 1];
+            selectSeason(nextSeason.season_number);
+        }
+    }
+  };
+
+  const handlePrevEpisode = () => {
+    if (mediaIds.mediaType !== 'tv' || !playerAnime) return;
+    isNavigatingWithArrows.current = true;
+    if (currentEpisode > 1) {
+        selectEpisode(currentEpisode - 1);
+    } else {
+        const currentSeasonIndex = sortedSeasons.findIndex(s => s.season_number === currentSeason);
+        if (currentSeasonIndex > 0) {
+            const prevSeason = sortedSeasons[currentSeasonIndex - 1];
+            selectSeason(prevSeason.season_number, prevSeason.episode_count);
+        }
+    }
+  };
+  
+  useEffect(() => {
+    const fetchLoadingFact = async () => {
+        if (!anime) return;
+        try {
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const prompt = `Generate a short, surprising, fun, and little-known fact about the anime "${getDisplayTitle(anime, settings)}". Keep it under 150 characters.`;
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+            });
+            setLoadingFact(response.text);
+        } catch (e) {
+            console.error("Failed to fetch loading fact from Gemini", e);
+        }
+    };
+    fetchLoadingFact();
+  }, [anime, settings]);
+
   useEffect(() => {
       if (isLoading || !playerAnime) return;
       const fetchSecondaryData = async () => {
@@ -462,7 +539,15 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
               if (videosRes.ok) {
                   const videosData = await videosRes.json();
                   const promos = videosData.data?.promo || [];
-                  setTrailers(promos.filter((p: any) => p.trailer?.youtube_id).map((p: any) => ({ key: p.trailer.youtube_id, name: p.title })));
+                  const malTrailers = promos
+                    .filter((p: any) => p.trailer?.youtube_id)
+                    .map((p: any) => ({ key: p.trailer.youtube_id, name: p.title }));
+
+                  setTrailers(prevTrailers => {
+                      const existingKeys = new Set(prevTrailers.map(t => t.key));
+                      const newTrailers = malTrailers.filter(t => !existingKeys.has(t.key));
+                      return [...prevTrailers, ...newTrailers];
+                  });
               }
               setIsLoadingTrailers(false);
   
@@ -478,8 +563,14 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
               setIsLoadingCharacters(false);
           }
       };
-      fetchSecondaryData();
-  }, [isLoading, playerAnime, rawRelationsData, settings.restrictAdultContent]);
+      if (!isEmbed) {
+        fetchSecondaryData();
+      } else {
+        setIsLoadingNavigator(false);
+        setIsLoadingTrailers(false);
+        setIsLoadingCharacters(false);
+      }
+  }, [isLoading, playerAnime, rawRelationsData, settings.restrictAdultContent, isEmbed]);
 
 
   useEffect(() => {
@@ -491,132 +582,20 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
     }
   }, [playerAnime, currentSeason, seasons, mediaIds.mediaType, settings]);
 
-    useEffect(() => {
-        const fetchStreamAndProgress = async () => {
-            if (!playerAnime?.id || !mediaIds.tmdb) return;
-
-            setIsLoadingStream(true);
-            setStreamError(null); setStreamUrl(null); setSourceUrl(null); setNextAiringInfo(null);
-
-            let foundStream = false;
-            let useRelativeEpisodeNumber = false;
-            const providers = ['gogoanime', 'zoro'];
-            const potentialSearchTitles: string[] = [];
-            if (mediaIds.mediaType === 'tv' && seasons.length > 1) {
-                potentialSearchTitles.push(`${playerAnime.title} Season ${currentSeason}`, `${playerAnime.title} S${currentSeason}`);
-            }
-            potentialSearchTitles.push(playerAnime.title);
-
-            for (const provider of providers) {
-                if (foundStream) break;
-                let animeResult = null, infoData = null;
-                for (const title of potentialSearchTitles) {
-                    try {
-                        const searchRes = await fetch(`https://api.consumet.org/anime/${provider}/${encodeURIComponent(title)}`);
-                        if (!searchRes.ok) continue;
-                        const searchData = await searchRes.json();
-                        if (!searchData.results || searchData.results.length === 0) continue;
-                        const potentialResult = searchData.results[0];
-                        const tempInfoRes = await fetch(`https://api.consumet.org/anime/${provider}/info?id=${potentialResult.id}`);
-                        if (!tempInfoRes.ok) continue;
-                        const tempInfoData = await tempInfoRes.json();
-                        if (title !== playerAnime.title) {
-                            if (tempInfoData.episodes?.some((ep: any) => ep.number === currentEpisode)) {
-                                animeResult = potentialResult; infoData = tempInfoData; useRelativeEpisodeNumber = true; break;
-                            }
-                        } else {
-                             let absoluteEpisodeNumber = currentEpisode;
-                            if (mediaIds.mediaType === 'tv' && sortedSeasons.length > 0) {
-                                const currentSeasonIndex = sortedSeasons.findIndex(s => s.season_number === currentSeason);
-                                if (currentSeasonIndex > 0) absoluteEpisodeNumber = sortedSeasons.slice(0, currentSeasonIndex).reduce((acc, season) => acc + season.episode_count, 0) + currentEpisode;
-                            }
-                            if (tempInfoData.episodes?.some((ep: any) => ep.number === absoluteEpisodeNumber)) {
-                                animeResult = potentialResult; infoData = tempInfoData; useRelativeEpisodeNumber = false; break;
-                            }
-                        }
-                    } catch (e) { console.error(`Error searching with title "${title}" on provider ${provider}:`, e); }
-                }
-
-                if (!animeResult || !infoData) continue;
-                try {
-                    if (infoData.nextAiringEpisode?.airingTime) setNextAiringInfo({ at: infoData.nextAiringEpisode.airingTime, episode: infoData.nextAiringEpisode.episode });
-                    let targetEpisode;
-                    if (mediaIds.mediaType === 'movie') {
-                        targetEpisode = infoData.episodes?.[0];
-                    } else {
-                        const episodeNumberToFind = useRelativeEpisodeNumber ? currentEpisode : (() => {
-                            let absoluteEpisodeNumber = currentEpisode;
-                            const currentSeasonIndex = sortedSeasons.findIndex(s => s.season_number === currentSeason);
-                            if (currentSeasonIndex > 0) absoluteEpisodeNumber = sortedSeasons.slice(0, currentSeasonIndex).reduce((acc, season) => acc + season.episode_count, 0) + currentEpisode;
-                            return absoluteEpisodeNumber;
-                        })();
-                        targetEpisode = infoData.episodes?.find((ep: any) => ep.number === episodeNumberToFind);
-                    }
-                    if (!targetEpisode) continue;
-                    const watchUrl = provider === 'zoro' ? `https://api.consumet.org/anime/zoro/watch?episodeId=${targetEpisode.id}&server=vidstreaming` : `https://api.consumet.org/anime/gogoanime/watch/${targetEpisode.id}`;
-                    const streamRes = await fetch(watchUrl);
-                    if(!streamRes.ok) continue;
-                    const streamData = await streamRes.json();
-                    const source = streamData.sources?.find((s: any) => s.quality === 'default' || s.quality === 'auto') || streamData.sources?.[streamData.sources.length - 1];
-                    if (source?.url && (source.url.includes('.m3u8') || source.url.includes('.mp4'))) {
-                        setStreamUrl(source.url);
-                        foundStream = true;
-                    }
-                } catch (e) { console.error(`Error getting stream from provider ${provider}:`, e); }
-            }
-
-            if (!foundStream) {
-                const iframeUrl = buildSourceUrl(settings.videoServer, mediaIds.mediaType, mediaIds.tmdb, currentSeason, currentEpisode, settings.autoplayNext);
-                if (iframeUrl) {
-                    setSourceUrl(iframeUrl);
-                } else {
-                    const canTrySeason1 = mediaIds.mediaType === 'tv' && seasons.some(s => s.season_number === 1) && currentSeason !== 1;
-                    if (canTrySeason1 && !autoRedirected) {
-                        setAutoRedirected(true);
-                        selectSeason(1);
-                        return;
-                    } else {
-                        setStreamError('Could not find this title in our streaming databases. Try checking if this anime is part of one of the seasons of the original series.');
-                    }
-                }
-            }
-
-            setIsLoadingStream(false);
-            setIsPlayerFading(false);
-            
-            if (playerAnime) {
-                let progress = 0;
-                if (mediaIds.mediaType === 'tv' && seasons.length > 0) {
-                    const total = seasons.reduce((acc, s) => acc + s.episode_count, 0);
-                    const watched = seasons.filter(s => s.season_number < currentSeason).reduce((acc, s) => acc + s.episode_count, 0) + currentEpisode;
-                    if(total > 0) progress = (watched / total) * 100;
-                } else if (mediaIds.mediaType === 'movie') { progress = 100; }
-                updateProgress(playerAnime.id, currentSeason, currentEpisode, progress);
-            }
-        };
-        fetchStreamAndProgress();
-    }, [playerAnime, currentSeason, currentEpisode, mediaIds.tmdb, mediaIds.mediaType, settings.videoServer, settings.autoplayNext, seasons, sortedSeasons, updateProgress, selectSeason, autoRedirected]);
-
   useEffect(() => {
-    const syncAnilistProgress = async () => {
+    const syncAnilist = async () => {
         if (!playerAnime || !settings.autoSyncAniList || !settings.anilistToken || mediaIds.mediaType !== 'tv') return;
         const seasonInfo = seasons.find(s => s.season_number === currentSeason);
         if (!seasonInfo || !playerAnime.totalEpisodes) return;
         const episodesInPrevSeasons = seasons.filter(s => s.season_number < currentSeason).reduce((acc, s) => acc + s.episode_count, 0);
         const overallEpisodeNumber = episodesInPrevSeasons + currentEpisode;
         try {
-            const anilistId = await getAnilistId(playerAnime.id);
-            if (anilistId) {
-                await updateAnilistProgress(anilistId, overallEpisodeNumber, settings.anilistToken);
-                console.log(`Synced episode ${overallEpisodeNumber} to AniList for ${playerAnime.title}.`);
-            } else {
-                console.warn(`Could not find AniList ID for MAL ID ${playerAnime.id} to sync progress.`);
-            }
+            await updateAnilistEntry(playerAnime.id, settings.anilistToken, { progress: overallEpisodeNumber });
         } catch (error) {
             console.error("Failed to sync progress with AniList:", error);
         }
     };
-    syncAnilistProgress();
+    syncAnilist();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentEpisode, currentSeason, playerAnime]);
 
@@ -636,7 +615,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
         const data = await res.json();
         setEpisodes(data.episodes?.map((ep: any) => ({
             ...ep,
-            episode_number: ep.episode_number, name: ep.name, still_path: ep.still_path, runtime: ep.runtime,
+            episode_number: ep.episode_number, name: ep.name, still_path: ep.still_path, runtime: ep.runtime, air_date: ep.air_date
         })) || []);
     } catch (e) {
         console.error(e);
@@ -658,85 +637,34 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
     }
   }, [fetchSeasonEpisodes, mediaIds.mediaType, mediaIds.tmdb, currentSeason, isLoading]);
   
-  useEffect(() => {
-    if (!streamUrl || !videoRef.current) return;
-    const video = videoRef.current;
-    let hls: any;
-    if (typeof Hls === 'undefined') {
-      console.error("HLS.js not loaded");
-      if (video.canPlayType('application/vnd.apple.mpegurl')) video.src = streamUrl;
-      return;
-    }
-    if (Hls.isSupported() && streamUrl.includes('.m3u8')) {
-      hls = new Hls();
-      hls.loadSource(streamUrl);
-      hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(e => console.error("Autoplay prevented:", e)));
-      hls.on(Hls.Events.ERROR, function (event: any, data: any) {
-        if (data.fatal) {
-          switch (data.type) {
-            case Hls.ErrorTypes.NETWORK_ERROR: hls.startLoad(); break;
-            case Hls.ErrorTypes.MEDIA_ERROR: hls.recoverMediaError(); break;
-            default: hls.destroy(); break;
-          }
-        }
-      });
-    } else {
-      video.src = streamUrl;
-      video.play().catch(e => console.error("Autoplay prevented:", e));
-    }
-    return () => { if (hls) hls.destroy(); };
-  }, [streamUrl]);
-  
-  useEffect(() => {
-    const fetchTimestamps = async () => {
-        if (!playerAnime || mediaIds.mediaType !== 'tv') {
-            setTimestamps({ intro: null, outro: null });
-            return;
-        }
-        setIsLoadingTimestamps(true);
-        try {
-            const query = `query GetTimestamps($anime: String!, $episode: Int!) { anime(name: $anime) { episodes(number: $episode) { number, timestamps { type, start, end } } } }`;
-            const variables = { anime: playerAnime.title, episode: currentEpisode };
-            const response = await fetchWithRetry('https://api.anime-skip.com/graphql', 1, 500);
-            if (!response.ok) throw new Error('Network response was not ok for anime-skip');
-            const result = await response.json();
-            const episodeData = result.data?.anime?.episodes?.[0];
-            if (episodeData) {
-                const intro = episodeData.timestamps.find((t: any) => t.type === 'intro');
-                const outro = episodeData.timestamps.find((t: any) => t.type === 'outro');
-                setTimestamps({
-                    intro: intro ? { start: intro.start, end: intro.end } : null,
-                    outro: outro ? { start: outro.start, end: outro.end } : null,
-                });
-            } else {
-                setTimestamps({ intro: null, outro: null });
-            }
-        } catch (error) {
-            console.error("Failed to fetch timestamps:", error);
-            setTimestamps({ intro: null, outro: null });
-        } finally {
-            setIsLoadingTimestamps(false);
-        }
-    };
-    fetchTimestamps();
-}, [playerAnime, currentEpisode, mediaIds.mediaType]);
-
-  const handleSkip = (type: 'intro' | 'outro') => {
-      setSkipMessage(`⏩ Skipping ${type === 'intro' ? 'Intro' : 'Outro'}...`);
-      setTimeout(() => setSkipMessage(''), 2000);
-  };
-  
   const showEpisodesTab = useMemo(() => mediaIds.mediaType === 'tv' && seasons.length > 0, [mediaIds.mediaType, seasons]);
-  const showTrailersTab = useMemo(() => isLoadingTrailers || trailers.length > 0, [isLoadingTrailers, trailers]);
-  const showCharactersTab = useMemo(() => !isLoading && (isLoadingCharacters || characters.length > 0), [isLoading, isLoadingCharacters, characters]);
+  const showTrailersTab = useMemo(() => true, []);
+  const showCharactersTab = useMemo(() => true, []);
 
-  const totalEpisodePages = useMemo(() => Math.ceil(episodes.length / EPISODES_PER_PAGE), [episodes]);
+  const filteredAndSortedEpisodes = useMemo(() => {
+    let episodesToShow = [...episodes];
+
+    if (playerAnime?.id === 20 && settings.hideFillerEpisodes) {
+        episodesToShow = episodesToShow.filter(ep => !NARUTO_FILLER_EPISODES.includes(ep.episode_number));
+    }
+
+    if (episodeSearchQuery) {
+        const query = episodeSearchQuery.toLowerCase();
+        episodesToShow = episodesToShow.filter(ep =>
+            ep.episode_number.toString().includes(query) ||
+            ep.name.toLowerCase().includes(query)
+        );
+    }
+    return episodesToShow;
+  }, [episodes, playerAnime?.id, settings.hideFillerEpisodes, episodeSearchQuery]);
+
+
+  const totalEpisodePages = useMemo(() => Math.ceil(filteredAndSortedEpisodes.length / EPISODES_PER_PAGE), [filteredAndSortedEpisodes]);
   const paginatedEpisodes = useMemo(() => {
-      if (episodes.length <= EPISODES_PER_PAGE) return episodes;
+      if (filteredAndSortedEpisodes.length <= EPISODES_PER_PAGE) return filteredAndSortedEpisodes;
       const start = (episodePage - 1) * EPISODES_PER_PAGE;
-      return episodes.slice(start, start + EPISODES_PER_PAGE);
-  }, [episodes, episodePage]);
+      return filteredAndSortedEpisodes.slice(start, start + EPISODES_PER_PAGE);
+  }, [filteredAndSortedEpisodes, episodePage]);
 
   useEffect(() => {
     if (!isLoading) {
@@ -797,6 +725,14 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
 
   const headerEpisodeText = mediaIds.mediaType === 'tv' ? `S${currentSeason} E${currentEpisode}` : (playerAnime?.totalEpisodes ?? 0) > 1 ? `Episode ${currentEpisode}` : 'Movie';
 
+  const modalRoot = document.getElementById('modal-root');
+  
+  const embedUrl = useMemo(() => {
+    if (!playerAnime) return '';
+    const baseUrl = window.location.origin + window.location.pathname;
+    return `${baseUrl}?embed=true&animeId=${playerAnime.id}&autoplay=1&theme=${settings.theme}`;
+  }, [playerAnime, settings.theme]);
+
   const SeasonNavigator = () => {
     const useTmdbSeasons = seasons.length > 0;
     const useJikanSeriesParts = !useTmdbSeasons && seriesParts.length > 1;
@@ -838,7 +774,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
                 )) : items.map(item => {
                     const hasFailed = failedImages.has(item.id);
                     return (
-                        <button key={item.id} onClick={item.onClick} className={`flex-shrink-0 w-40 text-left rounded-xl group transition-all duration-300 overflow-hidden focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[rgb(var(--surface-1))] ${item.isActive ? 'ring-[rgb(var(--color-primary-accent))]' : 'ring-transparent'}`}>
+                        <button key={item.id} onClick={item.onClick} disabled={isWatchTogetherSession && !isHost} className={`flex-shrink-0 w-40 text-left rounded-xl group transition-all duration-300 overflow-hidden focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[rgb(var(--surface-1))] ${item.isActive ? 'ring-[rgb(var(--color-primary-accent))]' : 'ring-transparent'} disabled:cursor-not-allowed`}>
                             <div className="aspect-[2/3] w-full relative">
                                 {item.imageUrl && !hasFailed ? (
                                     <img src={item.imageUrl} alt={item.name} className={`w-full h-full object-cover transition-all duration-300 group-hover:scale-110 ${!item.isActive ? 'opacity-70 group-hover:opacity-100' : ''}`} onError={() => setFailedImages(prev => new Set(prev).add(item.id))} />
@@ -875,58 +811,123 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
 
   const EpisodeListContent = ({ episodesToShow, isBlurred, view }: { episodesToShow: Episode[], isBlurred: boolean, view: EpisodeViewStyle }) => {
     if (isLoadingEpisodes) return <p className="text-[rgb(var(--text-muted))]">Loading episodes...</p>;
-    if (episodesToShow.length === 0) return <p className="text-[rgb(var(--text-muted))]">No episode information available.</p>;
+    if (episodesToShow.length === 0) {
+        if (episodeSearchQuery) return <p className="text-[rgb(var(--text-muted))]">No episodes match your search.</p>;
+        return <p className="text-[rgb(var(--text-muted))]">No episode information available.</p>;
+    }
     const setEpisodeRef = (epNum: number) => (el: HTMLButtonElement | null) => { if (el) episodeRefs.current.set(epNum, el); else episodeRefs.current.delete(epNum); };
+    
     if (view === 'compact') {
-        return <div className="space-y-2 max-h-[24rem] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin' }}>{episodesToShow.map(ep => (
-            <button key={ep.episode_number} ref={setEpisodeRef(ep.episode_number)} onClick={() => selectEpisode(ep.episode_number)} className={`flex items-center gap-3 w-full text-left p-2 rounded-xl transition-all duration-200 hover:scale-105 hover:bg-[rgb(var(--surface-3))/0.5] ${currentEpisode === ep.episode_number ? 'bg-[rgb(var(--color-primary))/0.3]' : ''}`}>
-                <div className="relative flex-shrink-0 w-24 aspect-video bg-[rgb(var(--surface-3))] rounded-lg overflow-hidden">
-                    <img src={ep.still_path ? `https://image.tmdb.org/t/p/w300${ep.still_path}` : playerAnime.bannerImage} alt="" className={`w-full h-full object-cover transition-all duration-300 ${isBlurred ? 'blur-md' : 'blur-0'}`} />
-                    {ep.runtime && <span className="absolute bottom-1 right-1 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded">{formatDuration(ep.runtime)}</span>}
-                </div>
-                <div className="flex-1 min-w-0"><p className={`font-semibold text-sm truncate ${currentEpisode === ep.episode_number ? 'text-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-primary))]'}`}>Episode {ep.episode_number}</p><p className="text-xs text-[rgb(var(--text-muted))] truncate">{ep.name}</p></div>
-            </button>
-        ))}</div>;
+        return <div className="space-y-2 max-h-[24rem] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin' }}>{episodesToShow.map(ep => {
+            const isFiller = playerAnime?.id === 20 && NARUTO_FILLER_EPISODES.includes(ep.episode_number);
+            return (
+                <button key={ep.episode_number} ref={setEpisodeRef(ep.episode_number)} onClick={() => selectEpisode(ep.episode_number)} disabled={isWatchTogetherSession && !isHost} className={`flex items-center gap-3 w-full text-left p-2 rounded-xl transition-all duration-200 hover:scale-105 hover:bg-[rgb(var(--surface-3))/0.5] ${currentEpisode === ep.episode_number ? 'bg-[rgb(var(--color-primary))/0.3]' : ''} disabled:opacity-70 disabled:cursor-not-allowed`}>
+                    <div className="relative flex-shrink-0 w-24 aspect-video bg-[rgb(var(--surface-3))] rounded-lg overflow-hidden">
+                        <img src={ep.still_path ? `https://image.tmdb.org/t/p/w300${ep.still_path}` : playerAnime.bannerImage} alt="" className={`w-full h-full object-cover transition-all duration-300 ${isBlurred ? 'blur-md' : 'blur-0'}`} />
+                        {ep.runtime && <span className="absolute bottom-1 right-1 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded">{formatDuration(ep.runtime)}</span>}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className={`font-semibold text-sm truncate ${currentEpisode === ep.episode_number ? 'text-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-primary))]'}`}>
+                            Episode {ep.episode_number}
+                            {isFiller && <span className="text-xs font-bold text-yellow-400 bg-yellow-400/20 px-1.5 py-0.5 rounded-sm ml-2">FILLER</span>}
+                        </p>
+                        <p className="text-xs text-[rgb(var(--text-muted))] truncate">{ep.name}</p>
+                        {ep.air_date && <p className="text-[10px] text-[rgb(var(--text-muted))]">{new Date(ep.air_date).toLocaleDateString()}</p>}
+                    </div>
+                </button>
+            )
+        })}</div>;
     }
+
     if (view === 'grid') {
-        return <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">{episodesToShow.map(ep => (
-            <button key={ep.episode_number} ref={setEpisodeRef(ep.episode_number)} onClick={() => selectEpisode(ep.episode_number)} className={`relative aspect-video w-full text-left rounded-xl group transition-all duration-300 overflow-hidden hover:scale-105 ${currentEpisode === ep.episode_number ? 'ring-2 ring-[rgb(var(--border-focus))]' : 'ring-0 ring-transparent'}`}>
-                <img src={ep.still_path ? `https://image.tmdb.org/t/p/w500${ep.still_path}` : playerAnime.bannerImage} alt={`Episode ${ep.episode_number}`} className={`w-full h-full object-cover transition-all duration-300 group-hover:scale-110 ${isBlurred ? 'blur-md' : 'blur-0'}`} />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
-                <div className="absolute bottom-1 left-2"><p className="font-semibold text-xs text-white">E{ep.episode_number}</p></div>
-                {ep.runtime && <span className="absolute bottom-1 right-1 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded">{formatDuration(ep.runtime)}</span>}
-            </button>
-        ))}</div>;
+        return <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">{episodesToShow.map(ep => {
+            const isFiller = playerAnime?.id === 20 && NARUTO_FILLER_EPISODES.includes(ep.episode_number);
+            return (
+                <button key={ep.episode_number} ref={setEpisodeRef(ep.episode_number)} onClick={() => selectEpisode(ep.episode_number)} disabled={isWatchTogetherSession && !isHost} className={`relative aspect-video w-full text-left rounded-xl group transition-all duration-300 overflow-hidden hover:scale-105 ${currentEpisode === ep.episode_number ? 'ring-2 ring-[rgb(var(--border-focus))]' : 'ring-0 ring-transparent'} disabled:opacity-70 disabled:cursor-not-allowed`}>
+                    <img src={ep.still_path ? `https://image.tmdb.org/t/p/w500${ep.still_path}` : playerAnime.bannerImage} alt={`Episode ${ep.episode_number}`} className={`w-full h-full object-cover transition-all duration-300 group-hover:scale-110 ${isBlurred ? 'blur-md' : 'blur-0'}`} />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+                    <div className="absolute bottom-1 left-2">
+                        <p className="font-semibold text-xs text-white">
+                            E{ep.episode_number}
+                            {isFiller && <span className="text-[10px] font-bold text-yellow-400 bg-yellow-400/20 px-1.5 py-0.5 rounded-sm ml-1">FILLER</span>}
+                        </p>
+                    </div>
+                    {ep.runtime && <span className="absolute bottom-1 right-1 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded">{formatDuration(ep.runtime)}</span>}
+                </button>
+            )
+        })}</div>;
     }
-    return <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8" style={{ scrollbarWidth: 'thin' }}>{episodesToShow.map(ep => (
-        <button key={ep.episode_number} ref={setEpisodeRef(ep.episode_number)} onClick={() => selectEpisode(ep.episode_number)} className={`flex-shrink-0 w-48 text-left rounded-xl group transition-all duration-300 overflow-hidden hover:scale-105 ${currentEpisode === ep.episode_number ? 'ring-2 ring-[rgb(var(--border-focus))]' : 'ring-0 ring-transparent'}`}>
-            <div className="aspect-video relative">
-                <img src={ep.still_path ? `https://image.tmdb.org/t/p/w500${ep.still_path}` : playerAnime.bannerImage} alt={`Episode ${ep.episode_number}`} className={`w-full h-full object-cover transition-all duration-300 group-hover:scale-110 ${isBlurred ? 'blur-md' : 'blur-0'}`} />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
-                {ep.runtime && <span className="absolute bottom-1 right-1 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded">{formatDuration(ep.runtime)}</span>}
+    
+    if (view === 'horizontal') {
+        return (
+            <div className="flex gap-3 overflow-x-auto pb-4 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8" style={{ scrollbarWidth: 'thin' }}>
+                {episodesToShow.map(ep => {
+                    const isFiller = playerAnime?.id === 20 && NARUTO_FILLER_EPISODES.includes(ep.episode_number);
+                    return (
+                        <button
+                            key={ep.episode_number}
+                            ref={setEpisodeRef(ep.episode_number)}
+                            onClick={() => selectEpisode(ep.episode_number)}
+                            disabled={isWatchTogetherSession && !isHost}
+                            className={`flex-shrink-0 w-48 aspect-video text-left rounded-xl group transition-all duration-300 overflow-hidden relative ${currentEpisode === ep.episode_number ? 'ring-2 ring-[rgb(var(--border-focus))]' : 'ring-0 ring-transparent'} disabled:opacity-70 disabled:cursor-not-allowed`}
+                        >
+                            <img src={ep.still_path ? `https://image.tmdb.org/t/p/w500${ep.still_path}` : playerAnime.bannerImage} alt={`Episode ${ep.episode_number}`} className={`w-full h-full object-cover transition-all duration-300 group-hover:scale-110 ${isBlurred ? 'blur-md' : 'blur-0'}`} />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+                            <div className="absolute bottom-1 left-2 w-[90%]">
+                                <p className="font-semibold text-xs text-white">
+                                    E{ep.episode_number}
+                                    {isFiller && <span className="text-[10px] font-bold text-yellow-400 bg-yellow-400/20 px-1.5 py-0.5 rounded-sm ml-1">FILLER</span>}
+                                </p>
+                                <p className="text-[10px] text-gray-300 truncate">{ep.name}</p>
+                            </div>
+                            {ep.runtime && <span className="absolute top-1 right-1 bg-black/70 text-white text-[10px] px-1 py-0.5 rounded">{formatDuration(ep.runtime)}</span>}
+                        </button>
+                    );
+                })}
             </div>
-            <div className="p-2 bg-[rgb(var(--surface-2))/0.7]"><p className={`font-semibold text-sm truncate ${currentEpisode === ep.episode_number ? 'text-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-primary))]'}`}>E{ep.episode_number}: {ep.name}</p></div>
-        </button>
-    ))}</div>;
+        );
+    }
+    
+    return null;
   };
   
   const EpisodeViewToggle = () => {
-    const viewStyles: EpisodeViewStyle[] = ['default', 'compact', 'grid'];
     const cycleViewStyle = () => {
-        const currentView = localEpisodeViewStyle === 'auto' ? 'default' : localEpisodeViewStyle;
-        const currentIndex = viewStyles.indexOf(currentView);
-        setLocalEpisodeViewStyle(viewStyles[(currentIndex + 1) % viewStyles.length]);
+        const order: EpisodeViewStyle[] = ['compact', 'grid', 'horizontal'];
+        const currentIndex = order.indexOf(localEpisodeViewStyle);
+        const nextIndex = (currentIndex + 1) % order.length;
+        setLocalEpisodeViewStyle(order[nextIndex]);
     };
-    const ViewIcon = () => { switch(localEpisodeViewStyle) { case 'compact': return <ViewListIcon />; case 'grid': return <ViewGridIcon />; default: return <ViewCarouselIcon />; } };
-    return <button onClick={cycleViewStyle} className="p-2 rounded-full text-[rgb(var(--text-muted))] bg-[rgb(var(--surface-2))] hover:bg-[rgb(var(--surface-3))] hover:text-[rgb(var(--text-secondary))] transition-transform hover:scale-110" aria-label="Change episode view style"><ViewIcon /></button>;
+
+    const iconMap: Record<EpisodeViewStyle, React.ReactNode> = {
+        compact: <ViewGridIcon />,
+        grid: <ViewCarouselIcon />,
+        horizontal: <ViewListIcon />,
+    };
+
+    const labelMap: Record<EpisodeViewStyle, string> = {
+        compact: 'Grid',
+        grid: 'Horizontal',
+        horizontal: 'Compact List',
+    };
+
+    return (
+        <button 
+            onClick={cycleViewStyle} 
+            className="p-2 rounded-full text-[rgb(var(--text-muted))] bg-[rgb(var(--surface-2))] hover:bg-[rgb(var(--surface-3))] hover:text-[rgb(var(--text-secondary))] transition-transform hover:scale-110" 
+            aria-label={`Switch to ${labelMap[localEpisodeViewStyle]} view`}
+        >
+            {iconMap[localEpisodeViewStyle]}
+        </button>
+    );
   };
   
   const BlurToggle = () => <button onClick={() => setLocalBlur(!isBlurred)} className="p-2 rounded-full text-[rgb(var(--text-muted))] bg-[rgb(var(--surface-2))] hover:bg-[rgb(var(--surface-3))] hover:text-[rgb(var(--text-secondary))] transition-transform hover:scale-110" aria-label={isBlurred ? "Show thumbnails" : "Blur thumbnails"}>{isBlurred ? <EyeOffIcon /> : <EyeIcon />}</button>;
 
   const TrailerList = () => (
       <>
-        {isLoadingTrailers ? <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 animate-pulse"><div className="flex-shrink-0 w-80 h-44 bg-[rgb(var(--surface-3))] rounded-xl"></div><div className="flex-shrink-0 w-80 h-44 bg-[rgb(var(--surface-3))] rounded-xl hidden sm:block"></div></div>
-        : trailers.length > 0 ? <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8" style={{ scrollbarWidth: 'thin' }}>{trailers.map(t => <div key={t.key} className="flex-shrink-0 w-80"><div className="aspect-video bg-black rounded-xl overflow-hidden shadow-lg"><iframe src={`https://www.youtube.com/embed/${t.key}`} title={t.name} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen className="w-full h-full"></iframe></div></div>)}</div>
+        {isLoadingTrailers ? <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:-mx-8 animate-pulse"><div className="flex-shrink-0 w-80 h-44 bg-[rgb(var(--surface-3))] rounded-xl"></div><div className="flex-shrink-0 w-80 h-44 bg-[rgb(var(--surface-3))] rounded-xl hidden sm:block"></div></div>
+        : trailers.length > 0 ? <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:-mx-8" style={{ scrollbarWidth: 'thin' }}>{trailers.map(t => <div key={t.key} className="flex-shrink-0 w-80"><div className="aspect-video bg-black rounded-xl overflow-hidden shadow-lg"><iframe src={`https://www.youtube.com/embed/${t.key}`} title={t.name} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen className="w-full h-full"></iframe></div></div>)}</div>
         : <p className="text-[rgb(var(--text-muted))]">No trailers available for this {mediaIds.mediaType === 'tv' ? 'season' : 'title'}.</p>}
       </>
   );
@@ -990,49 +991,9 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
         setIsPageTransitioning(true);
         setTimeout(() => { setEpisodePage(newPage); setIsPageTransitioning(false); }, 300);
     };
-    return <div className="flex flex-wrap justify-center items-center gap-2 mt-4">{[...Array(totalEpisodePages)].map((_, i) => { const pageNum = i + 1; return <button key={pageNum} onClick={() => handlePageChange(pageNum)} className={`px-3 py-1.5 text-sm rounded-lg font-semibold transition-transform hover:scale-105 ${episodePage === pageNum ? 'bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))]' : 'bg-[rgb(var(--surface-3))] hover:bg-[rgb(var(--surface-4))]'}`}>{`${(i * EPISODES_PER_PAGE) + 1} - ${Math.min((i + 1) * EPISODES_PER_PAGE, episodes.length)}`}</button>; })}</div>;
+    return <div className="flex flex-wrap justify-center items-center gap-2 mt-4">{[...Array(totalEpisodePages)].map((_, i) => { const pageNum = i + 1; return <button key={pageNum} onClick={() => handlePageChange(pageNum)} className={`px-3 py-1.5 text-sm rounded-lg font-semibold transition-transform hover:scale-105 ${episodePage === pageNum ? 'bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))]' : 'bg-[rgb(var(--surface-3))] hover:bg-[rgb(var(--surface-4))]'}`}>{`${(i * EPISODES_PER_PAGE) + 1} - ${Math.min((i + 1) * EPISODES_PER_PAGE, filteredAndSortedEpisodes.length)}`}</button>; })}</div>;
   };
-
-  const NoStreamSourceMessage = () => (
-    <div className="w-full h-full flex flex-col items-center justify-center text-center p-4 bg-black rounded-2xl">
-      <p className="text-xl font-semibold text-[rgb(var(--text-primary))] mb-2">Source Not Found</p>
-      <p className="text-[rgb(var(--text-muted))]">Could not find this title in our streaming databases. Try checking if this anime is part of one of the seasons of the original series.</p>
-    </div>
-  );
   
-  const PlaybackControls = () => {
-    const { settings, updateSettings } = useSettings();
-    if (mediaIds.mediaType !== 'tv') return null;
-
-    const ControlButton: React.FC<{ onClick: () => void; disabled: boolean; children: React.ReactNode; }> = ({ onClick, disabled, children }) => (
-      <button onClick={onClick} disabled={disabled} className="flex items-center justify-center gap-2 px-4 py-2 bg-[rgb(var(--surface-3))] rounded-xl font-semibold text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-4))] hover:text-[rgb(var(--text-primary))] transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-        {children}
-      </button>
-    );
-
-    const ToggleControl = ({ label, icon, isEnabled, onToggle }: { label: string, icon: React.ReactNode, isEnabled: boolean, onToggle: () => void }) => (
-        <button onClick={onToggle} className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-full transition-all ${isEnabled ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>
-            {icon}<span>{label}</span>
-        </button>
-    );
-
-    return (
-        <div className="bg-[rgb(var(--surface-2))/0.5] backdrop-blur-md rounded-2xl p-3 my-4 flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div className="flex items-center gap-2">
-                <ControlButton onClick={() => handleSkip('intro')} disabled={!timestamps.intro || isLoadingTimestamps}><RewindIcon /><span>Skip Intro</span></ControlButton>
-                <ControlButton onClick={() => handleSkip('outro')} disabled={!timestamps.outro || isLoadingTimestamps}><span>Skip Outro</span><FastForwardIcon /></ControlButton>
-            </div>
-            <div className="flex items-center flex-wrap justify-center gap-2">
-                <div className="flex items-center bg-[rgb(var(--surface-3))] rounded-full p-1">
-                    <ToggleControl label="Auto Intro" icon={<RewindIcon className="w-4 h-4" />} isEnabled={settings.autoSkipIntro} onToggle={() => updateSettings({ autoSkipIntro: !settings.autoSkipIntro })} />
-                    <ToggleControl label="Auto Outro" icon={<FastForwardIcon className="w-4 h-4" />} isEnabled={settings.autoSkipOutro} onToggle={() => updateSettings({ autoSkipOutro: !settings.autoSkipOutro })} />
-                    <ToggleControl label="Autoplay Next" icon={<RefreshCwIcon className="w-4 h-4" />} isEnabled={settings.autoplayNext} onToggle={() => updateSettings({ autoplayNext: !settings.autoplayNext })} />
-                </div>
-            </div>
-        </div>
-    );
-};
-
 const InfoItem: React.FC<{label: string, value: string | number | null | undefined, isHighlight?: boolean}> = ({label, value, isHighlight}) => (
     <div>
         <span className="font-semibold text-[rgb(var(--text-primary))] block">{label}</span>
@@ -1104,9 +1065,40 @@ const AnimeInfoSection: React.FC<{anime: Anime, onTrailerClick: () => void}> = (
   const isFirstEpisodeOverall = currentEpisode === 1 && currentSeasonIndex === 0;
   const isLastEpisodeOverall = !!currentSeasonData && currentEpisode === currentSeasonData.episode_count && currentSeasonIndex === sortedSeasons.length - 1;
 
+    if (isEmbed) {
+        return (
+            <div className="w-screen h-screen bg-black flex flex-col">
+                <div className="w-full aspect-video bg-black relative">
+                    {videoSrc ? (
+                        <iframe
+                            ref={iframeRef}
+                            key={videoSrc} // Force re-render on src change
+                            src={videoSrc}
+                            title="Anime Player"
+                            className="w-full h-full"
+                            allow="autoplay; fullscreen"
+                            allowFullScreen
+                        ></iframe>
+                    ) : (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 bg-black">
+                            <p className="text-xl font-semibold text-[rgb(var(--color-danger))]">Could not find a valid video source.</p>
+                        </div>
+                    )}
+                </div>
+                <div className="flex-shrink-0 bg-black p-2 text-white flex justify-between items-center">
+                    <h1 className="text-sm font-bold truncate">{displayTitle}</h1>
+                    <p className="text-xs text-gray-400 flex-shrink-0 ml-4">{headerEpisodeText}</p>
+                </div>
+            </div>
+        );
+    }
+
   return (
     <div className="animate-cinematic-fade-in">
-        {selectedCharacter && <CharacterModal character={selectedCharacter} onClose={() => setSelectedCharacter(null)} />}
+        {selectedCharacter && modalRoot && ReactDOM.createPortal(
+            <CharacterModal character={selectedCharacter} onClose={() => setSelectedCharacter(null)} />,
+            modalRoot
+        )}
         {(isSurpriseLoading || surpriseMessage || surpriseError) && (
             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center animate-cinematic-fade-in" onClick={closeSurprise}>
                 <div className="bg-gradient-to-br from-[rgb(var(--surface-2))/0.8] to-[rgb(var(--surface-3))/0.8] backdrop-blur-xl border border-[rgb(var(--border-color))] rounded-3xl shadow-2xl shadow-[rgb(var(--shadow-color))/0.5] w-full max-w-sm m-4 p-6 relative transform transition-all animate-subtle-fade-in-up text-center" onClick={e => e.stopPropagation()}>
@@ -1138,7 +1130,26 @@ const AnimeInfoSection: React.FC<{anime: Anime, onTrailerClick: () => void}> = (
             </div>
         )}
 
-        {isDownloadModalOpen && playerAnime && (<DownloadModal anime={playerAnime} episodes={episodes} season={currentSeason} onClose={() => setIsDownloadModalOpen(false)} />)}
+        {isEmbedModalOpen && playerAnime && modalRoot && ReactDOM.createPortal(
+            <EmbedModal animeId={playerAnime.id} onClose={() => setIsEmbedModalOpen(false)} />,
+            modalRoot
+        )}
+        {isDownloadModalOpen && playerAnime && modalRoot && ReactDOM.createPortal(
+            <DownloadModal anime={playerAnime} episodes={episodes} season={currentSeason} onClose={() => setIsDownloadModalOpen(false)} />,
+            modalRoot
+        )}
+        {isClippingModalOpen && modalRoot && ReactDOM.createPortal(
+            <ClippingModal onClose={() => setIsClippingModalOpen(false)} />,
+            modalRoot
+        )}
+        {isInviteFriendModalOpen && playerAnime && modalRoot && ReactDOM.createPortal(
+            <InviteFriendModal anime={playerAnime} onClose={() => setIsInviteFriendModalOpen(false)} />,
+            modalRoot
+        )}
+        {isRoomManagerOpen && playerAnime && modalRoot && onEnterRoom && ReactDOM.createPortal(
+            <RoomManagerModal anime={playerAnime} currentSeason={currentSeason} currentEpisode={currentEpisode} onClose={() => setIsRoomManagerOpen(false)} onEnterRoom={onEnterRoom} />,
+            modalRoot
+        )}
         
         <div className="relative w-full h-[300px] md:h-[500px]">
             <img src={playerAnime.bannerImage} alt={`${getDisplayTitle(playerAnime, settings)} banner`} className="w-full h-full object-cover object-center" />
@@ -1147,11 +1158,14 @@ const AnimeInfoSection: React.FC<{anime: Anime, onTrailerClick: () => void}> = (
 
         <section className="container mx-auto px-4 sm:px-6 lg:px-8 pt-8 -mt-32 md:-mt-56 relative z-10">
             <div className="relative z-10">
-                <div className="mb-6">
-                    <button onClick={onGoBack} className="flex items-center space-x-2 text-[rgb(var(--text-primary))] bg-[rgb(var(--surface-1))/60] backdrop-blur-sm px-4 py-2 rounded-xl hover:bg-[rgb(var(--surface-2))] transition-colors group">
-                        <ChevronLeftIcon className="w-6 h-6 transform group-hover:-translate-x-1 transition-transform" />
-                        <span>Back to Browse</span>
-                    </button>
+                <div className="mb-4">
+                    <nav aria-label="breadcrumb" className="flex items-center gap-2 text-sm text-[rgb(var(--text-muted))]">
+                        <button onClick={onGoBack} className="hover:text-[rgb(var(--color-primary-accent))]">Home</button>
+                        <ChevronRightIcon className="w-4 h-4" />
+                        <span className="font-semibold text-[rgb(var(--text-secondary))]">{playerAnime.type || 'Anime'}</span>
+                        <ChevronRightIcon className="w-4 h-4" />
+                        <span className="font-bold text-[rgb(var(--text-primary))] truncate max-w-xs">{displayTitle}</span>
+                    </nav>
                 </div>
                 <div className="flex items-end justify-between gap-4">
                     <div className="flex-1 min-w-0">
@@ -1159,8 +1173,9 @@ const AnimeInfoSection: React.FC<{anime: Anime, onTrailerClick: () => void}> = (
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       {playerAnime.isAdult && <span className="flex-shrink-0 px-3 py-1 text-sm font-bold rounded-full bg-red-600 text-white">+18</span>}
-                      {streamUrl && <a href={streamUrl} target="_blank" rel="noopener noreferrer" title="Open Raw Source" className="p-2 rounded-full bg-[rgb(var(--surface-3))/0.7] backdrop-blur-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--color-primary-hover))] hover:text-white transition-colors" aria-label="Open Raw Source"><ExternalLinkIcon /></a>}
                       <button onClick={() => setIsDownloadModalOpen(true)} title="Download Options" className="p-2 rounded-full bg-[rgb(var(--surface-3))/0.7] backdrop-blur-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--color-primary-hover))] hover:text-white transition-colors" aria-label="Download Options"><DownloadIcon /></button>
+                      <button onClick={() => setIsEmbedModalOpen(true)} title="Embed Player" className="p-2 rounded-full bg-[rgb(var(--surface-3))/0.7] backdrop-blur-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--color-primary-hover))] hover:text-white transition-colors" aria-label="Embed Player"><CodeIcon /></button>
+                      <a href={embedUrl} target="_blank" rel="noopener noreferrer" title="Preview Embed" className="p-2 rounded-full bg-[rgb(var(--surface-3))/0.7] backdrop-blur-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--color-primary-hover))] hover:text-white transition-colors" aria-label="Preview Embed"><ExternalLinkIcon /></a>
                       {user && <button onClick={() => setIsShareModalOpen(true)} title="Share with a friend" className="p-2 rounded-full bg-[rgb(var(--surface-3))/0.7] backdrop-blur-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--color-primary-hover))] hover:text-white transition-colors" aria-label="Share with a friend"><ShareIcon /></button>}
                     </div>
                 </div>
@@ -1170,69 +1185,108 @@ const AnimeInfoSection: React.FC<{anime: Anime, onTrailerClick: () => void}> = (
                 <div className="xl:col-span-2">
                     {playerAnime.type === 'Movie' && <span className="mb-4 inline-block px-4 py-1.5 text-base font-bold rounded-full bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))] shadow-lg shadow-[rgb(var(--shadow-color))/0.4]">Movie</span>}
                     
-                    {!mediaIds.tmdb && !isLoadingNavigator ? (
-                      <div className="aspect-video relative my-4"><NoStreamSourceMessage /></div>
-                    ) : (
-                      <>
-                        <div className={`aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl shadow-[rgb(var(--bg-gradient-start))/0.5] relative my-4 transition-opacity duration-300 ${isPlayerFading ? 'opacity-0' : 'opacity-100'}`}>
-                           {isLoadingStream && (
-                                <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 bg-black">
-                                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[rgb(var(--color-primary))]"></div>
-                                    <p className="text-xl font-semibold text-[rgb(var(--text-primary))] mt-4">Loading Stream...</p>
-                                    <p className="text-[rgb(var(--text-muted))]">Searching for the best source, please wait.</p>
-                                    {loadingFact && (
-                                        <div className="mt-4 max-w-lg animate-cinematic-fade-in">
-                                            <p className="text-sm font-semibold text-[rgb(var(--text-secondary))]">Did you know?</p>
-                                            <p className="text-xs text-[rgb(var(--text-muted))]">"{loadingFact}"</p>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                            
-                            {streamUrl && !isLoadingStream && <video ref={videoRef} controls autoPlay className="w-full h-full" key={streamUrl}></video>}
-                            {sourceUrl && !streamUrl && !isLoadingStream && <iframe key={sourceUrl} src={sourceUrl} className="absolute top-0 left-0 w-full h-full border-0" allowFullScreen sandbox="allow-scripts allow-same-origin allow-forms allow-fullscreen allow-presentation" title={`Player for ${getDisplayTitle(playerAnime, settings)}`}></iframe>}
-                            {streamError && !sourceUrl && !isLoadingStream && <StreamErrorMessage error={streamError} currentSeason={currentSeason} seasons={seasons} onSelectSeason={selectSeason} />}
-                            {skipMessage && <div className="absolute inset-0 flex items-center justify-center bg-black/50 pointer-events-none"><div className="bg-[rgb(var(--surface-1))/0.8] text-white text-lg font-bold px-6 py-3 rounded-xl backdrop-blur-sm animate-cinematic-fade-in">{skipMessage}</div></div>}
-                        </div>
-                        <div className="bg-[rgb(var(--surface-2))/0.5] backdrop-blur-md rounded-2xl p-3 flex flex-col sm:flex-row justify-between items-center gap-4">
-                            <div className="flex-1 min-w-0">
-                                {mediaIds.mediaType === 'tv' && seasons.length > 0 ? (
-                                <div className="flex items-center justify-center sm:justify-start gap-2">
-                                    <button onClick={handlePrevEpisode} disabled={isFirstEpisodeOverall} className="p-2 rounded-full bg-[rgb(var(--surface-3))/0.6] hover:bg-[rgb(var(--surface-4))] disabled:opacity-50 disabled:hover:bg-[rgb(var(--surface-3))/0.6] transition-colors"><ChevronLeftIcon className="w-5 h-5" /></button>
-                                    <p className="text-[rgb(var(--color-primary-accent))] font-semibold text-lg text-center w-28 tabular-nums">{headerEpisodeText}</p>
-                                    <button onClick={handleNextEpisode} disabled={isLastEpisodeOverall} className="p-2 rounded-full bg-[rgb(var(--surface-3))/0.6] hover:bg-[rgb(var(--surface-4))] disabled:opacity-50 disabled:hover:bg-[rgb(var(--surface-3))/0.6] transition-colors"><ChevronRightIcon className="w-5 h-5" /></button>
-                                </div>
-                                ) : ( <p className="text-[rgb(var(--color-primary-accent))] font-semibold text-lg text-center sm:text-left">{headerEpisodeText}</p> )}
+                    <div className="aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl shadow-[rgb(var(--bg-gradient-start))/0.5] relative my-4">
+                        {videoSrc ? (
+                            <iframe
+                                ref={iframeRef}
+                                key={videoSrc} // Force re-render on src change
+                                src={videoSrc}
+                                title="Anime Player"
+                                className="w-full h-full"
+                                allow="autoplay; fullscreen"
+                                allowFullScreen
+                            ></iframe>
+                        ) : (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 bg-black">
+                                <p className="text-xl font-semibold text-[rgb(var(--color-danger))]">Could not find a valid video source.</p>
+                                <p className="text-[rgb(var(--text-muted))]">Please try another server or check back later.</p>
                             </div>
-                            <div className="flex items-center flex-wrap justify-center gap-2">
-                                <div className="flex items-center bg-[rgb(var(--surface-3))] rounded-full p-1">
-                                    {(['sub', 'dub', 'ssub'] as const).map(lang => (
-                                        <button key={lang} onClick={() => updateSettings({ defaultLanguage: lang })} className={`px-4 py-1.5 text-sm capitalize rounded-full transition-all ${settings.defaultLanguage === lang ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>{lang === 'ssub' ? 'S-Sub' : lang}</button>
+                        )}
+                    </div>
+
+
+                    <div className="bg-[rgb(var(--surface-2))/0.5] backdrop-blur-md rounded-2xl p-3 flex flex-col sm:flex-row justify-between items-center gap-4">
+                        <div className="flex-1 min-w-0">
+                            {mediaIds.mediaType === 'tv' && seasons.length > 0 ? (
+                            <div className="flex items-center justify-center sm:justify-start gap-2">
+                                <button onClick={handlePrevEpisode} disabled={isFirstEpisodeOverall || (isWatchTogetherSession && !isHost)} className="p-2 rounded-full bg-[rgb(var(--surface-3))/0.6] hover:bg-[rgb(var(--surface-4))] disabled:opacity-50 disabled:hover:bg-[rgb(var(--surface-3))/0.6] transition-colors"><ChevronLeftIcon className="w-5 h-5" /></button>
+                                <p className="text-[rgb(var(--color-primary-accent))] font-semibold text-lg text-center w-28 tabular-nums">{headerEpisodeText}</p>
+                                <button onClick={handleNextEpisode} disabled={isLastEpisodeOverall || (isWatchTogetherSession && !isHost)} className="p-2 rounded-full bg-[rgb(var(--surface-3))/0.6] hover:bg-[rgb(var(--surface-4))] disabled:opacity-50 disabled:hover:bg-[rgb(var(--surface-3))/0.6] transition-colors"><ChevronRightIcon className="w-5 h-5" /></button>
+                            </div>
+                            ) : ( <p className="text-[rgb(var(--color-primary-accent))] font-semibold text-lg text-center sm:text-left">{headerEpisodeText}</p> )}
+                        </div>
+                        <div className="flex items-center flex-wrap justify-center gap-2">
+                            <div className="flex items-center gap-2">
+                                <label htmlFor="server-select" className="text-sm font-semibold text-[rgb(var(--text-muted))]">Server:</label>
+                                <select 
+                                    id="server-select"
+                                    value={settings.videoServer}
+                                    onChange={(e) => updateSettings({ videoServer: e.target.value as VideoServer })}
+                                    className="bg-[rgb(var(--surface-input))/0.2] border border-white/10 rounded-xl px-3 py-1.5 text-sm text-[rgb(var(--text-primary))] focus:ring-1 focus:ring-[rgb(var(--border-focus))] transition-all"
+                                >
+                                    {availableServers.map(server => (
+                                        <option key={server.id} value={server.id}>{server.name}</option>
                                     ))}
-                                </div>
-                                <div className="flex items-center bg-[rgb(var(--surface-3))] rounded-full p-1">
-                                    {availableServers.length > 0 ? availableServers.map(server => (
-                                        <button key={server.id} onClick={() => selectServer(server.id as VideoServer)} className={`px-4 py-1.5 text-sm rounded-full transition-all ${settings.videoServer === server.id ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>{server.name}</button>
-                                    )) : <span className="px-4 py-1.5 text-sm text-[rgb(var(--text-muted))]">No servers</span>}
-                                </div>
+                                </select>
+                            </div>
+                            <div className="flex items-center bg-[rgb(var(--surface-3))] rounded-full p-1">
+                                {(['sub', 'dub'] as (DefaultLanguage | 'dub')[]).map(lang => (
+                                    <button key={lang} onClick={() => updateSettings({ defaultLanguage: lang })} className={`px-4 py-1.5 text-sm uppercase rounded-full transition-all ${settings.defaultLanguage === lang ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>
+                                        {lang}
+                                    </button>
+                                ))}
                             </div>
                         </div>
-                        <PlaybackControls />
-                      </>
-                    )}
+                    </div>
+                    <div className="bg-[rgb(var(--surface-2))/0.5] backdrop-blur-md rounded-2xl p-3 my-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+                         {mediaIds.mediaType === 'tv' && (
+                            <div className="flex items-center bg-[rgb(var(--surface-3))] rounded-full p-1">
+                                <button onClick={() => updateSettings({ autoplayNext: !settings.autoplayNext })} className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-full transition-all ${settings.autoplayNext ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}><RefreshCwIcon className="w-4 h-4" /><span>Autoplay</span></button>
+                                <button onClick={() => updateSettings({ autoSkipIntro: !settings.autoSkipIntro })} className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-full transition-all ${settings.autoSkipIntro ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}><FastForwardIcon className="w-4 h-4" /><span>Skip Intro</span></button>
+                            </div>
+                        )}
+                        <div className="flex items-center gap-2">
+                            {user && !isWatchTogetherSession && <button onClick={() => setIsRoomManagerOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-[rgb(var(--surface-3))] text-sm text-[rgb(var(--text-secondary))] rounded-full font-semibold hover:bg-[rgb(var(--surface-4))] hover:text-white transition-colors"><UsersIcon className="w-4 h-4" /> Watch Together</button>}
+                            {user && <button onClick={() => setIsInviteFriendModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-[rgb(var(--surface-3))] text-sm text-[rgb(var(--text-secondary))] rounded-full font-semibold hover:bg-[rgb(var(--surface-4))] hover:text-white transition-colors"><UserPlusIcon className="w-4 h-4" /> Invite Friend</button>}
+                            <a href={`mailto:edisonadam160@gmail.com?subject=Report: Anime Issue - ${encodeURIComponent(playerAnime.title)}&body=Anime ID: ${playerAnime.id}%0D%0ASeason: ${currentSeason}%0D%0AEpisode: ${currentEpisode}%0D%0AStream URL: ${videoSrc || 'N/A'}%0D%0A%0D%0APlease describe the issue:%0D%0A`} className="flex items-center gap-2 px-4 py-2 bg-[rgb(var(--surface-3))] text-sm text-[rgb(var(--text-secondary))] rounded-full font-semibold hover:bg-[rgb(var(--surface-4))] hover:text-white transition-colors"><ExclamationTriangleIcon className="w-4 h-4" /> Report</a>
+                            <button onClick={() => setIsClippingModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-[rgb(var(--surface-3))] text-sm text-[rgb(var(--text-secondary))] rounded-full font-semibold hover:bg-[rgb(var(--surface-4))] hover:text-white transition-colors"><ScissorsIcon className="w-4 h-4" /> Clip</button>
+                        </div>
+                    </div>
 
                     <div className="my-8"><SeasonNavigator /><RelatedMovies /></div>
                     
                     {mediaIds.tmdb && (
                       <div className="mt-8">
-                          <div className="flex justify-between items-center border-b border-[rgb(var(--border-color))] mb-6">
+                          <div className="flex flex-wrap justify-between items-center gap-4 border-b border-[rgb(var(--border-color))] mb-6">
                               <div className="flex">
-                                  {showEpisodesTab && <button onClick={() => setActiveTab('episodes')} className={`px-4 py-2 text-lg font-semibold transition-colors ${activeTab === 'episodes' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))] -mb-px' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>Episodes</button>}
-                                  {showTrailersTab && <button onClick={() => setActiveTab('trailers')} className={`px-4 py-2 text-lg font-semibold transition-colors ${activeTab === 'trailers' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))] -mb-px' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>Trailers</button>}
-                                  {showCharactersTab && <button onClick={() => setActiveTab('characters')} className={`px-4 py-2 text-lg font-semibold transition-colors ${activeTab === 'characters' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))] -mb-px' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>Characters</button>}
+                                  {showEpisodesTab && <button onClick={() => setActiveTab('episodes')} className={`px-3 sm:px-4 py-2 text-base sm:text-lg font-semibold transition-colors ${activeTab === 'episodes' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))] -mb-px' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>Episodes</button>}
+                                  {showTrailersTab && <button onClick={() => setActiveTab('trailers')} className={`px-3 sm:px-4 py-2 text-base sm:text-lg font-semibold transition-colors ${activeTab === 'trailers' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))] -mb-px' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>Trailers</button>}
+                                  {showCharactersTab && <button onClick={() => setActiveTab('characters')} className={`px-3 sm:px-4 py-2 text-base sm:text-lg font-semibold transition-colors ${activeTab === 'characters' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))] -mb-px' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>Characters</button>}
                               </div>
-                              {activeTab === 'episodes' && showEpisodesTab && <div className="flex items-center gap-2"><BlurToggle /><EpisodeViewToggle /></div>}
+                              {activeTab === 'episodes' && showEpisodesTab && (
+                                <div className="flex items-center gap-2">
+                                  <button onClick={() => updateSettings({ hideFillerEpisodes: !settings.hideFillerEpisodes })} className={`flex-shrink-0 px-3 py-1.5 text-sm rounded-full transition-all ${settings.hideFillerEpisodes ? 'bg-[rgb(var(--color-primary))] text-white font-semibold shadow-md' : 'bg-[rgb(var(--surface-2))] text-[rgb(var(--text-muted))] hover:bg-[rgb(var(--surface-3))]'}`}>
+                                    Hide Filler
+                                  </button>
+                                  <BlurToggle />
+                                  <EpisodeViewToggle />
+                                </div>
+                              )}
                           </div>
+                          {activeTab === 'episodes' && showEpisodesTab && (
+                            <div className="relative mb-4">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[rgb(var(--text-muted))]">
+                                    <SearchIcon className="w-5 h-5" />
+                                </div>
+                                <input
+                                    type="text"
+                                    value={episodeSearchQuery}
+                                    onChange={(e) => setEpisodeSearchQuery(e.target.value)}
+                                    placeholder={`Search from ${episodes.length} episodes...`}
+                                    className="w-full bg-[rgb(var(--surface-input))/0.5] border border-white/10 rounded-lg py-2 pl-10 pr-4 text-[rgb(var(--text-primary))] placeholder:text-[rgb(var(--text-muted))] focus:ring-1 focus:ring-[rgb(var(--border-focus))]"
+                                />
+                            </div>
+                          )}
                           <div key={activeTab} className={`transition-opacity duration-300 ${isSeasonTransitioning && activeTab === 'episodes' ? 'opacity-0' : 'opacity-100'}`}>
                                {activeTab === 'episodes' && showEpisodesTab && (
                                 <div className={`transition-opacity duration-300 ${isPageTransitioning ? 'opacity-0' : 'opacity-100'}`}>
