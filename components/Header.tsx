@@ -107,10 +107,6 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
             
             {isLoggedIn && user ? (
               <>
-                <button onClick={() => onNavigate('currency')} className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-full text-sm font-semibold text-yellow-400 hover:bg-white/10 transition-colors">
-                    <span className="font-bold text-base">💎</span>
-                    <span>{aniTokens.toLocaleString()}</span>
-                </button>
                 <div className="relative" ref={notificationRef}>
                   <button onClick={handleNotificationToggle} className="p-2.5 rounded-full text-[rgb(var(--text-secondary))] bg-white/5 hover:text-[rgb(var(--color-primary-accent))] hover:bg-white/10 transition-all" aria-label="View notifications">
                     <BellIcon />
@@ -160,6 +156,13 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
                         <button onClick={handleWatchlistLink} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] hover:text-[rgb(var(--text-primary))] rounded-lg transition-colors">
                             <BookmarkIcon className="w-5 h-5"/>
                             <span>Watchlist</span>
+                        </button>
+                        <button onClick={() => handleProfileLink('currency')} className="flex items-center justify-between w-full text-left px-3 py-2 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] hover:text-[rgb(var(--text-primary))] rounded-lg transition-colors">
+                            <div className="flex items-center gap-3">
+                                <span className="font-bold text-base">💎</span>
+                                <span>AniTokens</span>
+                            </div>
+                            <span className="font-semibold text-yellow-400">{aniTokens.toLocaleString()}</span>
                         </button>
                          <button onClick={() => handleProfileLink('comment-meter')} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] hover:text-[rgb(var(--text-primary))] rounded-lg transition-colors">
                             <MessageCircleIcon className="w-5 h-5"/>
