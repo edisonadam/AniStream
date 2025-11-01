@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { HamburgerIcon, SearchIcon, BellIcon, UserIcon, CloseIcon, BookmarkIcon, LogoutIcon, UsersIcon, MessageCircleIcon } from './icons/Icons';
+import { HamburgerIcon, SearchIcon, BellIcon, UserIcon, CloseIcon, BookmarkIcon, LogoutIcon, UsersIcon, MessageCircleIcon, LevelUpIcon } from './icons/Icons';
 import { useAuth } from '../hooks/useAuth';
 import type { Notification, Anime, Page } from '../types';
 import Logo from './Logo';
@@ -160,10 +160,10 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
                       <div className="p-2 space-y-1" role="menu">
                         <div className="flex justify-between items-center px-3 py-2 text-sm text-[rgb(var(--text-primary))] font-semibold border-b border-white/10 mb-1">
                           <span>{user.username}</span>
-                          <span className="flex items-center gap-1 text-yellow-400">
+                          <button onClick={() => handleProfileLink('currency')} className="flex items-center gap-1 text-yellow-400 rounded-md p-1 -m-1 hover:bg-white/10 transition-colors">
                             💎
                             <span>{aniTokens.toLocaleString()}</span>
-                          </span>
+                          </button>
                         </div>
                         <button onClick={() => handleProfileLink('profile')} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] hover:text-[rgb(var(--text-primary))] rounded-lg transition-colors">
                             <UserIcon className="w-5 h-5"/>
@@ -173,13 +173,9 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
                             <BookmarkIcon className="w-5 h-5"/>
                             <span>Watchlist</span>
                         </button>
-                        <button onClick={() => handleProfileLink('currency')} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] hover:text-[rgb(var(--text-primary))] rounded-lg transition-colors">
-                            <span className="font-bold text-base">💎</span>
-                            <span>AniTokens</span>
-                        </button>
                          <button onClick={() => handleProfileLink('comment-meter')} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] hover:text-[rgb(var(--text-primary))] rounded-lg transition-colors">
-                            <MessageCircleIcon className="w-5 h-5"/>
-                            <span>Comment Meter</span>
+                            <LevelUpIcon className="w-5 h-5"/>
+                            <span>Level Up</span>
                         </button>
                         <button onClick={handleLogout} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] hover:text-[rgb(var(--text-primary))] rounded-lg transition-colors">
                             <LogoutIcon className="w-5 h-5"/>

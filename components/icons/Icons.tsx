@@ -99,3 +99,12 @@ export const NewspaperIcon: React.FC<IconProps> = createIcon(<>
     <path strokeLinecap="round" strokeLinejoin="round" d="M16 11h4" />
     <path strokeLinecap="round" strokeLinejoin="round" d="M16 15h4" />
 </>);
+
+export const LevelUpIcon: React.FC<IconProps> = createIcon(<>
+    <path d="M4 19h16" />
+    <path d="M4 15h4" />
+    <path d="M9 15h4" />
+    <path d="M14 15h4" />
+    <path d="M12 11l3 -3l3 3" />
+    <path d="M15 8v-5" />
+</>);

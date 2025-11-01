@@ -542,7 +542,7 @@ const App: React.FC = () => {
     
     const pageContent = useMemo(() => {
         switch(page) {
-            case 'player': return selectedAnime && <Player anime={selectedAnime} onGoBack={goBackFromPlayer} onSelectRelated={handleAnimeSelect} allAnime={allAnime} onGenreSelect={handleGenreSelect} onUserSelect={handleUserSelect} navigationContext={pageBeforePlayerRef.current} />;
+            case 'player': return selectedAnime && <Player anime={selectedAnime} onGoBack={goBackFromPlayer} onSelectRelated={handleAnimeSelect} allAnime={allAnime} onGenreSelect={handleGenreSelect} onUserSelect={handleUserSelect} />;
             case 'profile': return <ProfilePage onGoBack={goHome} allAnime={allAnime} onSelectAnime={handleAnimeSelect} />;
             case 'club-detail': return selectedClub && <ClubDetailPage club={selectedClub} onGoBack={() => navigateTo('community')} onSelectAnime={handleAnimeSelect} />;
             case 'magazines': return <MagazinesPage onGoBack={goHome} />;
@@ -582,7 +582,7 @@ const App: React.FC = () => {
                     <>
                         {isDefaultHome && <FeaturedCarousel animeList={featuredAnime} onAnimeSelect={handleAnimeSelect} isLoading={isCarouselLoading} />}
                         {isDefaultHome && settings.showWatchHistoryOnHome && (
-                            <ContinueWatching onSelectAnime={handleAnimeSelect} onShowHistory={() => navigateTo('history')} />
+                            <ContinueWatching onSelectAnime={handleAnimeSelect} onShowHistory={() => navigateTo('history')} allAnime={allAnime} />
                         )}
                         {isDefaultHome && <BeginnerAnime onAnimeSelect={handleAnimeSelect} />}
                         <AnimeGrid

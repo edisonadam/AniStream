@@ -8,6 +8,7 @@ import { getDisplayTitle } from '../utils';
 interface ContinueWatchingProps {
     onShowHistory: () => void;
     onSelectAnime: (anime: Anime) => void;
+    allAnime: Anime[];
 }
 
 interface ContinueWatchingCardProps {
@@ -41,7 +42,7 @@ const ContinueWatchingCard: React.FC<ContinueWatchingCardProps> = ({ anime, prog
     );
 }
 
-const ContinueWatching: React.FC<ContinueWatchingProps> = ({ onShowHistory, onSelectAnime }) => {
+const ContinueWatching: React.FC<ContinueWatchingProps> = ({ onShowHistory, onSelectAnime, allAnime }) => {
     const { isLoggedIn } = useAuth();
     const { watchProgressList } = useWatchProgress();
 
@@ -49,25 +50,19 @@ const ContinueWatching: React.FC<ContinueWatchingProps> = ({ onShowHistory, onSe
         if (!isLoggedIn || watchProgressList.length === 0) return [];
 
         const animeMap = new Map<number, Anime>();
-        // Create a map from the full anime list (this part might need optimization if allAnime is huge)
-        // For now, assuming it's manageable. A context might be better.
-        // This component doesn't have `allAnime` prop, so we rely on what's in watch progress.
-        // This is a limitation, but we can't fetch all anime details here.
-        // The parent `App.tsx` now passes `allAnime`, which contains everything.
+        allAnime.forEach(anime => {
+            if(anime) animeMap.set(anime.id, anime);
+        });
 
         return watchProgressList
             .filter(p => p.progress > 0 && p.progress < 100)
             .map(progressInfo => {
-                // A stub is created here if not found, but App.tsx should provide the full object
-                const anime: Anime = { 
-                    id: progressInfo.animeId, 
-                    title: `Anime #${progressInfo.animeId}`,
-                    thumbnail: '',
-                } as Anime; // This is a fallback
-                return { anime, progressInfo };
+                const anime = animeMap.get(progressInfo.animeId);
+                // Only return if we found the full anime details with a thumbnail
+                return anime ? { anime, progressInfo } : null;
             })
-            .filter(Boolean) as { anime: Anime; progressInfo: WatchProgressInfo }[];
-    }, [isLoggedIn, watchProgressList]);
+            .filter((item): item is { anime: Anime; progressInfo: WatchProgressInfo } => item !== null && !!item.anime.thumbnail);
+    }, [isLoggedIn, watchProgressList, allAnime]);
 
 
     if (watchableItems.length === 0) {

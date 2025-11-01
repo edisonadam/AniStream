@@ -23,7 +23,7 @@ const CommentMeterPage: React.FC<CommentMeterPageProps> = ({ onGoBack, onLoginCl
     if (!isLoggedIn || !user) {
         return (
             <div className="container mx-auto text-center py-20">
-                <h2 className="text-2xl font-bold mb-4">Comment Meter</h2>
+                <h2 className="text-2xl font-bold mb-4">Level Up</h2>
                 <p className="text-[rgb(var(--text-muted))] mb-6">Log in to see your comment stats and level up!</p>
                 <button onClick={onLoginClick} className="px-6 py-3 bg-[rgb(var(--color-primary))] text-white rounded-full font-bold hover:bg-[rgb(var(--color-primary-hover))]">
                     Log In
