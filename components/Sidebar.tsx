@@ -2,9 +2,9 @@
 
 import React from 'react';
 import type { Filter, Settings, Page } from '../types';
-import { CloseIcon, UsersIcon, BookOpenIcon, GiftIcon, MoonIcon, SunIcon, HomeIcon, TrendingUpIcon, CalendarIcon, HistoryIcon, InfoIcon, AcademicCapIcon, EyeIcon, EyeOffIcon } from './icons/Icons';
+import { CloseIcon, UsersIcon, BookOpenIcon, GiftIcon, MoonIcon, SunIcon, HomeIcon, TrendingUpIcon, CalendarIcon, HistoryIcon, InfoIcon, AcademicCapIcon, EyeIcon, EyeOffIcon, MessageCircleIcon } from './icons/Icons';
 import Logo from './Logo';
-import { ANIME_TYPES, ANIME_STATUSES, YEAR_OPTIONS, LANGUAGE_OPTIONS, STUDIO_OPTIONS } from '../constants';
+import { ANIME_TYPES, ANIME_STATUSES, YEAR_OPTIONS, LANGUAGE_OPTIONS, STUDIO_OPTIONS, GENRES } from '../constants';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -113,7 +113,8 @@ const Sidebar: React.FC<SidebarProps> = ({
             <SideButton icon={<BookOpenIcon />} label="Manga" onClick={() => handleNavigation('manga')} />
             <SideButton icon={<AcademicCapIcon />} label="For Beginners" onClick={() => handleNavigation('beginners')} />
             <SideButton icon={<GiftIcon />} label="Surprise Me!" onClick={onSurpriseMe} />
-            <SideButton icon={<UsersIcon />} label="Clubs" onClick={() => handleNavigation('clubs')} />
+            <SideButton icon={<MessageCircleIcon />} label="Community" onClick={() => handleNavigation('community')} />
+             {isLoggedIn && <SideButton icon={<MessageCircleIcon />} label="Comment Meter" onClick={() => handleNavigation('comment-meter')} />}
             <SideButton icon={<BookOpenIcon />} label="Magazines" onClick={() => handleNavigation('magazines')} />
           </div>
 
@@ -131,6 +132,9 @@ const Sidebar: React.FC<SidebarProps> = ({
           </FilterSection>
           <FilterSection title="Studio">
             <div className="flex flex-wrap gap-2">{STUDIO_OPTIONS.map(s => <FilterButton key={s} name={s} isSelected={filters.studios.includes(s)} onClick={() => handleMultiSelect('studios', s)} />)}</div>
+          </FilterSection>
+          <FilterSection title="Genres">
+            <div className="flex flex-wrap gap-2">{GENRES.map(g => <FilterButton key={g} name={g} isSelected={filters.genres.includes(g)} onClick={() => handleMultiSelect('genres', g)} />)}</div>
           </FilterSection>
         </div>
 

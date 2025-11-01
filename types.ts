@@ -91,6 +91,7 @@ export interface User {
   avatar: string;
   email: string | null;
   joinedDate: number; // timestamp
+  isVerified: boolean;
 }
 
 export interface Comment {
@@ -102,17 +103,18 @@ export interface Comment {
   timestamp: number;
   parentId?: string;
   replyingTo?: string;
+  likes: number;
   animeTitle: string; // For recent comments section
   animeThumbnail: string; // For recent comments section
+  animeBanner: string;
 }
 
 export type Theme = 'light' | 'dark';
 export type ColorPreset = 'abyssal-blue' | 'violet-fusion' | 'cyber-cyan' | 'sunset-orange';
 export type EpisodeViewStyle = 'auto' | 'default' | 'compact' | 'grid';
-export type CardLayout = 'classic' | 'anichart' | 'card_list';
-export type CardSize = 'medium' | 'large';
 export type DefaultLanguage = 'sub' | 'dub' | 'ssub';
-export type Page = 'home' | 'player' | 'profile' | 'clubs' | 'club-detail' | 'magazines' | 'trending' | 'schedule' | 'history' | 'news' | 'manga' | 'beginners' | 'search';
+// FIX: Added 'clubs' to the Page type to resolve the type error in App.tsx.
+export type Page = 'home' | 'player' | 'profile' | 'clubs' | 'club-detail' | 'magazines' | 'trending' | 'schedule' | 'history' | 'news' | 'manga' | 'beginners' | 'search' | 'community' | 'comment-meter';
 
 
 export interface Settings {
@@ -122,24 +124,15 @@ export interface Settings {
   autoSkipIntro: boolean;
   autoSkipOutro: boolean;
   videoServer: VideoServer;
-  vidsrcDomain: string;
-  forceDesktopMode: boolean;
-  episodeViewStyle: EpisodeViewStyle;
   blurEpisodeThumbnails: boolean;
   restrictAdultContent: boolean;
   displayTitleLanguage: 'english' | 'japanese';
   malUsername: string;
   anilistUsername: string;
   anilistToken: string;
-  // New Settings from Master Prompt
   autoSyncAniList: boolean;
-  syncThreshold: number;
   hideSpoilers: boolean;
-  borderRadius: number; // 0-100 percent
   showWatchHistoryOnHome: boolean;
-  cardLayout: CardLayout;
-  cardSize: CardSize;
-  characterNameLanguage: 'romaji' | 'native';
   showComments: boolean;
   defaultLanguage: DefaultLanguage;
   forceMaxQuality: boolean;
@@ -200,6 +193,9 @@ export interface Club {
     category: string;
     created: string;
     access: string;
+    // Client-side additions
+    description?: string;
+    creator?: string;
 }
 
 export interface ClubPicture {
@@ -252,4 +248,18 @@ export interface NewsPromo {
         images: { jpg: { image_url: string } };
         title: string;
     };
+}
+
+// Community Page Types
+export interface CommunityUser {
+  uid: string;
+  username: string;
+  avatar: string;
+}
+
+export interface CommunityPost {
+  id: string;
+  user: CommunityUser;
+  text: string;
+  timestamp: number;
 }

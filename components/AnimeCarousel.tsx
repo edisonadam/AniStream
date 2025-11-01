@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Anime } from '../types';
 import { ChevronLeftIcon, ChevronRightIcon, PlayIcon, PlusIcon, StarIcon, CheckIcon } from './icons/Icons';
-// FIX: The hook is named useWatchlist, not useWatchLater.
-import { useWatchlist } from '../hooks/useWatchLater';
+import { useWatchlist } from '../hooks/useWatchlist';
 import { useAuth } from '../hooks/useAuth';
 import { useSettings } from '../hooks/useSettings';
 import { getDisplayTitle } from '../utils';
@@ -15,7 +14,6 @@ interface FeaturedCarouselProps {
 
 const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeSelect, isLoading }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
-  // FIX: The hook is useWatchlist and returns `addToWatchlist` and `isInWatchlist`.
   const { addToWatchlist, isInWatchlist } = useWatchlist();
   const { isLoggedIn } = useAuth();
   const { settings } = useSettings();
@@ -122,7 +120,6 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
   }
 
   const currentSlide = slides[currentIndex];
-  // FIX: Renamed from `inWatchLater` to `inWatchlist`.
   const inWatchlist = isInWatchlist(currentSlide.id);
   const displayTitle = getDisplayTitle(currentSlide, settings);
 
@@ -169,7 +166,6 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
               </button>
               {isLoggedIn && (
                 <button
-                  // FIX: Changed to use correct function `addToWatchlist` and state `inWatchlist`.
                   onClick={() => !inWatchlist && addToWatchlist(currentSlide)}
                   disabled={inWatchlist}
                   className="flex items-center gap-2 px-5 py-3 bg-white/10 text-white rounded-full font-semibold hover:bg-white/20 transition-colors backdrop-blur-sm disabled:opacity-70 disabled:cursor-not-allowed">

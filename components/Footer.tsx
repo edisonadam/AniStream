@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 
 const Footer: React.FC = () => {
@@ -11,6 +12,8 @@ const Footer: React.FC = () => {
         <a href="#" className="text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] transition-colors">Domains</a>
         <span className="text-[rgb(var(--text-muted))]">|</span>
         <a href="#" className="text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] transition-colors">Status</a>
+        <span className="text-[rgb(var(--text-muted))]">|</span>
+        <a href="mailto:feedback@anistream.com?subject=ANISTREAM Feedback" className="text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] transition-colors">Feedback</a>
         <span className="text-[rgb(var(--text-muted))]">|</span>
         <a href="#" className="text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] transition-colors">Donate &lt;3</a>
       </div>

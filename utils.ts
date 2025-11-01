@@ -47,12 +47,11 @@ export const deduplicateFranchises = (animeList: Anime[]): Anime[] => {
 };
 
 /**
- * Scans localStorage for all comment lists, aggregates them, and returns the most recent ones.
- * This is a client-side solution for the "Recent Comments" feature.
- * @param limit The maximum number of recent comments to return.
- * @returns An array of the most recent Comment objects.
+ * Scans localStorage for all comment lists and aggregates them.
+ * This is a client-side solution for features needing all comments.
+ * @returns An array of all Comment objects found.
  */
-export const getRecentComments = (limit: number = 15): Comment[] => {
+export const getAllComments = (): Comment[] => {
   const allComments: Comment[] = [];
   try {
     for (let i = 0; i < localStorage.length; i++) {
@@ -65,16 +64,24 @@ export const getRecentComments = (limit: number = 15): Comment[] => {
         }
       }
     }
-    
-    // Sort all comments by timestamp descending to find the most recent
-    allComments.sort((a, b) => b.timestamp - a.timestamp);
-
-    return allComments.slice(0, limit);
+    return allComments;
   } catch (error) {
-    console.error("Failed to get recent comments from localStorage", error);
+    console.error("Failed to get all comments from localStorage", error);
     return [];
   }
 };
+
+
+/**
+ * Counts all comments made by a specific user.
+ * @param userId The UID of the user.
+ * @returns The total number of comments.
+ */
+export const countUserComments = (userId: string): number => {
+    const allComments = getAllComments();
+    return allComments.filter(comment => comment.user.uid === userId).length;
+}
+
 
 /**
  * Formats a timestamp into a relative time string (e.g., "5 minutes ago").

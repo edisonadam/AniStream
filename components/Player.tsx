@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import type { Anime, Season, Episode, VideoServer, EpisodeViewStyle, User, Character, DefaultLanguage } from '../types';
-import { ChevronLeftIcon, StarIcon, ChevronRightIcon, ViewGridIcon, ViewListIcon, ViewCarouselIcon, EyeIcon, EyeOffIcon, RewindIcon, FastForwardIcon, RefreshCwIcon, ShareIcon, CloseIcon, DownloadIcon, SparklesIcon } from './icons/Icons';
+import { ChevronLeftIcon, StarIcon, ChevronRightIcon, ViewGridIcon, ViewListIcon, ViewCarouselIcon, EyeIcon, EyeOffIcon, RewindIcon, FastForwardIcon, RefreshCwIcon, ShareIcon, CloseIcon, DownloadIcon, SparklesIcon, ExternalLinkIcon } from './icons/Icons';
 import AnimeCard from './AnimeCard';
 import Comments from './Comments';
 import { useSettings } from '../hooks/useSettings';
@@ -150,6 +150,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
   const [error, setError] = useState<string | null>(null);
   
   const [seriesParts, setSeriesParts] = useState<Partial<Anime>[]>([]);
+  const [rawRelationsData, setRawRelationsData] = useState<any[] | null>(null);
   const [isLoadingNavigator, setIsLoadingNavigator] = useState(true);
 
   const [seasons, setSeasons] = useState<Season[]>([]);
@@ -352,39 +353,39 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
     fetchLoadingFact();
   }, [anime, settings]);
 
-  // Effect 1: Main Data Fetching.
+  // Effect 1: Critical Data Fetching.
   useEffect(() => {
-    const fetchAnimeDetails = async () => {
+    const fetchCriticalDetails = async () => {
         if (!anime?.id) return;
         window.scrollTo(0, 0);
         setIsLoading(true); setError(null); setPlayerAnime(null); setDisplayTitle(getDisplayTitle(anime, settings));
         setMediaIds({ tmdb: null, imdb: null, mediaType: null });
-        setSeasons([]); setEpisodes([]); setTrailers([]); setCharacters([]); setSeriesParts([]); setRelatedMovies([]);
+        setSeasons([]); setEpisodes([]); setTrailers([]); setCharacters([]); setSeriesParts([]); setRelatedMovies([]); setRawRelationsData(null);
         setActiveTab('episodes'); setLocalBlur(null); setEpisodePage(1);
-        setIsLoadingNavigator(true);
-        setFailedImages(new Set()); // Reset failed images on new anime
+        setIsLoadingNavigator(true); setIsLoadingTrailers(true); setIsLoadingCharacters(true);
+        setFailedImages(new Set());
         setAutoRedirected(false);
         setNextAiringInfo(null);
 
         try {
-            const fullDetailsRes = await fetchWithRetry(`https://api.jikan.moe/v4/anime/${anime.id}/full`);
-            if (!fullDetailsRes.ok) throw new Error('Failed to fetch main details.');
-            const item = (await fullDetailsRes.json()).data;
+            // Fetch critical Jikan data in parallel
+            const fullDetailsPromise = fetchWithRetry(`https://api.jikan.moe/v4/anime/${anime.id}/full`).then(res => res.json());
+            const externalLinksPromise = fetchWithRetry(`https://api.jikan.moe/v4/anime/${anime.id}/external`).then(res => res.json());
+            const relationsPromise = fetchWithRetry(`https://api.jikan.moe/v4/anime/${anime.id}/relations`).then(res => res.json());
+
+            const [fullDetailsData, externalLinksData, relationsData] = await Promise.all([fullDetailsPromise, externalLinksPromise, relationsPromise]);
+            
+            setRawRelationsData(relationsData.data || null);
+
+            const item = fullDetailsData.data;
             if (!item) throw new Error('No detailed data found for this anime.');
             
             const mappedAnime = mapJikanToAnime(item);
             if (!mappedAnime) throw new Error('Could not map anime data.');
 
-            let anilistUrl, officialSite;
-            const externalLinksRes = await fetchWithRetry(`https://api.jikan.moe/v4/anime/${anime.id}/external`);
-            if (externalLinksRes.ok) {
-                 const responseData = await externalLinksRes.json();
-                 const externalData = responseData.data || [];
-                 const anilistLink = externalData.find((l: any) => l.name === 'AniList');
-                 anilistUrl = anilistLink?.url;
-                 const officialSiteLink = externalData.find((l: any) => l.name === 'Official Site');
-                 officialSite = officialSiteLink?.url;
-            }
+            const externalData = externalLinksData.data || [];
+            const anilistLink = externalData.find((l: any) => l.name === 'AniList');
+            const officialSiteLink = externalData.find((l: any) => l.name === 'Official Site');
 
             const fullAnimeData: Anime = {
                 ...mappedAnime,
@@ -392,96 +393,19 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
                 hasDub: anime.hasDub,
                 runtime: mappedAnime.runtime || anime.runtime,
                 avgEpisodeDuration: mappedAnime.avgEpisodeDuration || anime.avgEpisodeDuration,
-                anilistUrl: anilistUrl,
-                officialSite: officialSite || mappedAnime.officialSite,
+                anilistUrl: anilistLink?.url,
+                officialSite: officialSiteLink?.url || mappedAnime.officialSite,
             };
 
-            setPlayerAnime(fullAnimeData); setDisplayTitle(getDisplayTitle(fullAnimeData, settings));
-            
-            const relationsRes = await fetchWithRetry(`https://api.jikan.moe/v4/anime/${anime.id}/relations`);
-            let relationsData: any[] = [];
-            if (relationsRes.ok) {
-                relationsData = (await relationsRes.json()).data;
-            }
+            setPlayerAnime(fullAnimeData);
+            setDisplayTitle(getDisplayTitle(fullAnimeData, settings));
+            setSeriesParts([fullAnimeData]);
 
-            const parentStory = relationsData.find((r: any) => r.relation === 'Parent story')?.entry[0];
+            const parentStory = (relationsData.data || []).find((r: any) => r.relation === 'Parent story')?.entry[0];
             const baseAnimeForTmdb = parentStory 
                 ? { title: parentStory.name, year: null } 
                 : { title: fullAnimeData.title, year: fullAnimeData.releaseYear };
-
-            if (relationsData.length > 0) {
-                const allEntries = relationsData.flatMap((r: any) =>
-                    r.entry.map((entry: any) => ({ ...entry, relationType: r.relation }))
-                );
             
-                const seriesRelations = ['Prequel', 'Sequel', 'Parent story', 'Side story', 'Alternative version', 'Other'];
-                const seriesMediaTypes = ['TV', 'OVA', 'ONA', 'Special', 'Movie'];
-
-                const seriesPartsRaw = allEntries.filter((e: any) =>
-                    seriesRelations.includes(e.relationType) && seriesMediaTypes.includes(e.type)
-                );
-            
-                const sortedSeriesParts = [
-                    ...seriesPartsRaw.filter(p => p.relationType === 'Prequel'),
-                    fullAnimeData, // Anchor with the current anime
-                    ...seriesPartsRaw.filter(p => p.relationType !== 'Prequel'),
-                ];
-            
-                const finalSeriesParts = Array.from(new Map(sortedSeriesParts.map(p => [p.mal_id || p.id, p])).values())
-                    .map((p: any): Partial<Anime> => ({ id: p.mal_id || p.id, title: p.name || p.title, thumbnail: p.images?.jpg.image_url || p.thumbnail, type: p.type }));
-            
-                setSeriesParts(finalSeriesParts.length > 1 ? finalSeriesParts : [fullAnimeData]);
-            
-                let movieRelations = allEntries
-                    .filter((entry: any) => entry.type === 'Movie')
-                    .map((m: any) => mapJikanToAnime(m))
-                    .filter((a): a is Anime => a !== null);
-
-                if (settings.restrictAdultContent) {
-                    movieRelations = movieRelations.filter(anime => !anime.isAdult);
-                }
-                
-                setRelatedMovies(Array.from(new Map(movieRelations.map(m => [m.id, m])).values()));
-            } else {
-                setSeriesParts([fullAnimeData]);
-            }
-
-            const recommendationsRes = await fetchWithRetry(`https://api.jikan.moe/v4/anime/${anime.id}/recommendations`);
-            if (recommendationsRes.ok) {
-                const recommendationsData = await recommendationsRes.json();
-                let mappedRecs = (recommendationsData.data || [])
-                    .slice(0, 12) // fetch more to have enough after filtering
-                    .map((rec: any) => mapJikanToAnime(rec.entry))
-                    .filter((a): a is Anime => a !== null);
-                
-                if (settings.restrictAdultContent) {
-                    mappedRecs = mappedRecs.filter(anime => !anime.isAdult);
-                }
-                
-                setRelatedAnime(mappedRecs.slice(0, 6));
-            }
-
-            // Fetch Trailers from Jikan
-            setIsLoadingTrailers(true);
-            try {
-                const videosRes = await fetchWithRetry(`https://api.jikan.moe/v4/anime/${anime.id}/videos`);
-                if (videosRes.ok) {
-                    const videosData = await videosRes.json();
-                    const promos = videosData.data?.promo || [];
-                    const finalTrailers = promos
-                        .filter((p: any) => p.trailer?.youtube_id)
-                        .map((p: any) => ({
-                            key: p.trailer.youtube_id,
-                            name: p.title,
-                        }));
-                    setTrailers(finalTrailers);
-                }
-            } catch (e) {
-                console.error("Failed to fetch trailers from Jikan", e);
-            } finally {
-                setIsLoadingTrailers(false);
-            }
-
             let foundTmdbId: number | null = null;
             let foundMediaType: 'tv' | 'movie' | null = fullAnimeData.type === 'Movie' ? 'movie' : 'tv';
 
@@ -561,39 +485,96 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
                         }
                      }
                  }
-                setIsLoadingNavigator(false);
-            } else { 
-                setIsLoadingNavigator(false);
-            }
-
-            // Fetch characters
-            setIsLoadingCharacters(true);
-            try {
-                const charactersRes = await fetchWithRetry(`https://api.jikan.moe/v4/anime/${anime.id}/characters`);
-                if (charactersRes.ok) {
-                    const charactersData = (await charactersRes.json()).data;
-                    if (charactersData) {
-                        const mappedCharacters = charactersData
-                            .map(mapJikanToCharacter)
-                            .filter((c): c is Character => c !== null);
-                        setCharacters(mappedCharacters);
-                    }
-                }
-            } catch (e) {
-                console.error("Failed to fetch characters", e);
-            } finally {
-                setIsLoadingCharacters(false);
             }
         } catch (e) { 
-            setError(e instanceof Error ? e.message : 'An unknown error occurred.'); 
+            setError(e instanceof Error ? e.message : 'An unknown error occurred.');
             setIsLoadingNavigator(false);
         } finally { 
             setIsLoading(false); 
         }
     };
-    fetchAnimeDetails();
+    // FIX: Corrected typo in function call from fetchAnimeDetails to fetchCriticalDetails
+    fetchCriticalDetails();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [anime.id, settings]);
+  
+  // Effect 2: Secondary Data Fetching (non-critical)
+  useEffect(() => {
+      if (isLoading || !playerAnime) return;
+  
+      const fetchSecondaryData = async () => {
+          try {
+              // Process Relations (data already fetched)
+              if (rawRelationsData && rawRelationsData.length > 0) {
+                  const allEntries = rawRelationsData.flatMap((r: any) => r.entry.map((entry: any) => ({ ...entry, relationType: r.relation })));
+                  const seriesRelations = ['Prequel', 'Sequel', 'Parent story', 'Side story', 'Alternative version', 'Other'];
+                  const seriesMediaTypes = ['TV', 'OVA', 'ONA', 'Special', 'Movie'];
+                  const seriesPartsRaw = allEntries.filter((e: any) => seriesRelations.includes(e.relationType) && seriesMediaTypes.includes(e.type));
+                  
+                  const sortedSeriesParts = [
+                      ...seriesPartsRaw.filter(p => p.relationType === 'Prequel'),
+                      playerAnime,
+                      ...seriesPartsRaw.filter(p => p.relationType !== 'Prequel'),
+                  ];
+                  
+                  const finalSeriesParts = Array.from(new Map(sortedSeriesParts.map(p => [p.mal_id || p.id, p])).values()).map((p: any): Partial<Anime> => ({ id: p.mal_id || p.id, title: p.name || p.title, thumbnail: p.images?.jpg.image_url || p.thumbnail, type: p.type }));
+                  setSeriesParts(finalSeriesParts.length > 1 ? finalSeriesParts : [playerAnime]);
+  
+                  let movieRelations = allEntries.filter((entry: any) => entry.type === 'Movie').map((m: any) => mapJikanToAnime(m)).filter((a): a is Anime => a !== null);
+                  if (settings.restrictAdultContent) {
+                      movieRelations = movieRelations.filter(a => !a.isAdult);
+                  }
+                  setRelatedMovies(Array.from(new Map(movieRelations.map(m => [m.id, m])).values()));
+              }
+              setIsLoadingNavigator(false);
+  
+              // Fetch other non-critical data in parallel
+              const recommendationsPromise = fetchWithRetry(`https://api.jikan.moe/v4/anime/${playerAnime.id}/recommendations`);
+              const videosPromise = fetchWithRetry(`https://api.jikan.moe/v4/anime/${playerAnime.id}/videos`);
+              const charactersPromise = fetchWithRetry(`https://api.jikan.moe/v4/anime/${playerAnime.id}/characters`);
+  
+              const [recommendationsRes, videosRes, charactersRes] = await Promise.all([recommendationsPromise, videosPromise, charactersPromise]);
+  
+              // Process Recommendations
+              if (recommendationsRes.ok) {
+                  const recommendationsData = await recommendationsRes.json();
+                  let mappedRecs = (recommendationsData.data || []).slice(0, 12).map((rec: any) => mapJikanToAnime(rec.entry)).filter((a): a is Anime => a !== null);
+                  if (settings.restrictAdultContent) {
+                      mappedRecs = mappedRecs.filter(a => !a.isAdult);
+                  }
+                  setRelatedAnime(mappedRecs.slice(0, 6));
+              }
+  
+              // Process Videos (Trailers)
+              if (videosRes.ok) {
+                  const videosData = await videosRes.json();
+                  const promos = videosData.data?.promo || [];
+                  const finalTrailers = promos.filter((p: any) => p.trailer?.youtube_id).map((p: any) => ({ key: p.trailer.youtube_id, name: p.title }));
+                  setTrailers(finalTrailers);
+              }
+              setIsLoadingTrailers(false);
+  
+              // Process Characters
+              if (charactersRes.ok) {
+                  const charactersData = (await charactersRes.json()).data;
+                  if (charactersData) {
+                      const mappedCharacters = charactersData.map(mapJikanToCharacter).filter((c): c is Character => c !== null);
+                      setCharacters(mappedCharacters);
+                  }
+              }
+              setIsLoadingCharacters(false);
+  
+          } catch (e) {
+              console.error("Failed to fetch secondary anime details:", e);
+              setIsLoadingNavigator(false);
+              setIsLoadingTrailers(false);
+              setIsLoadingCharacters(false);
+          }
+      };
+  
+      fetchSecondaryData();
+  }, [isLoading, playerAnime, rawRelationsData, settings.restrictAdultContent]);
+
 
   useEffect(() => {
     if (playerAnime) {
@@ -723,7 +704,8 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
             }
 
             if (!foundStream) {
-                const iframeUrl = buildSourceUrl(settings.videoServer, mediaIds.mediaType, mediaIds.tmdb, currentSeason, currentEpisode, settings.vidsrcDomain, settings.autoplayNext);
+// FIX: The buildSourceUrl function call had too many arguments. The 'settings.vidsrcDomain' argument is legacy and has been removed.
+                const iframeUrl = buildSourceUrl(settings.videoServer, mediaIds.mediaType, mediaIds.tmdb, currentSeason, currentEpisode, settings.autoplayNext);
                 if (iframeUrl) {
                     setSourceUrl(iframeUrl);
                 } else {
@@ -753,7 +735,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
         };
 
         fetchStreamAndProgress();
-    }, [playerAnime, currentSeason, currentEpisode, mediaIds.tmdb, mediaIds.mediaType, settings.videoServer, settings.vidsrcDomain, settings.autoplayNext, seasons, sortedSeasons, updateProgress, selectSeason, autoRedirected]);
+    }, [playerAnime, currentSeason, currentEpisode, mediaIds.tmdb, mediaIds.mediaType, settings.videoServer, settings.autoplayNext, seasons, sortedSeasons, updateProgress, selectSeason, autoRedirected]);
 
   // AniList Auto-Sync Effect
   useEffect(() => {
@@ -771,20 +753,16 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
             .reduce((acc, s) => acc + s.episode_count, 0);
         const overallEpisodeNumber = episodesInPrevSeasons + currentEpisode;
 
-        const totalProgressPercent = (overallEpisodeNumber / playerAnime.totalEpisodes) * 100;
-
-        if (totalProgressPercent >= settings.syncThreshold) {
-            try {
-                const anilistId = await getAnilistId(playerAnime.id);
-                if (anilistId) {
-                    await updateAnilistProgress(anilistId, overallEpisodeNumber, settings.anilistToken);
-                    console.log(`Synced episode ${overallEpisodeNumber} to AniList for ${playerAnime.title}.`);
-                } else {
-                    console.warn(`Could not find AniList ID for MAL ID ${playerAnime.id} to sync progress.`);
-                }
-            } catch (error) {
-                console.error("Failed to sync progress with AniList:", error);
+        try {
+            const anilistId = await getAnilistId(playerAnime.id);
+            if (anilistId) {
+                await updateAnilistProgress(anilistId, overallEpisodeNumber, settings.anilistToken);
+                console.log(`Synced episode ${overallEpisodeNumber} to AniList for ${playerAnime.title}.`);
+            } else {
+                console.warn(`Could not find AniList ID for MAL ID ${playerAnime.id} to sync progress.`);
             }
+        } catch (error) {
+            console.error("Failed to sync progress with AniList:", error);
         }
     };
     
@@ -1542,7 +1520,7 @@ const AnimeInfoSection: React.FC<{anime: Anime, onTrailerClick: () => void}> = (
         
         <div className="relative w-full h-[250px] md:h-[400px]">
             <img src={playerAnime.bannerImage} alt={`${getDisplayTitle(playerAnime, settings)} banner`} className="w-full h-full object-cover object-center" />
-            <div className="absolute inset-0 bg-gradient-to-t from-[rgb(var(--bg-gradient-via))] to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[rgb(var(--bg-gradient-start))] to-transparent" />
         </div>
 
         <section className="container mx-auto px-4 sm:px-6 lg:px-8 pt-8 -mt-24 md:-mt-48 relative z-10">
@@ -1559,6 +1537,11 @@ const AnimeInfoSection: React.FC<{anime: Anime, onTrailerClick: () => void}> = (
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       {playerAnime.isAdult && <span className="flex-shrink-0 px-3 py-1 text-sm font-bold rounded-full bg-red-600 text-white">+18</span>}
+                      {streamUrl && (
+                        <a href={streamUrl} target="_blank" rel="noopener noreferrer" title="Open Raw Source" className="p-2 rounded-full bg-[rgb(var(--surface-3))/0.7] backdrop-blur-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--color-primary-hover))] hover:text-white transition-colors" aria-label="Open Raw Source">
+                            <ExternalLinkIcon />
+                        </a>
+                      )}
                       <button onClick={() => setIsDownloadModalOpen(true)} title="Download Options" className="p-2 rounded-full bg-[rgb(var(--surface-3))/0.7] backdrop-blur-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--color-primary-hover))] hover:text-white transition-colors" aria-label="Download Options">
                           <DownloadIcon />
                       </button>

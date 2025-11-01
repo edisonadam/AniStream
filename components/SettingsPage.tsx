@@ -25,17 +25,6 @@ const Toggle: React.FC<{ label: string; note?: string; checked: boolean; onChang
     </div>
 );
 
-const RadioGroup: React.FC<{ label: string, options: {value: string, label: string}[], selected: string, onChange: (value: any) => void }> = ({ label, options, selected, onChange }) => (
-    <div className="flex flex-col sm:flex-row justify-between items-center pt-4 border-t border-white/10">
-        <label className="font-semibold text-[rgb(var(--text-secondary))] mb-2 sm:mb-0">{label}</label>
-        <div className="flex items-center bg-[rgb(var(--surface-3))] rounded-full p-1">
-            {options.map(opt => (
-                <button key={opt.value} onClick={() => onChange(opt.value)} className={`px-4 py-1.5 text-sm capitalize rounded-full transition-all ${selected === opt.value ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>{opt.label}</button>
-            ))}
-        </div>
-    </div>
-);
-
 const Dropdown: React.FC<{label: string, options: {value: string, label: string}[], selected: string, onChange: (value: any) => void}> = ({ label, options, selected, onChange }) => (
     <div className="flex flex-col sm:flex-row justify-between items-center pt-4 border-t border-white/10">
         <label className="font-semibold text-[rgb(var(--text-secondary))] mb-2 sm:mb-0">{label}</label>
@@ -170,15 +159,27 @@ const SettingsPage: React.FC = () => {
         document.body.removeChild(link);
         URL.revokeObjectURL(href);
     };
+    
+    const handleAccountMerge = () => {
+        if (window.confirm("WARNING: This is a one-way process. The stats and data of the account you are merging FROM will be PERMANENTLY LOST. Only the data of your CURRENT account will remain. Do you wish to proceed?")) {
+            alert("Account merging is not yet implemented. This is a placeholder for a future secure account merging flow.");
+        }
+    };
 
     return (
         <div className="max-w-4xl mx-auto space-y-8">
-            <SettingsSection title="MyAnimeList Integration">
-                <div className="space-y-2 text-sm text-[rgb(var(--text-muted))] bg-black/20 p-3 rounded-lg">
-                    <p>- Your MAL-List must be in Public status on your Privacy setting.</p>
-                    <p>- If an anime is available in your MAL-List but not available in the site, it will not be imported.</p>
-                    <p>- This process may take a few minutes to finish, please be patient.</p>
+            <SettingsSection title="Account Merging">
+                <div className="space-y-2 text-sm text-[rgb(var(--text-muted))] bg-[rgb(var(--color-danger))]/20 border border-[rgb(var(--color-danger))]/50 p-4 rounded-lg">
+                    <p className="font-bold text-[rgb(var(--color-danger))]">DANGER ZONE: IRREVERSIBLE ACTION</p>
+                    <p>Merging will transfer this account's data to another, permanently deleting the other account's original data (watchlist, history, etc.).</p>
+                    <p>This cannot be undone.</p>
                 </div>
+                 <button onClick={handleAccountMerge} className="w-full text-center font-semibold text-white bg-[rgb(var(--color-danger))] hover:bg-red-700 py-2 rounded-lg">
+                    Initiate Account Merge
+                </button>
+            </SettingsSection>
+            
+            <SettingsSection title="MyAnimeList Integration">
                 <TextInput label="Username:" value={settings.malUsername} onChange={v => updateSettings({ malUsername: v })} placeholder="Enter MAL username" />
                 <div className="flex justify-end">
                     <button onClick={() => handleImport('mal')} disabled={!settings.malUsername || isImporting === 'mal'} className="px-4 py-2 bg-[rgb(var(--color-primary))] text-sm text-[rgb(var(--text-on-primary))] rounded-xl font-semibold hover:bg-[rgb(var(--color-primary-hover))] disabled:opacity-50 disabled:cursor-wait">
@@ -216,7 +217,7 @@ const SettingsPage: React.FC = () => {
                 </div>
                 <div className="pt-4 border-t border-white/10">
                     <h4 className="font-semibold text-[rgb(var(--text-secondary))]">Export Watchlist:</h4>
-                    <p className="text-xs text-[rgb(var(--text-muted))] mt-1">Export your watchlist for backup or use in other services. The TEXT format provides a list of MyAnimeList URLs.</p>
+                    <p className="text-xs text-[rgb(var(--text-muted))] mt-1">Export your watchlist for backup or use in other services.</p>
                     <div className="flex items-center gap-2 mt-3">
                         <button onClick={() => handleExportWatchlist('text')} className="px-4 py-2 bg-white/10 text-sm text-[rgb(var(--text-secondary))] rounded-xl font-semibold hover:bg-white/20">TEXT</button>
                         <button onClick={() => handleExportWatchlist('xml')} className="px-4 py-2 bg-white/10 text-sm text-[rgb(var(--text-secondary))] rounded-xl font-semibold hover:bg-white/20">XML</button>
@@ -225,55 +226,33 @@ const SettingsPage: React.FC = () => {
                 </div>
             </SettingsSection>
 
-            <SettingsSection title="App Behavior">
-                <div className="flex flex-col pt-4 border-t border-white/10">
-                    <label className="font-semibold text-[rgb(var(--text-secondary))]">Sync Threshold (%)</label>
-                    <input type="range" min="1" max="100" value={settings.syncThreshold} onChange={e => updateSettings({ syncThreshold: parseInt(e.target.value, 10)})} className="w-full h-2 bg-[rgb(var(--surface-4))] rounded-lg appearance-none cursor-pointer" />
-                    <span className="text-sm text-right text-[rgb(var(--text-muted))]">{settings.syncThreshold}%</span>
-                </div>
-                <Toggle label="Hide Spoilers" checked={settings.hideSpoilers} onChange={() => updateSettings({ hideSpoilers: !settings.hideSpoilers })} note="Hide episode images, titles, and descriptions." />
-            </SettingsSection>
-
             <SettingsSection title="Appearance">
                 <Dropdown label="Color Preset" selected={settings.colorPreset} onChange={v => updateSettings({ colorPreset: v })} options={COLOR_PRESETS.map(p => ({ value: p.id, label: p.name }))} />
-                 <div className="flex flex-col pt-4 border-t border-white/10">
-                    <label className="font-semibold text-[rgb(var(--text-secondary))]">Border Radius</label>
-                    <input type="range" min="0" max="100" value={settings.borderRadius} onChange={e => updateSettings({ borderRadius: parseInt(e.target.value, 10)})} className="w-full h-2 bg-[rgb(var(--surface-4))] rounded-lg appearance-none cursor-pointer" />
-                    <span className="text-sm text-right text-[rgb(var(--text-muted))]">{settings.borderRadius}%</span>
-                </div>
-                <Dropdown label="Episode List Layout" selected={settings.episodeViewStyle} onChange={v => updateSettings({ episodeViewStyle: v })} options={[{value: 'auto', label: 'Auto'}, {value: 'default', label: 'Carousel'}, {value: 'compact', label: 'Compact'}, {value: 'grid', label: 'Grid'}]} />
-                <Toggle label="Watch History on Home Page" checked={settings.showWatchHistoryOnHome} onChange={() => updateSettings({ showWatchHistoryOnHome: !settings.showWatchHistoryOnHome })} />
-                <RadioGroup label="Card Layout" selected={settings.cardLayout} onChange={v => updateSettings({ cardLayout: v })} options={[{value: 'classic', label: 'Classic'}, {value: 'anichart', label: 'AniChart'}, {value: 'card_list', label: 'List'}]} />
-                <RadioGroup label="Card Size" selected={settings.cardSize} onChange={v => updateSettings({ cardSize: v })} options={[{value: 'medium', label: 'Medium'}, {value: 'large', label: 'Large'}]} />
                 <Dropdown label="Title Language" selected={settings.displayTitleLanguage} onChange={v => updateSettings({ displayTitleLanguage: v })} options={[{value: 'english', label: 'English'}, {value: 'japanese', label: 'Japanese'}]} />
-                <Dropdown label="Character Name Language" selected={settings.characterNameLanguage} onChange={v => updateSettings({ characterNameLanguage: v })} options={[{value: 'romaji', label: 'Romaji'}, {value: 'native', label: 'Native'}]} />
+                <Toggle label="Watch History on Home Page" checked={settings.showWatchHistoryOnHome} onChange={() => updateSettings({ showWatchHistoryOnHome: !settings.showWatchHistoryOnHome })} />
             </SettingsSection>
 
-            <SettingsSection title="Content">
+            <SettingsSection title="Content & Comments">
                 <Toggle 
                     label="Restrict Adult Content"
                     note="Hides explicit content (Hentai, Erotica)."
                     checked={settings.restrictAdultContent}
                     onChange={() => updateSettings({ restrictAdultContent: !settings.restrictAdultContent })}
                 />
+                 <Toggle label="Show Comments Section" checked={settings.showComments} onChange={() => updateSettings({ showComments: !settings.showComments })} />
+                 <Toggle label="Blur Episode Thumbnails" checked={settings.blurEpisodeThumbnails} onChange={() => updateSettings({ blurEpisodeThumbnails: !settings.blurEpisodeThumbnails })} />
             </SettingsSection>
 
-            <SettingsSection title="Comments">
-                 <Toggle label="Show Comments" checked={settings.showComments} onChange={() => updateSettings({ showComments: !settings.showComments })} />
-            </SettingsSection>
-
-            <SettingsSection title="Media Settings">
+            <SettingsSection title="Media Player">
                 <Dropdown label="Default Provider" selected={settings.videoServer} onChange={v => updateSettings({ videoServer: v })} options={VIDEO_SERVERS.map(s => ({ value: s.id, label: s.name }))} />
-                <RadioGroup label="Default Language" selected={settings.defaultLanguage} onChange={v => updateSettings({ defaultLanguage: v })} options={[{value: 'sub', label: 'Subtitles'}, {value: 'dub', label: 'Dubbing'}, {value: 'ssub', label: 'S-Sub'}]} />
-                <Toggle label="Force Maximum Quality (AHD)" checked={settings.forceMaxQuality} onChange={() => updateSettings({ forceMaxQuality: !settings.forceMaxQuality })} />
-                <Toggle label="Auto Play" checked={true} onChange={() => {}} />
-                <Toggle label="Auto Skip Intro/Outro" checked={settings.autoSkipIntro} onChange={() => updateSettings({ autoSkipIntro: !settings.autoSkipIntro })} />
-                <Toggle label="Auto Next Episode" checked={settings.autoplayNext} onChange={() => updateSettings({ autoplayNext: !settings.autoplayNext })} />
+                <Dropdown label="Default Language" selected={settings.defaultLanguage} onChange={v => updateSettings({ defaultLanguage: v })} options={[{value: 'sub', label: 'Subtitles'}, {value: 'dub', label: 'Dubbing'}, {value: 'ssub', label: 'S-Sub'}]} />
+                <Toggle label="Auto Play Next Episode" checked={settings.autoplayNext} onChange={() => updateSettings({ autoplayNext: !settings.autoplayNext })} />
+                <Toggle label="Auto Skip Intro" checked={settings.autoSkipIntro} onChange={() => updateSettings({ autoSkipIntro: !settings.autoSkipIntro })} />
+                 <Toggle label="Auto Skip Outro" checked={settings.autoSkipOutro} onChange={() => updateSettings({ autoSkipOutro: !settings.autoSkipOutro })} />
             </SettingsSection>
 
              <SettingsSection title="Other Utilities">
-                <button className="w-full text-left font-semibold text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--text-primary))]">Keyboard Shortcuts</button>
-                <button onClick={handleClearWatchHistory} className="w-full text-left font-semibold text-[rgb(var(--color-danger))] pt-4 border-t border-white/10 hover:underline">Clear Watch History</button>
+                <button onClick={handleClearWatchHistory} className="w-full text-left font-semibold text-[rgb(var(--color-danger))] hover:underline">Clear Watch History</button>
                 <button onClick={restoreDefaults} className="w-full text-left font-semibold text-[rgb(var(--color-warning))] pt-4 border-t border-white/10 hover:underline">Restore Default Settings</button>
             </SettingsSection>
         </div>

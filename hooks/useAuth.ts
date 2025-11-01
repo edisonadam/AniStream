@@ -6,5 +6,7 @@ export const useAuth = () => {
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
-  return context;
+  // The context no longer provides 'loading', so we don't return it.
+  const { user, firebaseUser, isLoggedIn, logout, updateUser } = context;
+  return { user, firebaseUser, isLoggedIn, logout, updateUser };
 };

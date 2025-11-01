@@ -7,6 +7,9 @@
     <title>ANISTREAM - Your Anime Universe</title>
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#8b5cf6">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ANISTREAM">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -120,6 +123,9 @@
         background-color: rgb(var(--bg-gradient-start));
         position: relative;
         overflow-x: hidden;
+        -webkit-user-select: none; /* Safari */
+        -ms-user-select: none; /* IE 10+ */
+        user-select: none; /* Standard syntax */
       }
       
       /* Aurora Background Effect */

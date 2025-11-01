@@ -1,13 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import type { Comment as CommentType, Anime } from '../types';
+import type { Comment as CommentType, Anime, User } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { useProfileData } from '../hooks/useProfileData';
-import { MessageCircleIcon, UserPlusIcon, CheckIcon } from './icons/Icons';
+import { MessageCircleIcon, UserPlusIcon, CheckIcon, ThumbsUpIcon } from './icons/Icons';
 import { formatRelativeTime } from '../utils';
 
 interface CommentsProps {
   anime: Anime;
+  currentSeason?: number;
+  currentEpisode?: number;
+  onUserSelect: (user: User) => void;
 }
+
+type SortOrder = 'newest' | 'oldest' | 'top';
 
 const CommentForm: React.FC<{
   onSubmit: (text: string) => void;
@@ -49,13 +54,16 @@ const CommentForm: React.FC<{
   )
 }
 
-const Comments: React.FC<CommentsProps> = ({ anime }) => {
+const Comments: React.FC<CommentsProps> = ({ anime, currentSeason, currentEpisode, onUserSelect }) => {
   const { isLoggedIn, user } = useAuth();
-  const { addFriend, isFriend, addNotification } = useProfileData();
+  const { addFriend, isFriend, addNotification, addAniTokens } = useProfileData();
   const [comments, setComments] = useState<CommentType[]>([]);
   const [replyingTo, setReplyingTo] = useState<string | null>(null); // Store parent comment ID
+  const [commentScope, setCommentScope] = useState<'episode' | 'all'>('episode');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
   
   const storageKey = `comments_${anime.id}`;
+  const currentEpisodeIdentifier = `s${currentSeason}e${currentEpisode}`;
 
   useEffect(() => {
     try {
@@ -69,6 +77,11 @@ const Comments: React.FC<CommentsProps> = ({ anime }) => {
       console.error('Failed to load comments:', error);
     }
   }, [storageKey]);
+
+  const persistComments = (updatedComments: CommentType[]) => {
+    setComments(updatedComments);
+    localStorage.setItem(storageKey, JSON.stringify(updatedComments));
+  }
   
   const handlePostComment = (text: string, parentComment?: CommentType) => {
     if (!text.trim() || !user) return;
@@ -83,11 +96,13 @@ const Comments: React.FC<CommentsProps> = ({ anime }) => {
       replyingTo: parentComment?.user.username,
       animeTitle: anime.title,
       animeThumbnail: anime.thumbnail,
+      animeBanner: anime.bannerImage,
+      episodeIdentifier: commentScope === 'episode' && currentEpisode ? currentEpisodeIdentifier : undefined,
+      likes: 0,
     };
     
-    const updatedComments = [newComment, ...comments];
-    setComments(updatedComments);
-    localStorage.setItem(storageKey, JSON.stringify(updatedComments));
+    persistComments([newComment, ...comments]);
+    addAniTokens(600); // Earn tokens for commenting
     
     if(parentComment && parentComment.user.username !== user.username) {
         addNotification({
@@ -103,12 +118,24 @@ const Comments: React.FC<CommentsProps> = ({ anime }) => {
         setReplyingTo(null);
     }
   };
+
+  const handleLikeComment = (commentId: string) => {
+      if (!isLoggedIn) return;
+      const updatedComments = comments.map(c => 
+          c.id === commentId ? { ...c, likes: (c.likes || 0) + 1 } : c
+      );
+      persistComments(updatedComments);
+  }
   
   const { topLevelComments, repliesMap } = useMemo(() => {
+    const filteredComments = commentScope === 'episode' && currentEpisode
+        ? comments.filter(c => c.episodeIdentifier === currentEpisodeIdentifier || (!c.episodeIdentifier && currentEpisodeIdentifier === 's1e1')) // Show general comments on Ep1
+        : comments;
+
     const topLevel: CommentType[] = [];
     const replies = new Map<string, CommentType[]>();
 
-    for (const comment of comments) {
+    for (const comment of filteredComments) {
         if (comment.parentId) {
             if (!replies.has(comment.parentId)) {
                 replies.set(comment.parentId, []);
@@ -119,13 +146,16 @@ const Comments: React.FC<CommentsProps> = ({ anime }) => {
         }
     }
 
-    // Sort top-level comments by newest first
-    topLevel.sort((a,b) => b.timestamp - a.timestamp);
+    // Sort top-level comments
+    if (sortOrder === 'newest') topLevel.sort((a,b) => b.timestamp - a.timestamp);
+    else if (sortOrder === 'oldest') topLevel.sort((a,b) => a.timestamp - b.timestamp);
+    else if (sortOrder === 'top') topLevel.sort((a,b) => (b.likes || 0) - (a.likes || 0));
+    
     // Sort replies by oldest first
     replies.forEach(replyList => replyList.sort((a,b) => a.timestamp - b.timestamp));
     
     return { topLevelComments: topLevel, repliesMap: replies };
-  }, [comments]);
+  }, [comments, commentScope, currentEpisodeIdentifier, currentEpisode, sortOrder]);
 
 
   const renderComment = (comment: CommentType) => {
@@ -134,11 +164,13 @@ const Comments: React.FC<CommentsProps> = ({ anime }) => {
     
     return (
         <div key={comment.id} className="flex items-start space-x-3">
-            <img src={comment.user.avatar} alt={comment.user.username} className="w-10 h-10 rounded-full bg-[rgb(var(--color-primary))/0.3] mt-1 flex-shrink-0" />
+            <button onClick={() => onUserSelect(comment.user)} className="flex-shrink-0 transition-transform hover:scale-110">
+                <img src={comment.user.avatar} alt={comment.user.username} className="w-10 h-10 rounded-full bg-[rgb(var(--color-primary))/0.3] mt-1" />
+            </button>
             <div className="flex-1">
                 <div className="bg-[rgb(var(--surface-3))/0.5] rounded-[2rem] rounded-tl-xl p-4">
                     <div className="flex items-baseline space-x-2">
-                        <p className="font-semibold text-[rgb(var(--color-primary-accent))]">{comment.user.username}</p>
+                        <button onClick={() => onUserSelect(comment.user)} className="font-semibold text-[rgb(var(--color-primary-accent))] hover:underline">{comment.user.username}</button>
                         <p className="text-xs text-[rgb(var(--text-muted))]">{formatRelativeTime(comment.timestamp)}</p>
                     </div>
                     <p className="text-[rgb(var(--text-secondary))] mt-1 whitespace-pre-wrap">
@@ -146,14 +178,21 @@ const Comments: React.FC<CommentsProps> = ({ anime }) => {
                         {comment.text}
                     </p>
                 </div>
-                {isLoggedIn && user?.username !== comment.user.username && (
+                {isLoggedIn && (
                     <div className="flex items-center gap-4 mt-2 pl-2">
-                        <button onClick={() => setReplyingTo(comment.id)} className="flex items-center gap-1 text-xs font-semibold text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))]">
-                            <MessageCircleIcon /> Reply
+                         <button onClick={() => handleLikeComment(comment.id)} className="flex items-center gap-1.5 text-xs font-semibold text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))]">
+                            <ThumbsUpIcon className="w-4 h-4" /> <span>{comment.likes || 0}</span>
                         </button>
-                        <button onClick={() => addFriend(comment.user)} disabled={friendAdded} className="flex items-center gap-1 text-xs font-semibold text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))] disabled:text-[rgb(var(--color-secondary-accent))] disabled:cursor-not-allowed">
-                            {friendAdded ? <><CheckIcon/> Friend</> : <><UserPlusIcon/> Add Friend</>}
-                        </button>
+                        {user?.username !== comment.user.username && (
+                        <>
+                            <button onClick={() => setReplyingTo(comment.id)} className="flex items-center gap-1 text-xs font-semibold text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))]">
+                                Reply
+                            </button>
+                            <button onClick={() => addFriend(comment.user)} disabled={friendAdded} className="flex items-center gap-1 text-xs font-semibold text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))] disabled:text-[rgb(var(--color-secondary-accent))] disabled:cursor-not-allowed">
+                                {friendAdded ? <><CheckIcon/> Friend</> : <><UserPlusIcon/> Add Friend</>}
+                            </button>
+                        </>
+                        )}
                     </div>
                 )}
                 {replyingTo === comment.id && (
@@ -177,7 +216,22 @@ const Comments: React.FC<CommentsProps> = ({ anime }) => {
 
   return (
     <div className="mt-12">
-      <h3 className="text-2xl font-bold mb-4 text-[rgb(var(--text-primary))]">Comments</h3>
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
+        <h3 className="text-2xl font-bold text-[rgb(var(--text-primary))]">Comments</h3>
+        <div className="flex items-center gap-2">
+            {currentEpisode && (
+            <div className="flex items-center bg-[rgb(var(--surface-3))] rounded-full p-1">
+                <button onClick={() => setCommentScope('episode')} className={`px-4 py-1.5 text-sm rounded-full transition-all ${commentScope === 'episode' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>Episode</button>
+                <button onClick={() => setCommentScope('all')} className={`px-4 py-1.5 text-sm rounded-full transition-all ${commentScope === 'all' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>All</button>
+            </div>
+            )}
+            <div className="flex items-center bg-[rgb(var(--surface-3))] rounded-full p-1">
+                {(['newest', 'oldest', 'top'] as SortOrder[]).map(sort => (
+                    <button key={sort} onClick={() => setSortOrder(sort)} className={`px-3 py-1.5 text-sm rounded-full capitalize transition-all ${sortOrder === sort ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>{sort}</button>
+                ))}
+            </div>
+        </div>
+      </div>
       <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl rounded-[2rem] p-6">
         {isLoggedIn && user ? (
           <div className="mb-6 flex items-start space-x-3">
@@ -190,7 +244,7 @@ const Comments: React.FC<CommentsProps> = ({ anime }) => {
           <p className="text-center text-[rgb(var(--text-muted))] mb-6">Please log in to post a comment.</p>
         )}
         <div className="space-y-6">
-          {comments.length > 0 ? topLevelComments.map(comment => renderComment(comment)) : (
+          {topLevelComments.length > 0 ? topLevelComments.map(comment => renderComment(comment)) : (
             <p className="text-center text-gray-500">No comments yet. Be the first!</p>
           )}
         </div>

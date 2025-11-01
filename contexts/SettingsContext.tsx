@@ -8,24 +8,15 @@ const defaultSettings: Settings = {
   autoSkipIntro: false,
   autoSkipOutro: false,
   videoServer: 'kiwi',
-  vidsrcDomain: 'vsrc.su',
-  forceDesktopMode: false,
-  episodeViewStyle: 'auto',
   blurEpisodeThumbnails: true,
   restrictAdultContent: true,
   displayTitleLanguage: 'english',
   malUsername: '',
   anilistUsername: '',
   anilistToken: '',
-  // New settings defaults from master prompt
   autoSyncAniList: false,
-  syncThreshold: 80,
   hideSpoilers: false,
-  borderRadius: 50, // 50%
   showWatchHistoryOnHome: true,
-  cardLayout: 'classic',
-  cardSize: 'medium',
-  characterNameLanguage: 'romaji',
   showComments: true,
   defaultLanguage: 'sub',
   forceMaxQuality: false,
@@ -50,12 +41,13 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     try {
       const storedSettings = localStorage.getItem('anistream-settings');
       if (storedSettings) {
-        // Merge stored settings with defaults to ensure new settings are applied
         const parsed = JSON.parse(storedSettings);
-        // Delete legacy setting if it exists
-        if (parsed.primaryAccentColor) {
-          delete parsed.primaryAccentColor;
-        }
+        
+        // Clean up legacy settings
+        const legacyKeys = ['primaryAccentColor', 'forceDesktopMode', 'cardLayout', 'cardSize', 'characterNameLanguage', 'syncThreshold', 'borderRadius', 'vidsrcDomain', 'episodeViewStyle'];
+        legacyKeys.forEach(key => delete parsed[key]);
+        
+        // Merge stored settings with defaults to ensure new settings are applied
         setSettings({ ...defaultSettings, ...parsed });
       }
     } catch (e) {
@@ -64,15 +56,10 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
   }, []);
 
   useEffect(() => {
-    // Apply theme, color preset, and custom styles to the root element
     const root = document.documentElement;
     root.setAttribute('data-theme', settings.theme);
     root.setAttribute('data-color-preset', settings.colorPreset);
     
-    // Apply dynamic styles for border radius
-    root.style.setProperty('--border-radius-multiplier', (settings.borderRadius / 50).toString());
-
-    // Persist settings to localStorage
     try {
       localStorage.setItem('anistream-settings', JSON.stringify(settings));
     } catch (e) {

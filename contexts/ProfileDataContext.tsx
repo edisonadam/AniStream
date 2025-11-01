@@ -6,6 +6,7 @@ interface ProfileDataContextType {
   ratings: Rating[];
   friends: User[];
   notifications: Notification[];
+  aniTokens: number;
   rateAnime: (animeId: number, rating: number) => void;
   getRating: (animeId: number) => number | null;
   addFriend: (friend: User) => boolean;
@@ -13,6 +14,8 @@ interface ProfileDataContextType {
   isFriend: (username: string) => boolean;
   addNotification: (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>, targetUsername?: string) => void;
   markNotificationsAsRead: () => void;
+  addAniTokens: (amount: number) => void;
+  spendAniTokens: (amount: number) => boolean;
 }
 
 
@@ -26,6 +29,7 @@ export const ProfileDataProvider: React.FC<ProfileDataProviderProps> = ({ childr
   const [ratings, setRatings] = useState<Rating[]>([]);
   const [friends, setFriends] = useState<User[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [aniTokens, setAniTokens] = useState<number>(0);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -39,17 +43,23 @@ export const ProfileDataProvider: React.FC<ProfileDataProviderProps> = ({ childr
 
         const storedNotifications = localStorage.getItem(`notifications-${user.uid}`);
         setNotifications(storedNotifications ? JSON.parse(storedNotifications) : []);
+
+        const storedTokens = localStorage.getItem(`aniTokens-${user.uid}`);
+        setAniTokens(storedTokens ? parseInt(storedTokens, 10) : 100000); // Start with 100k tokens
+
       } catch (e) {
         console.error("Failed to load profile data", e);
         setRatings([]);
         setFriends([]);
         setNotifications([]);
+        setAniTokens(0);
       }
     } else {
       // Clear data on logout
       setRatings([]);
       setFriends([]);
       setNotifications([]);
+      setAniTokens(0);
     }
   }, [user]);
 
@@ -64,6 +74,30 @@ export const ProfileDataProvider: React.FC<ProfileDataProviderProps> = ({ childr
   const persistNotifications = useCallback((list: Notification[], userId: string) => {
       localStorage.setItem(`notifications-${userId}`, JSON.stringify(list));
   }, []);
+  
+  const persistTokens = useCallback((tokens: number) => {
+      if (user) localStorage.setItem(`aniTokens-${user.uid}`, tokens.toString());
+  }, [user]);
+
+  const addAniTokens = useCallback((amount: number) => {
+      if (!user) return;
+      setAniTokens(prev => {
+          const newTotal = prev + amount;
+          persistTokens(newTotal);
+          return newTotal;
+      });
+  }, [user, persistTokens]);
+
+  const spendAniTokens = useCallback((amount: number) => {
+      if (!user || aniTokens < amount) return false;
+      setAniTokens(prev => {
+          const newTotal = prev - amount;
+          persistTokens(newTotal);
+          return newTotal;
+      });
+      return true;
+  }, [user, aniTokens, persistTokens]);
+
 
   const rateAnime = useCallback((animeId: number, rating: number) => {
     if (!user) return;
@@ -150,10 +184,11 @@ export const ProfileDataProvider: React.FC<ProfileDataProviderProps> = ({ childr
 
   return (
     <ProfileDataContext.Provider value={{ 
-        ratings, friends, notifications,
+        ratings, friends, notifications, aniTokens,
         rateAnime, getRating,
         addFriend, removeFriend, isFriend, 
-        addNotification, markNotificationsAsRead 
+        addNotification, markNotificationsAsRead,
+        addAniTokens, spendAniTokens,
     }}>
       {children}
     </ProfileDataContext.Provider>

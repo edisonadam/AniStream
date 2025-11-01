@@ -1,11 +1,12 @@
 import type { ColorPreset, VideoServer, DefaultLanguage, Anime } from './types';
 
-export const GENRES = [
-    'Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Horror',
-    'Mecha', 'Music', 'Mystery', 'Psychological', 'Romance', 'Sci-Fi',
-    'Slice of Life', 'Sports', 'Supernatural', 'Thriller', 'Shounen', 'Shoujo',
-    'Isekai'
-];
+export const GENRES_MAP: Record<string, number> = {
+    'Action': 1, 'Adventure': 2, 'Comedy': 4, 'Drama': 8, 'Fantasy': 10, 'Horror': 14,
+    'Mecha': 18, 'Music': 19, 'Mystery': 7, 'Psychological': 40, 'Romance': 22, 'Sci-Fi': 24,
+    'Slice of Life': 36, 'Sports': 30, 'Supernatural': 37, 'Thriller': 41, 'Shounen': 27, 'Shoujo': 25,
+    'Isekai': 62
+};
+export const GENRES = Object.keys(GENRES_MAP);
 
 export const ANIME_TYPES = ['TV', 'Movie', 'OVA', 'Special', 'ONA'];
 export const ANIME_STATUSES = ['Ongoing', 'Completed', 'Upcoming'];
@@ -53,7 +54,7 @@ export const BEGINNER_ANIME_LIST: Anime[] = [
         title_japanese: "デスノート",
         thumbnail: "https://cdn.myanimelist.net/images/anime/9/9453.jpg",
         bannerImage: "https://cdn.myanimelist.net/images/anime/9/9453.jpg",
-        synopsis: "A shinigami, as a god of death, can kill any person—provided they see their victim's face and write their victim's name in a notebook called a Death Note. One day, Ryuk, bored by the shinigami lifestyle and interested in seeing how a human would use a Death Note, drops one into the human realm...",
+        synopsis: "A shinigami, as a deity of death, can kill any person—provided they see their victim's face and write their victim's name in a notebook called a Death Note. One day, Ryuk, bored by the shinigami lifestyle and interested in seeing how a human would use a Death Note, drops one into the human realm...",
         genres: ["Supernatural", "Suspense", "Psychological", "Shounen"],
         releaseYear: 2006,
         status: "Completed",
@@ -238,3 +239,15 @@ export const NARUTO_FILLER_EPISODES: number[] = [
     200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211,
     212, 213, 214, 215, 216, 217, 218, 219
 ];
+
+export const LEVEL_DATA = [
+    { level: 0, name: 'Newbie', tokens: 0 },
+    { level: 1, name: 'Talker', tokens: 60000 },
+    { level: 5, name: 'Chatterbox', tokens: 300000 },
+    { level: 10, name: 'Socialite', tokens: 600000 },
+    { level: 20, name: 'Community Pillar', tokens: 1200000 },
+    { level: 30, name: 'Forum Veteran', tokens: 1800000 },
+    { level: 40, name: 'Discussion Master', tokens: 2400000 },
+    { level: 50, name: 'Anime Legend', tokens: 3000000 },
+];
+export const MAX_LEVEL_TOKENS = 3000000;

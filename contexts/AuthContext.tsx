@@ -7,20 +7,23 @@ interface AuthContextType {
   user: User | null;
   firebaseUser: FirebaseUser | null;
   isLoggedIn: boolean;
-  loading: boolean;
   logout: () => Promise<void>;
   updateUser: (updates: { username: string; avatar: string }) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const mapFirebaseUserToAppUser = (firebaseUser: FirebaseUser): User => {
+const VERIFIED_USERS = ['Miruro', 'Admin', 'Kuon'];
+
+export const mapFirebaseUserToAppUser = (firebaseUser: FirebaseUser): User => {
+    const username = firebaseUser.displayName || 'Anonymous User';
     return {
         uid: firebaseUser.uid,
-        username: firebaseUser.displayName || 'Anonymous User',
+        username: username,
         avatar: firebaseUser.photoURL || `https://api.dicebear.com/8.x/bottts-neutral/svg?seed=${firebaseUser.uid}`,
         email: firebaseUser.email,
         joinedDate: firebaseUser.metadata.creationTime ? new Date(firebaseUser.metadata.creationTime).getTime() : Date.now(),
+        isVerified: VERIFIED_USERS.includes(username),
     };
 };
 
@@ -31,7 +34,6 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
@@ -42,7 +44,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(null);
         setFirebaseUser(null);
       }
-      setLoading(false);
     });
 
     return unsubscribe;
@@ -68,14 +69,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user,
     firebaseUser,
     isLoggedIn: !!user,
-    loading,
     logout,
     updateUser,
   };
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };

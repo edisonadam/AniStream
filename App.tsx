@@ -28,6 +28,11 @@ import BeginnerAnimePage from './components/BeginnerAnimePage';
 import { useWatchProgress } from './hooks/useWatchProgress';
 import BeginnerAnime from './components/BeginnerAnime';
 import { useAuth } from './hooks/useAuth';
+import { GENRES_MAP } from './constants';
+import RecentCommentsCarousel from './components/RecentComments';
+import CommunityPage from './components/CommunityPage';
+import LoginPrompt from './components/LoginPrompt';
+import CommentMeterPage from './components/CommentMeterPage';
 
 const ANIME_PAGE_SIZE = 25;
 
@@ -71,6 +76,44 @@ const App: React.FC = () => {
     const pageBeforePlayerRef = useRef<Page>('home'); // To store page before navigating to player
     const prevPageRef = useRef<Page | undefined>(undefined);
 
+    // CRITICAL FIX: Preloader removal logic.
+    // This runs once when the App component mounts, which is now immediate
+    // thanks to the non-blocking AuthProvider.
+    useEffect(() => {
+        const preloader = document.getElementById('preloader');
+        if (preloader) {
+            preloader.style.transition = 'opacity 0.5s ease';
+            preloader.style.opacity = '0';
+            setTimeout(() => {
+                preloader.style.display = 'none';
+            }, 500); // Must match transition duration
+        }
+    }, []);
+
+
+    // Content Protection
+    useEffect(() => {
+        const handleContextmenu = (e: MouseEvent) => e.preventDefault();
+        const handleKeydown = (e: KeyboardEvent) => {
+            // Block Ctrl+C, Ctrl+U, Ctrl+S
+            if (e.ctrlKey && ['c', 'u', 's'].includes(e.key.toLowerCase())) {
+                e.preventDefault();
+            }
+            // Block F12 for developer tools
+            if (e.key === 'F12') {
+                e.preventDefault();
+            }
+        };
+
+        document.addEventListener('contextmenu', handleContextmenu);
+        document.addEventListener('keydown', handleKeydown);
+
+        return () => {
+            document.removeEventListener('contextmenu', handleContextmenu);
+            document.removeEventListener('keydown', handleKeydown);
+        };
+    }, []);
+
     useEffect(() => {
         prevPageRef.current = page;
     }, [page]);
@@ -100,6 +143,28 @@ const App: React.FC = () => {
 
         setPage(newPage);
     }, [page]);
+    
+    // This effect handles URL parameters for PWA shortcuts.
+    useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const pageParam = urlParams.get('page') as Page;
+        const validPages: Page[] = ['trending', 'schedule', 'history', 'news', 'manga', 'community', 'beginners', 'clubs', 'comment-meter', 'magazines'];
+
+        if (pageParam && validPages.includes(pageParam)) {
+            navigateTo(pageParam);
+        }
+
+        const showWatchlistParam = urlParams.get('showWatchlist');
+        if (showWatchlistParam === 'true') {
+            setIsWatchlistOpen(true);
+        }
+
+        // Clean up URL to avoid re-triggering on reload
+        if (urlParams.has('page') || urlParams.has('showWatchlist')) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    }, [navigateTo]);
+
 
     const handleAnimeSelect = useCallback((anime: Anime) => {
         if (page !== 'player') {
@@ -137,7 +202,12 @@ const App: React.FC = () => {
         }
     
         if (searchFilters.query) params.append('q', searchFilters.query);
-        if (searchFilters.genres.length > 0) params.append('genres', searchFilters.genres.join(','));
+
+        const genreIds = searchFilters.genres.map(genre => GENRES_MAP[genre]).filter(Boolean);
+        if (genreIds.length > 0) {
+            params.append('genres', genreIds.join(','));
+        }
+
         if (searchFilters.types.length > 0) params.append('type', searchFilters.types.join(',').toLowerCase());
         if (searchFilters.statuses.length > 0) {
             const jikanStatuses = searchFilters.statuses.map(s => {
@@ -259,7 +329,13 @@ const App: React.FC = () => {
     }, [settings.restrictAdultContent]);
 
     const hasActiveFilters = useMemo(() => {
-        return filters.query || filters.genres.length > 0 || filters.types.length > 0 || filters.statuses.length > 0;
+        return filters.query || 
+               filters.genres.length > 0 || 
+               filters.types.length > 0 || 
+               filters.statuses.length > 0 ||
+               filters.years.length > 0 ||
+               filters.languages.length > 0 ||
+               filters.studios.length > 0;
     }, [filters]);
     
     useEffect(() => {
@@ -413,7 +489,7 @@ const App: React.FC = () => {
     const handleStagedFilterChange = (newFilters: Partial<Filter>) => setStagedFilters(prev => ({ ...prev, ...newFilters }));
     
     const handleApplyFilters = () => {
-        window.scrollTo({ top: 0, behavior: 'auto' });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         if (page !== 'home') {
             setPage('home');
         }
@@ -424,13 +500,13 @@ const App: React.FC = () => {
     const handleSearchSubmit = (query: string) => { 
         const newFilters = { ...filters, query };
         homePageScrollPosition.current = 0;
-        window.scrollTo({ top: 0, behavior: 'auto' });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         setFilters(newFilters);
         setIsSearchOpen(false);
         navigateTo('search');
     };
     const handleSortChange = (sort: Filter['sort']) => {
-        window.scrollTo({ top: 0, behavior: 'auto' });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         const newFilters = { ...filters, sort };
         setFilters(newFilters);
         setStagedFilters(newFilters);
@@ -458,10 +534,18 @@ const App: React.FC = () => {
     
     const handleGenreSelect = (genre: string) => {
         const newFilters: Filter = {
-            query: '', genres: [genre], types: [], statuses: [], years: [], languages: [], studios: [], sort: 'popularity'
+            query: '',
+            genres: [genre],
+            types: [],
+            statuses: [],
+            years: [],
+            languages: [],
+            studios: [],
+            sort: 'popularity'
         };
+        
         homePageScrollPosition.current = 0;
-        window.scrollTo({ top: 0, behavior: 'auto' });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         setFilters(newFilters);
         navigateTo('home');
     };
@@ -492,6 +576,8 @@ const App: React.FC = () => {
             case 'history': return <HistoryPage onAnimeSelect={handleAnimeSelect} allAnime={allAnime} />;
             case 'news': return <NewsPage onAnimeSelect={handleAnimeSelect} />;
             case 'manga': return <MangaPage onGoBack={goHome} />;
+            case 'community': return <CommunityPage onLoginClick={() => handleLoginRequest()} />;
+            case 'comment-meter': return <CommentMeterPage onGoBack={goHome} onLoginClick={() => handleLoginRequest()} />;
             case 'beginners': return <BeginnerAnimePage onGoBack={goHome} onAnimeSelect={handleAnimeSelect} />;
             case 'search':
                 return (
@@ -522,6 +608,8 @@ const App: React.FC = () => {
                                 onShowHistory={() => navigateTo('history')} 
                             />
                         )}
+                        
+                        {isDefaultHome && settings.showComments && <RecentCommentsCarousel onAnimeSelect={handleAnimeSelect} />}
 
                         {isDefaultHome && <BeginnerAnime onAnimeSelect={handleAnimeSelect} />}
                         
@@ -541,7 +629,7 @@ const App: React.FC = () => {
                 );
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [page, hasActiveFilters, isCarouselLoading, isGridLoading, isLoadingMore, hasMore, featuredAnime, gridAnime, allAnime, filters, settings.showWatchHistoryOnHome, selectedAnime, selectedClub]);
+    }, [page, hasActiveFilters, isCarouselLoading, isGridLoading, isLoadingMore, hasMore, featuredAnime, gridAnime, allAnime, filters, settings.showWatchHistoryOnHome, settings.showComments, selectedAnime, selectedClub]);
 
     return (
         <div ref={appRef} className="bg-[rgb(var(--bg-gradient-start))] text-[rgb(var(--text-primary))]">
@@ -576,6 +664,7 @@ const App: React.FC = () => {
             {isWatchlistOpen && <WatchlistOverlay onClose={() => setIsWatchlistOpen(false)} onSelectAnime={handleAnimeSelect} />}
             
             <main className={`${page === 'home' && !hasActiveFilters ? '' : 'pt-20'}`}>
+                {page === 'home' && !hasActiveFilters && <LoginPrompt onLoginClick={() => handleLoginRequest()} />}
                 {pageContent}
             </main>
             

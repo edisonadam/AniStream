@@ -75,3 +75,8 @@ export const AcademicCapIcon: React.FC<IconProps> = createIcon(<path strokeLinec
 
 export const BookmarkIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />);
 export const LogoutIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />);
+export const FlagIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M3 21v-13l9-4 9 4v7" />);
+export const ScissorsIcon: React.FC<IconProps> = createIcon(<><circle cx="6" cy="6" r="3" /><circle cx="6" cy="18" r="3" /><line x1="20" y1="4" x2="8.12" y2="15.88" /><line x1="14.47" y1="14.48" x2="20" y2="20" /><line x1="8.12" y1="8.12" x2="12" y2="12" /></>);
+export const ThumbsUpIcon: React.FC<IconProps> = createIcon(<path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" />);
+export const VerifiedIcon: React.FC<IconProps> = createSolidIcon(<path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />);
+export const ExternalLinkIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />);

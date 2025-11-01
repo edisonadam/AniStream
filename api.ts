@@ -15,7 +15,6 @@ export const buildSourceUrl = (
     tmdbId: number | null,
     season?: number,
     episode?: number,
-    vidsrcDomain?: string,
     autoplayNext?: boolean
 ): string | null => {
     if (!mediaType || !tmdbId) return null;
@@ -37,7 +36,7 @@ export const buildSourceUrl = (
         case 'bee':
         case 'bun':
         case 'kuz': {
-            const domain = vidsrcDomain || 'vsrc.su';
+            const domain = 'vsrc.su'; // Using a reliable default
             if (mediaType === 'movie') {
                 return `https://${domain}/embed/movie/${tmdbId}${queryString}`;
             }
