@@ -8,7 +8,7 @@ import { useWatchProgress } from '../hooks/useWatchProgress';
 import { useProfileData } from '../hooks/useProfileData';
 import { useAuth } from '../hooks/useAuth';
 import { VIDEO_SERVERS, VIDSRC_DOMAINS } from '../constants';
-import { buildSourceUrl, mapJikanToAnime, mapJikanToCharacter, getAnilistId, updateAnilistProgress } from '../api';
+import { buildSourceUrl, mapJikanToAnime, mapJikanToCharacter, getAnilistId, updateAnilistProgress, fetchWithRetry } from '../api';
 import { GoogleGenAI } from '@google/genai';
 import DownloadModal from './DownloadModal';
 import { getDisplayTitle } from '../utils';
@@ -33,27 +33,6 @@ interface MediaIds {
   imdb: string | null;
   mediaType: 'tv' | 'movie' | null;
 }
-
-const fetchWithRetry = async (url: string, retries = 1, delay = 1500): Promise<Response> => {
-    for (let i = 0; i <= retries; i++) {
-        try {
-            const response = await fetch(url);
-            if (response.status === 429 && i < retries) {
-                await new Promise(resolve => setTimeout(resolve, delay));
-                continue;
-            }
-            return response;
-        } catch (error) {
-            if (i < retries) {
-                await new Promise(resolve => setTimeout(resolve, delay));
-                continue;
-            }
-            throw error;
-        }
-    }
-    throw new Error("fetchWithRetry failed after multiple retries");
-};
-
 
 const parseSeasonFromTitle = (title: string): number | null => {
     if (!title) return null;
@@ -388,7 +367,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
                         if (searchMediaType === 'tv') searchParams.append('first_air_date_year', baseAnimeForTmdb.year.toString());
                         else searchParams.append('year', baseAnimeForTmdb.year.toString());
                     }
-                    const searchRes = await fetch(`https://api.themoviedb.org/3/search/${searchMediaType}?${searchParams.toString()}`);
+                    const searchRes = await fetchWithRetry(`https://api.themoviedb.org/3/search/${searchMediaType}?${searchParams.toString()}`);
                     if (searchRes.ok) { 
                         const searchData = await searchRes.json();
                         if (searchData.results.length > 0) {
@@ -405,7 +384,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
 
             if (foundTmdbId && foundMediaType) {
                  setMediaIds({ tmdb: foundTmdbId, mediaType: foundMediaType, imdb: null });
-                 const tmdbDetailsRes = await fetch(`https://api.themoviedb.org/3/${foundMediaType}/${foundTmdbId}?api_key=${TMDB_API_KEY}&append_to_response=external_ids`);
+                 const tmdbDetailsRes = await fetchWithRetry(`https://api.themoviedb.org/3/${foundMediaType}/${foundTmdbId}?api_key=${TMDB_API_KEY}&append_to_response=external_ids`);
                  if (tmdbDetailsRes.ok) {
                      const tmdbData = await tmdbDetailsRes.json();
                      setMediaIds(prev => ({ ...prev, imdb: tmdbData.external_ids?.imdb_id || null }));
@@ -652,7 +631,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
     setIsLoadingEpisodes(true);
     setEpisodeError(null);
     try {
-        const res = await fetch(`https://api.themoviedb.org/3/tv/${mediaIds.tmdb}/season/${currentSeason}?api_key=${TMDB_API_KEY}`);
+        const res = await fetchWithRetry(`https://api.themoviedb.org/3/tv/${mediaIds.tmdb}/season/${currentSeason}?api_key=${TMDB_API_KEY}`);
         if (!res.ok) throw new Error(`Failed to fetch episode data (Status: ${res.status}).`);
         const data = await res.json();
         setEpisodes(data.episodes?.map((ep: any) => ({
@@ -719,11 +698,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
         try {
             const query = `query GetTimestamps($anime: String!, $episode: Int!) { anime(name: $anime) { episodes(number: $episode) { number, timestamps { type, start, end } } } }`;
             const variables = { anime: playerAnime.title, episode: currentEpisode };
-            const response = await fetch('https://api.anime-skip.com/graphql', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query, variables }),
-            });
+            const response = await fetchWithRetry('https://api.anime-skip.com/graphql', 1, 500);
             if (!response.ok) throw new Error('Network response was not ok for anime-skip');
             const result = await response.json();
             const episodeData = result.data?.anime?.episodes?.[0];
@@ -1191,8 +1166,8 @@ const AnimeInfoSection: React.FC<{anime: Anime, onTrailerClick: () => void}> = (
                 </div>
             </div>
 
-            <div className="player-grid-container mt-6">
-                <div className="player-main-column">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 mt-6">
+                <div className="xl:col-span-2">
                     {playerAnime.type === 'Movie' && <span className="mb-4 inline-block px-4 py-1.5 text-base font-bold rounded-full bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))] shadow-lg shadow-[rgb(var(--shadow-color))/0.4]">Movie</span>}
                     
                     {!mediaIds.tmdb && !isLoadingNavigator ? (
@@ -1276,12 +1251,24 @@ const AnimeInfoSection: React.FC<{anime: Anime, onTrailerClick: () => void}> = (
                       </div>
                     )}
                 </div>
-                <div className="player-side-column">
+                <div className="xl:col-span-1">
                      <AnimeInfoSection anime={playerAnime} onTrailerClick={() => setActiveTab('trailers')} />
                     <Comments anime={playerAnime} onUserSelect={onUserSelect} />
-                    {relatedAnime.length > 0 && <div className="mt-12"><h3 className="text-2xl font-bold mb-6 text-[rgb(var(--text-primary))]">Related Anime</h3><div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">{relatedAnime.map(relAnime => <AnimeCard key={relAnime.id} anime={relAnime} onSelect={onSelectRelated} />)}</div></div>}
                 </div>
             </div>
+
+            {relatedAnime.length > 0 && (
+                <div className="mt-16">
+                    <h3 className="text-3xl font-bold mb-8 text-[rgb(var(--text-primary))]" style={{ textShadow: `0 0 8px rgb(var(--shadow-color) / 0.5)` }}>
+                        Related Anime
+                    </h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 md:gap-6">
+                        {relatedAnime.map(relAnime => (
+                            <AnimeCard key={relAnime.id} anime={relAnime} onSelect={onSelectRelated} />
+                        ))}
+                    </div>
+                </div>
+            )}
         </section>
     </div>
   );

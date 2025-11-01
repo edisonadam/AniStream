@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Club } from '../types';
 import ClubCard from './ClubCard';
 import { SearchIcon, ChevronLeftIcon } from './icons/Icons';
+import { fetchWithRetry } from '../api';
 
 const ClubCardSkeleton: React.FC = () => (
     <div className="rounded-3xl bg-[rgb(var(--surface-2))] animate-pulse">
@@ -47,11 +48,7 @@ const ClubsPage: React.FC<ClubsPageProps> = ({ onClubSelect, onGoBack, isTabbed 
     if (debouncedQuery) params.append('q', debouncedQuery);
 
     try {
-        let res = await fetch(`https://api.jikan.moe/v4/clubs?${params.toString()}`);
-        if (res.status === 429) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            res = await fetch(`https://api.jikan.moe/v4/clubs?${params.toString()}`);
-        }
+        const res = await fetchWithRetry(`https://api.jikan.moe/v4/clubs?${params.toString()}`);
         if (!res.ok) throw new Error('Failed to fetch clubs from Jikan API.');
 
         const data = await res.json();

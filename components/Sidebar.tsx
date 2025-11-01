@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Filter, Settings, Page } from '../types';
-import { CloseIcon, UsersIcon, BookOpenIcon, GiftIcon, MoonIcon, SunIcon, HomeIcon, TrendingUpIcon, CalendarIcon, HistoryIcon, InfoIcon, AcademicCapIcon, EyeIcon, EyeOffIcon, MessageCircleIcon, SparklesIcon, ChevronDownIcon } from './icons/Icons';
+import { CloseIcon, UsersIcon, BookOpenIcon, GiftIcon, MoonIcon, SunIcon, HomeIcon, TrendingUpIcon, CalendarIcon, HistoryIcon, InfoIcon, AcademicCapIcon, EyeIcon, EyeOffIcon, MessageCircleIcon, SparklesIcon, ChevronDownIcon, ClipboardIcon, ShieldCheckIcon, HeartIcon, NewspaperIcon, RefreshCwIcon } from './icons/Icons';
 import Logo from './Logo';
 import { ANIME_TYPES, ANIME_STATUSES, YEAR_OPTIONS, LANGUAGE_OPTIONS, STUDIO_OPTIONS, GENRES, TAG_OPTIONS } from '../constants';
 
@@ -125,16 +125,22 @@ const Sidebar: React.FC<SidebarProps> = ({
             <SideButton icon={<TrendingUpIcon />} label="Trending" onClick={() => handleNavigation('trending')} />
             <SideButton icon={<CalendarIcon />} label="Schedule" onClick={() => handleNavigation('schedule')} />
             <SideButton icon={<HistoryIcon />} label="History" onClick={() => handleNavigation('history')} />
-            <SideButton icon={<InfoIcon />} label="Updates" onClick={() => handleNavigation('news')} />
+            <SideButton icon={<RefreshCwIcon />} label="Updates" onClick={() => handleNavigation('news')} />
           </div>
 
           <div className="p-4 space-y-2 border-b border-white/10">
             <SideButton icon={<BookOpenIcon />} label="Manga" onClick={() => handleNavigation('manga')} />
             <SideButton icon={<AcademicCapIcon />} label="For Beginners" onClick={() => handleNavigation('beginners')} />
             <SideButton icon={<GiftIcon />} label="Surprise Me!" onClick={onSurpriseMe} />
-            <SideButton icon={<UsersIcon />} label="Community Hub" onClick={() => handleNavigation('community')} />
-             {isLoggedIn && <SideButton icon={<MessageCircleIcon />} label="Comment Meter" onClick={() => handleNavigation('comment-meter')} />}
-            <SideButton icon={<BookOpenIcon />} label="Magazines" onClick={() => handleNavigation('magazines')} />
+            <SideButton icon={<MessageCircleIcon />} label="Community Hub" onClick={() => handleNavigation('community')} />
+             {isLoggedIn && <SideButton icon={<SparklesIcon />} label="Comment Meter" onClick={() => handleNavigation('comment-meter')} />}
+            <SideButton icon={<NewspaperIcon />} label="Magazines" onClick={() => handleNavigation('magazines')} />
+          </div>
+
+          <div className="p-4 space-y-2 border-b border-white/10">
+            <SideButton icon={<InfoIcon />} label="About Us" onClick={() => handleNavigation('about')} />
+            <SideButton icon={<ClipboardIcon />} label="Rules" onClick={() => handleNavigation('rules')} />
+            <SideButton icon={<HeartIcon />} label="Donation" onClick={() => handleNavigation('donation')} />
           </div>
           
           <FilterSection title="Genres" isOpen={openSections.has('Genres')} onToggle={() => toggleSection('Genres')}>
@@ -146,7 +152,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           <FilterSection title="Status" isOpen={openSections.has('Status')} onToggle={() => toggleSection('Status')}>
             <div className="flex flex-wrap gap-2">{ANIME_STATUSES.map(s => <FilterButton key={s} name={s} isSelected={filters.statuses.includes(s)} onClick={() => handleMultiSelect('statuses', s)} />)}</div>
           </FilterSection>
-          <FilterSection title="Tags" isOpen={openSections.has('Tags')} onToggle={() => toggleSection('Tags')}>
+          <FilterSection title="MAL Tags" isOpen={openSections.has('MAL Tags')} onToggle={() => toggleSection('MAL Tags')}>
             <div className="flex flex-wrap gap-2">{TAG_OPTIONS.map(t => <FilterButton key={t} name={t} isSelected={filters.tags.includes(t)} onClick={() => handleMultiSelect('tags', t)} />)}</div>
           </FilterSection>
           <FilterSection title="Year" isOpen={openSections.has('Year')} onToggle={() => toggleSection('Year')}>

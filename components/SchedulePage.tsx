@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { Anime } from '../types';
-import { mapJikanToAnime } from '../api';
+import { mapJikanToAnime, fetchWithRetry } from '../api';
 import AnimeGrid from './AnimeGrid';
 import { useSettings } from '../hooks/useSettings';
 
@@ -40,7 +40,7 @@ const SchedulePage: React.FC<SchedulePageProps> = ({ onAnimeSelect }) => {
     useEffect(() => {
         const fetchSeasonsList = async () => {
             try {
-                const res = await fetch(`https://api.jikan.moe/v4/seasons`);
+                const res = await fetchWithRetry(`https://api.jikan.moe/v4/seasons`);
                 if (!res.ok) throw new Error('Failed to fetch seasons list.');
                 const data = await res.json();
                 setSeasonsList(data.data.sort((a: any, b: any) => b.year - a.year));
@@ -69,11 +69,7 @@ const SchedulePage: React.FC<SchedulePageProps> = ({ onAnimeSelect }) => {
         }
 
         try {
-            let res = await fetch(url);
-            if (res.status === 429) {
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                res = await fetch(url);
-            }
+            const res = await fetchWithRetry(url);
             if (!res.ok) throw new Error(`Failed to fetch anime for ${mode === 'upcoming' ? 'upcoming season' : `${selectedSeason} ${selectedYear}`}.`);
             
             const data = await res.json();
@@ -162,8 +158,9 @@ const SchedulePage: React.FC<SchedulePageProps> = ({ onAnimeSelect }) => {
                     onLoadMore={() => fetchSeasonalData(false)}
                     hasMore={hasMore}
                     isLoadingMore={isLoadingMore}
-                    filters={{ query: '', genres: [], types: [], statuses: [], years: [], languages: [], studios: [], sort: 'popularity' }}
+                    filters={{ query: '', genres: [], types: [], statuses: [], years: [], languages: [], studios: [], sort: 'popularity', tags: [] }}
                     sortValue='popularity'
+                    loadMoreMode={settings.loadMoreMode}
                 />
             )}
         </div>

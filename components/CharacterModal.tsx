@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { Character, VoiceActor } from '../types';
 import { CloseIcon } from './icons/Icons';
+import { fetchWithRetry } from '../api';
 
 interface CharacterModalProps {
   character: Character;
@@ -17,19 +18,12 @@ const CharacterModal: React.FC<CharacterModalProps> = ({ character, onClose }) =
       setIsLoading(true);
       setError(null);
       try {
-        const res = await fetch(`https://api.jikan.moe/v4/characters/${character.id}/full`);
-        if (res.status === 429) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          const retryRes = await fetch(`https://api.jikan.moe/v4/characters/${character.id}/full`);
-          if (!retryRes.ok) throw new Error('Failed to fetch character details after retry.');
-          const data = (await retryRes.json()).data;
-          parseData(data);
-        } else if (!res.ok) {
-          throw new Error('Failed to fetch character details.');
-        } else {
-          const data = (await res.json()).data;
-          parseData(data);
+        const res = await fetchWithRetry(`https://api.jikan.moe/v4/characters/${character.id}/full`);
+        if (!res.ok) {
+          throw new Error(`Failed to fetch character details. Status: ${res.status}`);
         }
+        const data = (await res.json()).data;
+        parseData(data);
       } catch (e) {
         setError(e instanceof Error ? e.message : 'An unknown error occurred.');
       } finally {

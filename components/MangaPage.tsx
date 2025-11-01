@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { Manga } from '../types';
-import { mapJikanToManga } from '../api';
+import { mapJikanToManga, fetchWithRetry } from '../api';
 import { ChevronLeftIcon, SearchIcon } from './icons/Icons';
 import MangaCard from './MangaCard';
 import { useSettings } from '../hooks/useSettings';
@@ -69,11 +69,7 @@ const MangaPage: React.FC<MangaPageProps> = ({ onGoBack }) => {
 
 
     try {
-      let res = await fetch(`https://api.jikan.moe/v4/${endpoint}?${params.toString()}`);
-      if (res.status === 429) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        res = await fetch(`https://api.jikan.moe/v4/${endpoint}?${params.toString()}`);
-      }
+      const res = await fetchWithRetry(`https://api.jikan.moe/v4/${endpoint}?${params.toString()}`);
       if (!res.ok) throw new Error('Failed to fetch manga from Jikan API.');
 
       const data = await res.json();

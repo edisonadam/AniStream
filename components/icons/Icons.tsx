@@ -81,3 +81,21 @@ export const ScissorsIcon: React.FC<IconProps> = createIcon(<><circle cx="6" cy=
 export const ThumbsUpIcon: React.FC<IconProps> = createIcon(<path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" />);
 export const VerifiedIcon: React.FC<IconProps> = createSolidIcon(<path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />);
 export const ExternalLinkIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />);
+export const ShieldCheckIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 20.417l5.611 1.573a2.986 2.986 0 002.778 0L17.389 20.42a12.02 12.02 0 00-4.389-14.416z" />);
+export const HeartIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />);
+export const ClipboardIcon: React.FC<IconProps> = createIcon(<>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15.5 2H8.6c-.4 0-.8.2-1.1.5L3.5 6.5c-.3.3-.5.7-.5 1.1V20c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3.5 7h5V2" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 14h6" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 18h4" />
+</>);
+export const NewspaperIcon: React.FC<IconProps> = createIcon(<>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 2v20" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h4" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M8 11h4" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M8 15h4" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M16 7h4" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M16 11h4" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M16 15h4" />
+</>);

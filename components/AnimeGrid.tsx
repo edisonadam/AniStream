@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import AnimeCard from './AnimeCard';
-import type { Anime, Filter } from '../types';
+import type { Anime, Filter, Settings } from '../types';
 import AnimeCardSkeleton from './AnimeCardSkeleton';
 import { SearchIcon } from './icons/Icons';
 
@@ -15,11 +15,12 @@ interface AnimeGridProps {
   isLoadingMore: boolean;
   sortValue: Filter['sort'];
   onSortChange?: (sort: Filter['sort']) => void;
+  loadMoreMode: Settings['loadMoreMode'];
 }
 
 const ANIME_PAGE_SIZE = 25; // As defined in App.tsx fetch logic
 
-const AnimeGrid: React.FC<AnimeGridProps> = ({ onAnimeSelect, animeList, title, filters, isLoading, onLoadMore, hasMore, isLoadingMore, sortValue, onSortChange }) => {
+const AnimeGrid: React.FC<AnimeGridProps> = ({ onAnimeSelect, animeList, title, filters, isLoading, onLoadMore, hasMore, isLoadingMore, sortValue, onSortChange, loadMoreMode }) => {
   const hasActiveFilters = Object.values(filters).some(v => {
     if (Array.isArray(v)) return v.length > 0;
     if (typeof v === 'string' && v !== 'popularity') return true;
@@ -31,7 +32,7 @@ const AnimeGrid: React.FC<AnimeGridProps> = ({ onAnimeSelect, animeList, title, 
 
   // Effect for infinite scrolling using IntersectionObserver (for user scrolling)
   useEffect(() => {
-    if (isLoading || isLoadingMore) return;
+    if (loadMoreMode !== 'auto' || isLoading || isLoadingMore) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -52,11 +53,13 @@ const AnimeGrid: React.FC<AnimeGridProps> = ({ onAnimeSelect, animeList, title, 
         observer.unobserve(currentElement);
       }
     };
-  }, [onLoadMore, hasMore, isLoading, isLoadingMore]);
+  }, [onLoadMore, hasMore, isLoading, isLoadingMore, loadMoreMode]);
 
   // Effect to automatically load more content if the viewport isn't full,
   // which often happens after applying filters that reduce the item count.
   useEffect(() => {
+    if (loadMoreMode !== 'auto') return;
+      
     const fillViewport = () => {
       // Don't run if we are already loading, have no more items, or the ref is not attached.
       if (isLoading || isLoadingMore || !hasMore || !gridContainerRef.current) {
@@ -76,7 +79,7 @@ const AnimeGrid: React.FC<AnimeGridProps> = ({ onAnimeSelect, animeList, title, 
     const timer = setTimeout(fillViewport, 300);
 
     return () => clearTimeout(timer);
-  }, [animeList, hasMore, isLoading, isLoadingMore, onLoadMore]);
+  }, [animeList, hasMore, isLoading, isLoadingMore, onLoadMore, loadMoreMode]);
 
 
   return (
@@ -117,7 +120,7 @@ const AnimeGrid: React.FC<AnimeGridProps> = ({ onAnimeSelect, animeList, title, 
               ))}
             </div>
 
-            <div ref={lastElementRef} style={{ height: '1px' }} />
+            {loadMoreMode === 'auto' && <div ref={lastElementRef} style={{ height: '1px' }} />}
 
             {isLoadingMore && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6 mt-6">
@@ -125,6 +128,14 @@ const AnimeGrid: React.FC<AnimeGridProps> = ({ onAnimeSelect, animeList, title, 
                 </div>
             )}
             
+            {loadMoreMode === 'manual' && hasMore && !isLoading && !isLoadingMore && (
+                <div className="text-center mt-12">
+                    <button onClick={onLoadMore} className="px-6 py-3 bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))] rounded-xl font-semibold hover:bg-[rgb(var(--color-primary-hover))] transition-all duration-300 transform hover:scale-105 shadow-lg shadow-[rgb(var(--shadow-color))/0.3]">
+                        Load More
+                    </button>
+                </div>
+            )}
+
             {!hasMore && animeList.length > 0 && (
                 <div className="text-center text-[rgb(var(--text-muted))] pt-12 text-lg">
                     <p>You've reached the end!</p>

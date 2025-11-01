@@ -61,6 +61,7 @@ export interface Filter {
   studios: string[];
   tags: string[];
   sort: 'popularity' | 'release_date' | 'alphabetical';
+  letter?: string;
 }
 
 export type VideoServer = 'kiwi' | 'jet' | 'telli' | 'hop' | 'izy' | 'bee' | 'bun_kuz' | 'embed-api' | 'vidsrc' | 'vidsrc-pk' | 'vidbinge' | 'animepahe' | 'videembed' | 'bun' | 'kuz' | 'vidk' | 'plyr';
@@ -115,7 +116,7 @@ export type Theme = 'light' | 'dark';
 export type ColorPreset = 'abyssal-blue' | 'violet-fusion' | 'cyber-cyan' | 'sunset-orange';
 export type EpisodeViewStyle = 'auto' | 'default' | 'compact' | 'grid';
 export type DefaultLanguage = 'sub' | 'dub' | 'ssub';
-export type Page = 'home' | 'player' | 'profile' | 'club-detail' | 'magazines' | 'trending' | 'schedule' | 'history' | 'news' | 'manga' | 'beginners' | 'search' | 'community' | 'comment-meter' | 'currency';
+export type Page = 'home' | 'player' | 'profile' | 'club-detail' | 'magazines' | 'trending' | 'schedule' | 'history' | 'news' | 'manga' | 'beginners' | 'search' | 'community' | 'comment-meter' | 'currency' | 'about' | 'rules' | 'donation';
 
 
 export interface Settings {
@@ -135,6 +136,7 @@ export interface Settings {
   showWatchHistoryOnHome: boolean;
   showComments: boolean;
   defaultLanguage: DefaultLanguage;
+  loadMoreMode: 'auto' | 'manual';
 }
 
 export interface WatchProgressInfo {

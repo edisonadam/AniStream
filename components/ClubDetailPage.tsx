@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import type { Anime, Club, ClubMember, ClubStaff, ClubRelations, MalUrl, ClubPicture } from '../types';
 import { ChevronLeftIcon, UsersIcon, CalendarIcon, CloseIcon } from './icons/Icons';
 import AnimeCard from './AnimeCard';
+import { fetchWithRetry } from '../api';
 
 // Helper to map a relation item to a minimal Anime object for selection
 const mapRelationToAnime = (relation: MalUrl): Anime => ({
@@ -75,10 +76,11 @@ const ClubDetailPage: React.FC<ClubDetailPageProps> = ({ club, onGoBack, onSelec
                 `https://api.jikan.moe/v4/clubs/${clubId}/relations`
             ];
 
-            const requests = endpoints.map(url => fetch(url).then(res => {
-                if (res.status === 429) return new Promise(r => setTimeout(r, 1000)).then(() => fetch(url));
-                return res;
-            }).then(res => res.ok ? res.json() : Promise.reject(new Error(`Failed request to ${url}`))));
+            const requests = endpoints.map(url => 
+                fetchWithRetry(url).then(res => 
+                    res.ok ? res.json() : Promise.reject(new Error(`Failed request to ${url} with status ${res.status}`))
+                )
+            );
 
             const [picturesRes, membersRes, staffRes, relationsRes] = await Promise.allSettled(requests);
             

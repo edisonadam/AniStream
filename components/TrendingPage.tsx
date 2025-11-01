@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { Anime } from '../types';
-import { mapJikanToAnime } from '../api';
+import { mapJikanToAnime, fetchWithRetry } from '../api';
 import AnimeCardSkeleton from './AnimeCardSkeleton';
 import AnimeCard from './AnimeCard';
 import { useSettings } from '../hooks/useSettings';
@@ -21,7 +21,7 @@ const TrendingPage: React.FC<TrendingPageProps> = ({ onAnimeSelect }) => {
             setError(null);
             try {
                 const sfwQuery = settings.restrictAdultContent ? '&sfw' : '';
-                const res = await fetch(`https://api.jikan.moe/v4/top/anime?filter=bypopularity&limit=25${sfwQuery}`);
+                const res = await fetchWithRetry(`https://api.jikan.moe/v4/top/anime?filter=bypopularity&limit=25${sfwQuery}`);
                 if (!res.ok) throw new Error('Failed to fetch trending anime.');
                 const data = await res.json();
                 let mapped = data.data.map(mapJikanToAnime).filter(Boolean);

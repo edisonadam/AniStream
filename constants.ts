@@ -40,7 +40,18 @@ export const STUDIO_OPTIONS = [
     'Ufotable',
     'Wit Studio'
 ];
-export const TAG_OPTIONS = ['Award Winning', 'Gore', 'Mythology', 'Adult Cast', 'Workplace', 'Vampire'];
+export const TAG_OPTIONS = [
+    'Adult Cast', 'Anthropomorphic', 'Avant Garde', 'Award Winning', 'CGDCT', 
+    'Childcare', 'Combat Sports', 'Crossdressing', 'Delinquents', 'Detective', 
+    'Educational', 'Gag Humor', 'Gore', 'Harem', 'High Stakes Game', 
+    'Historical', 'Idols (Female)', 'Idols (Male)', 'Iyashikei', 'Josei', 
+    'Kids', 'Love Polygon', 'Magical Sex Shift', 'Mahou Shoujo', 'Martial Arts', 
+    'Medical', 'Military', 'Mythology', 'Organized Crime', 'Otaku Culture', 
+    'Parody', 'Performing Arts', 'Pets', 'Racing', 'Reincarnation', 
+    'Reverse Harem', 'Romantic Subtext', 'Samurai', 'School', 'Seinen', 
+    'Showbiz', 'Strategy Game', 'Super Power', 'Survival', 'Team Sports', 
+    'Time Travel', 'Vampire', 'Video Game', 'Visual Arts', 'Workplace'
+];
 
 export const DEFAULT_SEARCH_SUGGESTIONS = ["Solo Leveling", "Jujutsu Kaisen", "Chainsaw Man"];
 

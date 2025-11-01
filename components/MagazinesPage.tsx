@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Magazine } from '../types';
 import MagazineCard from './MagazineCard';
 import { SearchIcon, ChevronLeftIcon } from './icons/Icons';
+import { fetchWithRetry } from '../api';
 
 // A simple skeleton for loading state
 const MagazineCardSkeleton: React.FC = () => (
@@ -60,11 +61,7 @@ const MagazinesPage: React.FC<MagazinesPageProps> = ({ onGoBack }) => {
     }
 
     try {
-        let res = await fetch(`https://api.jikan.moe/v4/magazines?${params.toString()}`);
-        if (res.status === 429) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            res = await fetch(`https://api.jikan.moe/v4/magazines?${params.toString()}`);
-        }
+        const res = await fetchWithRetry(`https://api.jikan.moe/v4/magazines?${params.toString()}`);
         if (!res.ok) throw new Error('Failed to fetch magazines from Jikan API.');
 
         const data = await res.json();

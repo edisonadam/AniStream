@@ -18,6 +18,7 @@ const defaultSettings: Settings = {
   showWatchHistoryOnHome: true,
   showComments: true,
   defaultLanguage: 'sub',
+  loadMoreMode: 'manual',
 };
 
 interface SettingsContextType {

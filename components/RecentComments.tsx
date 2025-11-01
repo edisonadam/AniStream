@@ -66,7 +66,7 @@ const RecentCommentsCarousel: React.FC<RecentCommentsCarouselProps> = ({ onAnime
     if (comments.length === 0) return null;
 
     return (
-        <section className="relative w-full h-[50vh] min-h-[400px] group overflow-hidden my-8">
+        <section className="relative w-full h-[50vh] min-h-[400px] group overflow-hidden">
             {comments.map((comment, index) => (
                 <div 
                     key={comment.id + sortOrder}
@@ -77,7 +77,7 @@ const RecentCommentsCarousel: React.FC<RecentCommentsCarouselProps> = ({ onAnime
                 </div>
             ))}
 
-             <div className="absolute top-0 left-0 container mx-auto px-4 sm:px-6 lg:px-8 py-6 z-20 flex justify-between items-center">
+             <div className="absolute top-0 left-0 right-0 py-6 z-20 flex justify-between items-center">
                 <h2 className="text-2xl sm:text-3xl font-bold text-white" style={{ textShadow: `0 2px 8px rgba(0,0,0,0.8)` }}>
                     Community Buzz
                 </h2>
@@ -88,7 +88,7 @@ const RecentCommentsCarousel: React.FC<RecentCommentsCarouselProps> = ({ onAnime
                 </div>
             </div>
 
-            <div className="relative h-full flex flex-col justify-end container mx-auto px-4 sm:px-6 lg:px-8 py-12 text-white">
+            <div className="relative h-full flex flex-col justify-end py-12 text-white">
                  <div key={currentIndex + sortOrder} className="animate-subtle-fade-in-up" onClick={() => handleCommentClick(comments[currentIndex])}>
                     <p className="text-xl sm:text-2xl italic font-light line-clamp-3 max-w-3xl cursor-pointer">"{comments[currentIndex].text}"</p>
                     <div className="flex items-center gap-3 mt-4">

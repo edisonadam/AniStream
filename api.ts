@@ -1,6 +1,40 @@
 import type { Anime, Character, VoiceActor, VideoServer, NewsPromo, Manga } from './types';
 
 /**
+ * A wrapper for the fetch API that includes automatic retries on rate limiting (429) or network errors.
+ * @param url The URL to fetch.
+ * @param retries The number of times to retry on failure.
+ * @param delay The delay in milliseconds between retries.
+ * @returns A promise that resolves to the Response object.
+ */
+export const fetchWithRetry = async (url: string, retries = 3, delay = 1000): Promise<Response> => {
+    for (let i = 0; i <= retries; i++) {
+        try {
+            const response = await fetch(url);
+            // If we get a 429 (Too Many Requests) and we have retries left, wait and try again.
+            if (response.status === 429 && i < retries) {
+                console.warn(`Rate limit hit for ${url}. Retrying in ${delay}ms...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                continue; // Move to the next iteration to retry the fetch.
+            }
+            // If the response is anything else (ok or another error), return it immediately.
+            return response;
+        } catch (error) {
+            // This catches network errors (e.g., offline).
+            if (i < retries) {
+                console.warn(`Network error for ${url}. Retrying in ${delay}ms...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                continue; // Move to the next iteration.
+            }
+            // If this was the last retry, throw the error.
+            throw error;
+        }
+    }
+    // This should theoretically not be reached, but it's a safeguard.
+    throw new Error(`Fetch failed for ${url} after multiple retries.`);
+};
+
+/**
  * Builds a video source URL based on the selected server.
  * @param server The selected video server ID.
  * @param mediaType 'tv' or 'movie'.
@@ -122,6 +156,9 @@ export const mapJikanToAnime = (item: any): Anime | null => {
     
     // An anime is adult if sfw is false, or it has an adult rating, or an explicit genre.
     const isAdult = item.sfw === false || hasAdultRating || hasExplicitGenre;
+    
+    const themes = (item.themes || []).map((t: any) => t.name);
+    const demographics = (item.demographics || []).map((d: any) => d.name);
 
     return {
         id: item.mal_id,
@@ -132,7 +169,7 @@ export const mapJikanToAnime = (item: any): Anime | null => {
         bannerImage: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url || '',
         synopsis: item.synopsis || 'No synopsis available.',
         genres: (item.genres || []).map((g: any) => g.name),
-        themes: (item.themes || []).map((t: any) => t.name),
+        themes: [...themes, ...demographics],
         releaseYear: item.year || (item.aired?.from ? new Date(item.aired.from).getFullYear() : null),
         status: item.status === 'Finished Airing' ? 'Completed' : item.status === 'Currently Airing' ? 'Ongoing' : 'Upcoming',
         totalEpisodes: item.episodes || null,
@@ -223,11 +260,8 @@ export const fetchMalUserAnimeList = async (username: string): Promise<Anime[]> 
 
     while (hasMore) {
         // Fetch only 'watching' and 'plan_to_watch' statuses
-        const response = await fetch(`https://api.jikan.moe/v4/users/${username}/animelist?status=watching&status=plan_to_watch&page=${page}`);
-        if (response.status === 429) { // Handle rate limiting
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            continue;
-        }
+        const response = await fetchWithRetry(`https://api.jikan.moe/v4/users/${username}/animelist?status=watching&status=plan_to_watch&page=${page}`);
+        
         if (!response.ok) {
             throw new Error(`Failed to fetch MAL list for user "${username}". The user may not exist or their list might be private.`);
         }
@@ -252,7 +286,7 @@ export const fetchMalUserAnimeList = async (username: string): Promise<Anime[]> 
  * @returns A promise that resolves to an array of NewsPromo objects.
  */
 export const fetchNewsPromos = async (): Promise<NewsPromo[]> => {
-    const response = await fetch(`https://api.jikan.moe/v4/watch/promos`);
+    const response = await fetchWithRetry(`https://api.jikan.moe/v4/watch/promos`);
     if (!response.ok) {
         throw new Error('Failed to fetch latest promos/news.');
     }

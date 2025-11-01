@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import type { Anime, Club, Filter, Notification, Settings, Page, User } from './types';
 import { useSettings } from './hooks/useSettings';
-import { mapJikanToAnime } from './api';
+import { mapJikanToAnime, fetchWithRetry } from './api';
 import { deduplicateFranchises, getDisplayTitle, countUserComments } from './utils';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
@@ -34,6 +34,10 @@ import LoginPrompt from './components/LoginPrompt';
 import CommentMeterPage from './components/CommentMeterPage';
 import CurrencyPage from './components/CurrencyPage';
 import UserDetailModal from './components/UserDetailModal';
+import AboutPage from './components/AboutPage';
+import RulesPage from './components/RulesPage';
+import DonationPage from './components/DonationPage';
+import AlphabeticalBrowse from './components/AlphabeticalBrowse';
 
 const ANIME_PAGE_SIZE = 25;
 
@@ -53,7 +57,7 @@ const App: React.FC = () => {
     const [gridAnime, setGridAnime] = useState<Anime[]>([]);
     
     const [filters, setFilters] = useState<Filter>({
-        query: '', genres: [], types: [], statuses: [], years: [], languages: [], studios: [], sort: 'popularity', tags: []
+        query: '', genres: [], types: [], statuses: [], years: [], languages: [], studios: [], sort: 'popularity', tags: [], letter: ''
     });
     const [stagedFilters, setStagedFilters] = useState<Filter>(filters);
 
@@ -76,7 +80,7 @@ const App: React.FC = () => {
     const appRef = useRef<HTMLDivElement>(null);
     const scrollPositionRef = useRef<number | null>(null);
     const homePageScrollPosition = useRef(0);
-    const pageBeforePlayerRef = useRef<Page>('home'); // To store page before navigating to player
+    const pageBeforePlayerRef = useRef<{page: Page, filters: Filter}>({page: 'home', filters});
     const prevPageRef = useRef<Page | undefined>(undefined);
 
     // CRITICAL FIX: Preloader removal logic.
@@ -113,7 +117,7 @@ const App: React.FC = () => {
     
     const handleResetFilters = useCallback((scrollToTop?: boolean) => {
         const resolvedScrollToTop = scrollToTop ?? true;
-        const resetState: Filter = { query: '', genres: [], types: [], statuses: [], years: [], languages: [], studios: [], sort: 'popularity', tags: [] };
+        const resetState: Filter = { query: '', genres: [], types: [], statuses: [], years: [], languages: [], studios: [], sort: 'popularity', tags: [], letter: '' };
         if (resolvedScrollToTop) {
             homePageScrollPosition.current = 0;
             window.scrollTo({ top: 0, behavior: 'auto' });
@@ -140,7 +144,7 @@ const App: React.FC = () => {
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
         const pageParam = urlParams.get('page') as Page;
-        const validPages: Page[] = ['trending', 'schedule', 'history', 'news', 'manga', 'community', 'beginners', 'comment-meter', 'magazines', 'currency'];
+        const validPages: Page[] = ['trending', 'schedule', 'history', 'news', 'manga', 'community', 'beginners', 'comment-meter', 'magazines', 'currency', 'about', 'rules', 'donation'];
 
         if (pageParam && validPages.includes(pageParam)) {
             navigateTo(pageParam);
@@ -158,15 +162,15 @@ const App: React.FC = () => {
     const handleAnimeSelect = useCallback((anime: Anime) => {
         if (page !== 'player') {
           homePageScrollPosition.current = window.scrollY;
-          pageBeforePlayerRef.current = page;
+          pageBeforePlayerRef.current = { page, filters };
         }
         setSelectedAnime(anime);
         setPage('player');
-    }, [page]);
+    }, [page, filters]);
 
     const goBackFromPlayer = useCallback(() => {
         setSelectedAnime(null);
-        setPage(pageBeforePlayerRef.current);
+        setPage(pageBeforePlayerRef.current.page);
     }, []);
 
     const handleClubSelect = useCallback((club: Club) => {
@@ -193,6 +197,8 @@ const App: React.FC = () => {
 
         if (settings.restrictAdultContent) params.append('sfw', 'true');
         if (searchFilters.query) params.append('q', searchFilters.query);
+        if (searchFilters.letter) params.append('letter', searchFilters.letter);
+
 
         const genreIds = searchFilters.genres.map(genre => GENRES_MAP[genre]).filter(Boolean);
         if (genreIds.length > 0) params.append('genres', genreIds.join(','));
@@ -214,12 +220,8 @@ const App: React.FC = () => {
             default: params.append('order_by', 'members'); params.append('sort', 'desc'); break;
         }
     
-        const res = await fetch(`https://api.jikan.moe/v4/anime?${params.toString()}`);
-        if (res.status === 429) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            return performFetch(pageNum, searchFilters); // Recurse
-        }
-        if (!res.ok) throw new Error(`Jikan API fetch failed for page ${pageNum}`);
+        const res = await fetchWithRetry(`https://api.jikan.moe/v4/anime?${params.toString()}`);
+        if (!res.ok) throw new Error(`Jikan API fetch failed for page ${pageNum} with status ${res.status}`);
         
         const data = await res.json();
         let mappedData: Anime[] = data.data.map(mapJikanToAnime).filter((a: Anime | null): a is Anime => a !== null);
@@ -296,31 +298,35 @@ const App: React.FC = () => {
             setIsCarouselLoading(true);
             try {
                 const sfwQuery = settings.restrictAdultContent ? '&sfw' : '';
-                const [topRes, seasonNowRes] = await Promise.all([
-                    fetch(`https://api.jikan.moe/v4/top/anime?limit=15${sfwQuery}`),
-                    fetch(`https://api.jikan.moe/v4/seasons/now?limit=20${sfwQuery}`),
+                const [topRes, seasonNowRes] = await Promise.allSettled([
+                    fetchWithRetry(`https://api.jikan.moe/v4/top/anime?limit=15${sfwQuery}`),
+                    fetchWithRetry(`https://api.jikan.moe/v4/seasons/now?limit=20${sfwQuery}`),
                 ]);
 
-                if (topRes.ok) {
-                    const topData = await topRes.json();
+                if (topRes.status === 'fulfilled' && topRes.value.ok) {
+                    const topData = await topRes.value.json();
                     let mapped = topData.data.map(mapJikanToAnime).filter(Boolean);
                     if (settings.restrictAdultContent) {
                         mapped = mapped.filter((a: Anime) => !a.isAdult);
                     }
                     setFeaturedAnime(mapped);
+                } else if (topRes.status === 'rejected') {
+                    console.error("Failed to fetch top anime:", topRes.reason);
                 }
                 
-                if (seasonNowRes.ok) {
-                    const seasonNowData = await seasonNowRes.json();
+                if (seasonNowRes.status === 'fulfilled' && seasonNowRes.value.ok) {
+                    const seasonNowData = await seasonNowRes.value.json();
                     let mapped = seasonNowData.data.map(mapJikanToAnime).filter(Boolean);
                     if (settings.restrictAdultContent) {
                         mapped = mapped.filter((a: Anime) => !a.isAdult);
                     }
                     const seasonNowAnime = deduplicateFranchises(mapped);
                     setTrendingAnime(seasonNowAnime.slice(0, 10)); // For header
+                } else if (seasonNowRes.status === 'rejected') {
+                    console.error("Failed to fetch season now anime:", seasonNowRes.reason);
                 }
             } catch (error) {
-                console.error("Failed to fetch initial carousel data", error);
+                console.error("An unexpected error occurred during initial data fetch", error);
             } finally {
                 setIsCarouselLoading(false);
             }
@@ -336,6 +342,7 @@ const App: React.FC = () => {
                filters.years.length > 0 ||
                filters.languages.length > 0 ||
                filters.studios.length > 0 ||
+               filters.letter ||
                filters.tags.length > 0;
     }, [filters]);
     
@@ -471,13 +478,22 @@ const App: React.FC = () => {
     };
 
     const handleSearchSubmit = (query: string) => { 
-        const newFilters = { ...filters, query };
+        const newFilters = { ...filters, query, letter: '' };
         homePageScrollPosition.current = 0;
         window.scrollTo({ top: 0, behavior: 'smooth' });
         setFilters(newFilters);
         setIsSearchOpen(false);
         navigateTo('search');
     };
+
+    const handleLetterSelect = (letter: string) => {
+        const newFilters = { ...filters, letter, query: '' };
+        homePageScrollPosition.current = 0;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setFilters(newFilters);
+        navigateTo('home');
+    }
+
     const handleSortChange = (sort: Filter['sort']) => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
         const newFilters = { ...filters, sort };
@@ -503,7 +519,7 @@ const App: React.FC = () => {
     
     const handleGenreSelect = (genre: string) => {
         const newFilters: Filter = {
-            query: '', genres: [genre], types: [], statuses: [], years: [], languages: [], studios: [], sort: 'popularity', tags: [],
+            query: '', genres: [genre], types: [], statuses: [], years: [], languages: [], studios: [], sort: 'popularity', tags: [], letter: ''
         };
         homePageScrollPosition.current = 0;
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -526,7 +542,7 @@ const App: React.FC = () => {
     
     const pageContent = useMemo(() => {
         switch(page) {
-            case 'player': return selectedAnime && <Player anime={selectedAnime} onGoBack={goBackFromPlayer} onSelectRelated={handleAnimeSelect} allAnime={allAnime} onGenreSelect={handleGenreSelect} onUserSelect={handleUserSelect} />;
+            case 'player': return selectedAnime && <Player anime={selectedAnime} onGoBack={goBackFromPlayer} onSelectRelated={handleAnimeSelect} allAnime={allAnime} onGenreSelect={handleGenreSelect} onUserSelect={handleUserSelect} navigationContext={pageBeforePlayerRef.current} />;
             case 'profile': return <ProfilePage onGoBack={goHome} allAnime={allAnime} onSelectAnime={handleAnimeSelect} />;
             case 'club-detail': return selectedClub && <ClubDetailPage club={selectedClub} onGoBack={() => navigateTo('community')} onSelectAnime={handleAnimeSelect} />;
             case 'magazines': return <MagazinesPage onGoBack={goHome} />;
@@ -535,10 +551,13 @@ const App: React.FC = () => {
             case 'history': return <HistoryPage onAnimeSelect={handleAnimeSelect} allAnime={allAnime} />;
             case 'news': return <NewsPage onAnimeSelect={handleAnimeSelect} />;
             case 'manga': return <MangaPage onGoBack={goHome} />;
-            case 'community': return <CommunityPage onLoginClick={() => handleLoginRequest()} onClubSelect={handleClubSelect} onUserSelect={handleUserSelect} />;
+            case 'community': return <CommunityPage onLoginClick={() => handleLoginRequest()} onClubSelect={handleClubSelect} onUserSelect={handleUserSelect} onAnimeSelect={handleAnimeSelect} />;
             case 'comment-meter': return <CommentMeterPage onGoBack={goHome} onLoginClick={() => handleLoginRequest()} />;
             case 'beginners': return <BeginnerAnimePage onGoBack={goHome} onAnimeSelect={handleAnimeSelect} />;
             case 'currency': return <CurrencyPage onGoBack={goHome} />;
+            case 'about': return <AboutPage onGoBack={goHome} />;
+            case 'rules': return <RulesPage onGoBack={goHome} />;
+            case 'donation': return <DonationPage onGoBack={goHome} />;
             case 'search':
                 return (
                     <AnimeGrid
@@ -552,21 +571,22 @@ const App: React.FC = () => {
                         isLoadingMore={isLoadingMore}
                         sortValue={filters.sort}
                         onSortChange={handleSortChange}
+                        loadMoreMode={settings.loadMoreMode}
                     />
                 );
             case 'home':
             default:
                 const isDefaultHome = !hasActiveFilters;
+                const gridTitle = filters.letter ? `Titles starting with "${filters.letter.toUpperCase()}"` : (isDefaultHome ? "Discover Anime" : "Filtered Results");
                 return (
                     <>
                         {isDefaultHome && <FeaturedCarousel animeList={featuredAnime} onAnimeSelect={handleAnimeSelect} isLoading={isCarouselLoading} />}
                         {isDefaultHome && settings.showWatchHistoryOnHome && (
                             <ContinueWatching onSelectAnime={handleAnimeSelect} onShowHistory={() => navigateTo('history')} />
                         )}
-                        {isDefaultHome && settings.showComments && <RecentCommentsCarousel onAnimeSelect={handleAnimeSelect} />}
                         {isDefaultHome && <BeginnerAnime onAnimeSelect={handleAnimeSelect} />}
                         <AnimeGrid
-                            title={isDefaultHome ? "Discover Anime" : "Filtered Results"}
+                            title={gridTitle}
                             animeList={gridAnime}
                             onAnimeSelect={handleAnimeSelect}
                             filters={filters}
@@ -576,12 +596,14 @@ const App: React.FC = () => {
                             isLoadingMore={isLoadingMore}
                             sortValue={filters.sort}
                             onSortChange={handleSortChange}
+                            loadMoreMode={settings.loadMoreMode}
                         />
+                        {isDefaultHome && <AlphabeticalBrowse onLetterSelect={handleLetterSelect} selectedLetter={filters.letter} />}
                     </>
                 );
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [page, hasActiveFilters, isCarouselLoading, isGridLoading, isLoadingMore, hasMore, featuredAnime, gridAnime, allAnime, filters, settings.showWatchHistoryOnHome, settings.showComments, selectedAnime, selectedClub]);
+    }, [page, hasActiveFilters, isCarouselLoading, isGridLoading, isLoadingMore, hasMore, featuredAnime, gridAnime, allAnime, filters, settings.showWatchHistoryOnHome, settings.showComments, settings.loadMoreMode, selectedAnime, selectedClub]);
 
     return (
         <div ref={appRef} className="bg-[rgb(var(--bg-gradient-start))] text-[rgb(var(--text-primary))]">
@@ -622,7 +644,7 @@ const App: React.FC = () => {
             </main>
             
             <GoToTopButton />
-            <Footer />
+            <Footer onNavigate={navigateTo} />
         </div>
     );
 };
