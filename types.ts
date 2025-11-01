@@ -9,6 +9,7 @@ export interface Anime {
   bannerImage: string;
   synopsis: string;
   genres: string[];
+  themes?: string[];
   releaseYear: number | null;
   status: 'Ongoing' | 'Completed' | 'Upcoming';
   totalEpisodes: number | null;
@@ -58,6 +59,7 @@ export interface Filter {
   years: string[];
   languages: string[];
   studios: string[];
+  tags: string[];
   sort: 'popularity' | 'release_date' | 'alphabetical';
 }
 
@@ -106,15 +108,14 @@ export interface Comment {
   likes: number;
   animeTitle: string; // For recent comments section
   animeThumbnail: string; // For recent comments section
-  animeBanner: string;
+  animeBanner: string; // For recent comments section
 }
 
 export type Theme = 'light' | 'dark';
 export type ColorPreset = 'abyssal-blue' | 'violet-fusion' | 'cyber-cyan' | 'sunset-orange';
 export type EpisodeViewStyle = 'auto' | 'default' | 'compact' | 'grid';
 export type DefaultLanguage = 'sub' | 'dub' | 'ssub';
-// FIX: Added 'clubs' to the Page type to resolve the type error in App.tsx.
-export type Page = 'home' | 'player' | 'profile' | 'clubs' | 'club-detail' | 'magazines' | 'trending' | 'schedule' | 'history' | 'news' | 'manga' | 'beginners' | 'search' | 'community' | 'comment-meter';
+export type Page = 'home' | 'player' | 'profile' | 'club-detail' | 'magazines' | 'trending' | 'schedule' | 'history' | 'news' | 'manga' | 'beginners' | 'search' | 'community' | 'comment-meter' | 'currency';
 
 
 export interface Settings {
@@ -131,11 +132,9 @@ export interface Settings {
   anilistUsername: string;
   anilistToken: string;
   autoSyncAniList: boolean;
-  hideSpoilers: boolean;
   showWatchHistoryOnHome: boolean;
   showComments: boolean;
   defaultLanguage: DefaultLanguage;
-  forceMaxQuality: boolean;
 }
 
 export interface WatchProgressInfo {
@@ -196,6 +195,7 @@ export interface Club {
     // Client-side additions
     description?: string;
     creator?: string;
+    isUserCreated?: boolean;
 }
 
 export interface ClubPicture {

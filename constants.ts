@@ -40,6 +40,7 @@ export const STUDIO_OPTIONS = [
     'Ufotable',
     'Wit Studio'
 ];
+export const TAG_OPTIONS = ['Award Winning', 'Gore', 'Mythology', 'Adult Cast', 'Workplace', 'Vampire'];
 
 export const DEFAULT_SEARCH_SUGGESTIONS = ["Solo Leveling", "Jujutsu Kaisen", "Chainsaw Man"];
 

@@ -1,5 +1,3 @@
-
-
 import React, { useState, useRef, useEffect } from 'react';
 import { HamburgerIcon, SearchIcon, BellIcon, UserIcon, CloseIcon, BookmarkIcon, LogoutIcon, UsersIcon, MessageCircleIcon } from './icons/Icons';
 import { useAuth } from '../hooks/useAuth';
@@ -109,7 +107,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
             
             {isLoggedIn && user ? (
               <>
-                <button onClick={() => onNavigate('profile')} className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-full text-sm font-semibold text-yellow-400 hover:bg-white/10 transition-colors">
+                <button onClick={() => onNavigate('currency')} className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-full text-sm font-semibold text-yellow-400 hover:bg-white/10 transition-colors">
                     <span className="font-bold text-base">💎</span>
                     <span>{aniTokens.toLocaleString()}</span>
                 </button>

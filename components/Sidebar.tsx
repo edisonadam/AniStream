@@ -1,10 +1,8 @@
-
-
 import React from 'react';
 import type { Filter, Settings, Page } from '../types';
 import { CloseIcon, UsersIcon, BookOpenIcon, GiftIcon, MoonIcon, SunIcon, HomeIcon, TrendingUpIcon, CalendarIcon, HistoryIcon, InfoIcon, AcademicCapIcon, EyeIcon, EyeOffIcon, MessageCircleIcon } from './icons/Icons';
 import Logo from './Logo';
-import { ANIME_TYPES, ANIME_STATUSES, YEAR_OPTIONS, LANGUAGE_OPTIONS, STUDIO_OPTIONS, GENRES } from '../constants';
+import { ANIME_TYPES, ANIME_STATUSES, YEAR_OPTIONS, LANGUAGE_OPTIONS, STUDIO_OPTIONS, GENRES, TAG_OPTIONS } from '../constants';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -53,10 +51,9 @@ const Sidebar: React.FC<SidebarProps> = ({
   }
 
   const handleSfwToggle = () => {
-    // If SFW is currently ON and user wants to turn it OFF, check for login
     if (settings.restrictAdultContent && !isLoggedIn) {
         onLoginClick('You must be logged in to view adult content.');
-        onClose(); // Close sidebar to show modal clearly
+        onClose();
     } else {
         updateSettings({ restrictAdultContent: !settings.restrictAdultContent });
     }
@@ -113,7 +110,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             <SideButton icon={<BookOpenIcon />} label="Manga" onClick={() => handleNavigation('manga')} />
             <SideButton icon={<AcademicCapIcon />} label="For Beginners" onClick={() => handleNavigation('beginners')} />
             <SideButton icon={<GiftIcon />} label="Surprise Me!" onClick={onSurpriseMe} />
-            <SideButton icon={<MessageCircleIcon />} label="Community" onClick={() => handleNavigation('community')} />
+            <SideButton icon={<UsersIcon />} label="Community Hub" onClick={() => handleNavigation('community')} />
              {isLoggedIn && <SideButton icon={<MessageCircleIcon />} label="Comment Meter" onClick={() => handleNavigation('comment-meter')} />}
             <SideButton icon={<BookOpenIcon />} label="Magazines" onClick={() => handleNavigation('magazines')} />
           </div>
@@ -123,6 +120,9 @@ const Sidebar: React.FC<SidebarProps> = ({
           </FilterSection>
           <FilterSection title="Status">
             <div className="flex flex-wrap gap-2">{ANIME_STATUSES.map(s => <FilterButton key={s} name={s} isSelected={filters.statuses.includes(s)} onClick={() => handleMultiSelect('statuses', s)} />)}</div>
+          </FilterSection>
+           <FilterSection title="Tags">
+            <div className="flex flex-wrap gap-2">{TAG_OPTIONS.map(t => <FilterButton key={t} name={t} isSelected={filters.tags.includes(t)} onClick={() => handleMultiSelect('tags', t)} />)}</div>
           </FilterSection>
           <FilterSection title="Year">
             <div className="flex flex-wrap gap-2">{YEAR_OPTIONS.map(y => <FilterButton key={y} name={y} isSelected={filters.years.includes(y)} onClick={() => handleMultiSelect('years', y)} />)}</div>

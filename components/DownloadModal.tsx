@@ -46,6 +46,9 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ anime, episodes, season, 
   const [zipStatus, setZipStatus] = useState('');
   const [episodePage, setEpisodePage] = useState(1);
 
+  const [downloadingEpisodes, setDownloadingEpisodes] = useState<Set<number>>(new Set());
+  const [downloadProgress, setDownloadProgress] = useState<Record<number, number>>({});
+
   // Simulate GET /api/series/{id}/downloads
   useEffect(() => {
     const fetchDownloadData = async () => {
@@ -129,15 +132,48 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ anime, episodes, season, 
     setSelectedEpisodes(e.target.checked ? new Set(sortedEpisodes.map(ep => ep.episode_number)) : new Set());
   };
 
-  const handleSingleDownload = (episode: Episode) => {
-    const qualityInfo = episode.qualities?.[selectedQuality];
-    if (!qualityInfo) {
-      alert(`Quality ${selectedQuality} not available for this episode.`);
-      return;
+  const handleSingleDownload = async (episode: Episode) => {
+    const epNum = episode.episode_number;
+
+    if (downloadingEpisodes.has(epNum)) return;
+
+    setDownloadingEpisodes(prev => new Set(prev).add(epNum));
+    setDownloadProgress(prev => ({ ...prev, [epNum]: 0 }));
+
+    try {
+        const qualityInfo = episode.qualities?.[selectedQuality];
+        if (!qualityInfo) {
+            throw new Error(`Quality ${selectedQuality} not available.`);
+        }
+        const filename = `${anime.title.replace(/[^\w\s-]/g, '').replace(/ /g, '_')}_S${String(season).padStart(2, '0')}E${String(episode.episode_number).padStart(3, '0')}_[${selectedQuality}].mp4`;
+
+        // Simulate download with progress
+        const downloadDuration = 1500 + Math.random() * 1500; // 1.5s to 3s
+        const steps = 20;
+        for (let i = 1; i <= steps; i++) {
+            await sleep(downloadDuration / steps);
+            setDownloadProgress(prev => ({ ...prev, [epNum]: (i / steps) * 100 }));
+        }
+
+        const mockContent = `This is a mock video file for ${filename}.\nURL: ${qualityInfo.url}\nSize: ${formatSize(qualityInfo.size)}`;
+        const blob = new Blob([mockContent], { type: 'video/mp4' });
+
+        triggerDownload(blob, filename);
+
+    } catch (error) {
+        alert(`Failed to download episode ${epNum}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+        setDownloadingEpisodes(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(epNum);
+            return newSet;
+        });
+        setDownloadProgress(prev => {
+            const newProgress = { ...prev };
+            delete newProgress[epNum];
+            return newProgress;
+        });
     }
-    const filename = `${anime.title.replace(/[^\w\s-]/g, '').replace(/ /g, '_')}_S${String(season).padStart(2, '0')}E${String(episode.episode_number).padStart(3, '0')}_[${selectedQuality}].mp4`;
-    const blob = new Blob([], { type: 'video/mp4' });
-    triggerDownload(blob, filename);
   };
   
   const handleDownloadSelected = async () => {
@@ -145,7 +181,7 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ anime, episodes, season, 
     const episodesToDownload = sortedEpisodes.filter(ep => selectedEpisodes.has(ep.episode_number));
     for (const ep of episodesToDownload) {
         handleSingleDownload(ep);
-        await sleep(250);
+        await sleep(200); // Stagger downloads
     }
   };
 
@@ -182,7 +218,13 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ anime, episodes, season, 
     setZipStatus('Zip created! Your download will start shortly.');
 
     const filename = `${anime.title.replace(/[^\w\s-]/g, '').replace(/ /g, '_')}_S${String(season).padStart(2, '0')}_[${selectedQuality}]_${selectedEpisodes.size}_episodes.zip`;
-    const blob = new Blob([], { type: 'application/zip' });
+    const mockContent = `This is a mock ZIP file containing ${selectedEpisodes.size} episodes.\n\n` +
+      Array.from(selectedEpisodes).map(epNum => {
+        const episode = sortedEpisodes.find(e => e.episode_number === epNum);
+        const epFilename = `${anime.title.replace(/[^\w\s-]/g, '').replace(/ /g, '_')}_S${String(season).padStart(2, '0')}E${String(epNum).padStart(3, '0')}_[${selectedQuality}].mp4`;
+        return `- ${epFilename} (URL: ${episode?.qualities?.[selectedQuality]?.url})`;
+      }).join('\n');
+    const blob = new Blob([mockContent], { type: 'application/zip' });
     triggerDownload(blob, filename);
 
     await sleep(2500);
@@ -289,16 +331,34 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ anime, episodes, season, 
         
         <div className="flex-1 overflow-y-auto p-3 episode-list">
           <div className="space-y-1">
-            {paginatedEpisodes.map(ep => (
-              <label key={ep.episode_number} htmlFor={`ep-${ep.episode_number}`} className={`flex items-center gap-2 p-1.5 rounded-lg transition-colors cursor-pointer ${selectedEpisodes.has(ep.episode_number) ? 'bg-[rgb(var(--color-primary))/0.2]' : 'hover:bg-[rgba(255,255,255,0.05)]'}`}>
-                <input id={`ep-${ep.episode_number}`} type="checkbox" checked={selectedEpisodes.has(ep.episode_number)} onChange={() => handleToggleEpisode(ep.episode_number)} className="h-5 w-5 rounded bg-[rgb(var(--surface-4))] border-[rgb(var(--border-color))] text-[rgb(var(--color-primary))] focus:ring-[rgb(var(--color-primary))] flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                    <p className="font-semibold truncate text-sm">E{String(ep.episode_number).padStart(2, '0')}: {ep.name}</p>
-                    <p className="text-xs text-[rgb(var(--text-muted))]">{formatSize(ep.qualities?.[selectedQuality]?.size ?? 0)}</p>
-                </div>
-                <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleSingleDownload(ep); }} className="p-2 bg-[rgb(var(--surface-3))] rounded-full text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--text-primary))] hover:bg-[rgb(var(--surface-4))] transition-colors" aria-label={`Download Episode ${ep.episode_number}`}><DownloadIcon /></button>
-              </label>
-            ))}
+            {paginatedEpisodes.map(ep => {
+                const epNum = ep.episode_number;
+                const isDownloading = downloadingEpisodes.has(epNum);
+                const progress = downloadProgress[epNum] ?? 0;
+                return (
+                    <label key={ep.episode_number} htmlFor={`ep-${ep.episode_number}`} className={`flex items-center gap-2 p-1.5 rounded-lg transition-colors cursor-pointer ${selectedEpisodes.has(ep.episode_number) ? 'bg-[rgb(var(--color-primary))/0.2]' : 'hover:bg-[rgba(255,255,255,0.05)]'}`}>
+                        <input id={`ep-${ep.episode_number}`} type="checkbox" checked={selectedEpisodes.has(ep.episode_number)} onChange={() => handleToggleEpisode(ep.episode_number)} className="h-5 w-5 rounded bg-[rgb(var(--surface-4))] border-[rgb(var(--border-color))] text-[rgb(var(--color-primary))] focus:ring-[rgb(var(--color-primary))] flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                            <p className="font-semibold truncate text-sm">E{String(ep.episode_number).padStart(2, '0')}: {ep.name}</p>
+                            <p className="text-xs text-[rgb(var(--text-muted))]">{formatSize(ep.qualities?.[selectedQuality]?.size ?? 0)}</p>
+                        </div>
+                        <div className="w-24 flex-shrink-0 flex items-center justify-end">
+                            {isDownloading ? (
+                                <div className="w-full flex items-center justify-end gap-2">
+                                    <div className="w-12 h-1.5 bg-[rgb(var(--surface-4))] rounded-full overflow-hidden">
+                                        <div className="h-full bg-[rgb(var(--color-primary))] rounded-full" style={{ width: `${progress}%` }}></div>
+                                    </div>
+                                    <span className="text-xs text-[rgb(var(--text-muted))] w-8 text-right">{progress.toFixed(0)}%</span>
+                                </div>
+                            ) : (
+                                <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleSingleDownload(ep); }} className="p-2 bg-[rgb(var(--surface-3))] rounded-full text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--text-primary))] hover:bg-[rgb(var(--surface-4))] transition-colors" aria-label={`Download Episode ${ep.episode_number}`}>
+                                    <DownloadIcon />
+                                </button>
+                            )}
+                        </div>
+                    </label>
+                );
+            })}
           </div>
           <PaginationControls />
         </div>

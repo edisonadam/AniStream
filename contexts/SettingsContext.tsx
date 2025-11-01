@@ -15,11 +15,9 @@ const defaultSettings: Settings = {
   anilistUsername: '',
   anilistToken: '',
   autoSyncAniList: false,
-  hideSpoilers: false,
   showWatchHistoryOnHome: true,
   showComments: true,
   defaultLanguage: 'sub',
-  forceMaxQuality: false,
 };
 
 interface SettingsContextType {
@@ -44,7 +42,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
         const parsed = JSON.parse(storedSettings);
         
         // Clean up legacy settings
-        const legacyKeys = ['primaryAccentColor', 'forceDesktopMode', 'cardLayout', 'cardSize', 'characterNameLanguage', 'syncThreshold', 'borderRadius', 'vidsrcDomain', 'episodeViewStyle'];
+        const legacyKeys = ['primaryAccentColor', 'forceDesktopMode', 'cardLayout', 'cardSize', 'characterNameLanguage', 'syncThreshold', 'borderRadius', 'vidsrcDomain', 'episodeViewStyle', 'hideSpoilers', 'forceMaxQuality'];
         legacyKeys.forEach(key => delete parsed[key]);
         
         // Merge stored settings with defaults to ensure new settings are applied

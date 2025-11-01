@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useSettings } from '../hooks/useSettings';
 import { useWatchProgress } from '../hooks/useWatchProgress';
 import { useWatchlist } from '../hooks/useWatchlist';
-import { COLOR_PRESETS, VIDEO_SERVERS, VIDSRC_DOMAINS } from '../constants';
+import { COLOR_PRESETS, VIDEO_SERVERS } from '../constants';
 import { fetchMalUserAnimeList, fetchAnilistUserAnimeList } from '../api';
 import type { Anime } from '../types';
 
@@ -120,28 +120,15 @@ const SettingsPage: React.FC = () => {
 
         switch (format) {
             case 'text':
-                const textContent = watchlist
-                    .map(anime => anime.malUrl)
-                    .filter(Boolean)
-                    .join('\n');
+                const textContent = watchlist.map(anime => anime.malUrl).filter(Boolean).join('\n');
                 blob = new Blob([textContent], { type: 'text/plain' });
                 filename += '.txt';
                 break;
-            
             case 'xml':
-                const xmlContent = `<?xml version="1.0" encoding="UTF-8"?>\n<watchlist>\n${watchlist
-                    .map(anime => 
-                        `  <anime>\n` +
-                        `    <mal_id>${anime.id}</mal_id>\n` +
-                        `    <title><![CDATA[${anime.title}]]></title>\n` +
-                        `    <mal_url>${anime.malUrl || ''}</mal_url>\n` +
-                        `  </anime>`
-                    )
-                    .join('\n')}\n</watchlist>`;
+                const xmlContent = `<?xml version="1.0" encoding="UTF-8"?>\n<watchlist>\n${watchlist.map(anime => `  <anime>\n    <mal_id>${anime.id}</mal_id>\n    <title><![CDATA[${anime.title}]]></title>\n    <mal_url>${anime.malUrl || ''}</mal_url>\n  </anime>`).join('\n')}\n</watchlist>`;
                 blob = new Blob([xmlContent], { type: 'application/xml' });
                 filename += '.xml';
                 break;
-
             case 'json':
             default:
                 const jsonContent = JSON.stringify(watchlist, null, 2);
@@ -205,13 +192,7 @@ const SettingsPage: React.FC = () => {
                 <div className="pt-4 border-t border-white/10">
                     <div className="flex items-center gap-3">
                         <label htmlFor="delete-before-import" className="font-semibold text-[rgb(var(--text-secondary))]">Erase List Before Importing:</label>
-                        <input
-                            type="checkbox"
-                            id="delete-before-import"
-                            checked={deleteBeforeImporting}
-                            onChange={e => setDeleteBeforeImporting(e.target.checked)}
-                            className="h-4 w-4 rounded bg-[rgb(var(--surface-4))] border-[rgb(var(--border-color))] text-[rgb(var(--color-primary))] focus:ring-[rgb(var(--color-primary))] focus:ring-offset-0 cursor-pointer"
-                        />
+                        <input type="checkbox" id="delete-before-import" checked={deleteBeforeImporting} onChange={e => setDeleteBeforeImporting(e.target.checked)} className="h-4 w-4 rounded bg-[rgb(var(--surface-4))] border-[rgb(var(--border-color))] text-[rgb(var(--color-primary))] focus:ring-[rgb(var(--color-primary))] focus:ring-offset-0 cursor-pointer" />
                     </div>
                     <p className="text-xs text-[rgb(var(--text-muted))] mt-1">If checked, your current watchlist will be replaced by the imported list.</p>
                 </div>
@@ -233,12 +214,7 @@ const SettingsPage: React.FC = () => {
             </SettingsSection>
 
             <SettingsSection title="Content & Comments">
-                <Toggle 
-                    label="Restrict Adult Content"
-                    note="Hides explicit content (Hentai, Erotica)."
-                    checked={settings.restrictAdultContent}
-                    onChange={() => updateSettings({ restrictAdultContent: !settings.restrictAdultContent })}
-                />
+                <Toggle label="Restrict Adult Content" note="Hides explicit content (Hentai, Erotica)." checked={settings.restrictAdultContent} onChange={() => updateSettings({ restrictAdultContent: !settings.restrictAdultContent })} />
                  <Toggle label="Show Comments Section" checked={settings.showComments} onChange={() => updateSettings({ showComments: !settings.showComments })} />
                  <Toggle label="Blur Episode Thumbnails" checked={settings.blurEpisodeThumbnails} onChange={() => updateSettings({ blurEpisodeThumbnails: !settings.blurEpisodeThumbnails })} />
             </SettingsSection>

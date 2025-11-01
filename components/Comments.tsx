@@ -70,184 +70,146 @@ const Comments: React.FC<CommentsProps> = ({ anime, currentSeason, currentEpisod
       const storedComments = localStorage.getItem(storageKey);
       if (storedComments) {
         setComments(JSON.parse(storedComments));
-      } else {
-          setComments([]);
       }
-    } catch (error) {
-      console.error('Failed to load comments:', error);
+    } catch (e) {
+      console.error("Failed to load comments", e);
     }
   }, [storageKey]);
 
-  const persistComments = (updatedComments: CommentType[]) => {
-    setComments(updatedComments);
-    localStorage.setItem(storageKey, JSON.stringify(updatedComments));
-  }
-  
-  const handlePostComment = (text: string, parentComment?: CommentType) => {
-    if (!text.trim() || !user) return;
+  const persistComments = (newComments: CommentType[]) => {
+    setComments(newComments);
+    localStorage.setItem(storageKey, JSON.stringify(newComments));
+  };
 
+  const handleAddComment = (text: string) => {
+    if (!user) return;
     const newComment: CommentType = {
       id: Date.now().toString(),
       animeId: anime.id,
+      episodeIdentifier: commentScope === 'episode' ? currentEpisodeIdentifier : undefined,
       user: user,
-      text: text.trim(),
+      text: text,
       timestamp: Date.now(),
-      parentId: parentComment?.id,
-      replyingTo: parentComment?.user.username,
+      likes: 0,
       animeTitle: anime.title,
       animeThumbnail: anime.thumbnail,
       animeBanner: anime.bannerImage,
-      episodeIdentifier: commentScope === 'episode' && currentEpisode ? currentEpisodeIdentifier : undefined,
-      likes: 0,
     };
-    
     persistComments([newComment, ...comments]);
-    addAniTokens(600); // Earn tokens for commenting
+    addAniTokens(600); // Award tokens for commenting
+  };
+  
+  const filteredComments = useMemo(() => {
+    let filtered = [...comments];
+    if (commentScope === 'episode') {
+        filtered = comments.filter(c => c.episodeIdentifier === currentEpisodeIdentifier || !c.episodeIdentifier); // Also show comments not tied to an episode
+    }
     
-    if(parentComment && parentComment.user.username !== user.username) {
-        addNotification({
-            type: 'reply',
-            text: `replied to your comment on ${anime.title}.`,
-            relatedUser: user,
-            animeId: anime.id,
-            commentId: parentComment.id,
-        }, parentComment.user.username);
+    if (sortOrder === 'newest') {
+        filtered.sort((a, b) => b.timestamp - a.timestamp);
+    } else if (sortOrder === 'oldest') {
+        filtered.sort((a, b) => a.timestamp - b.timestamp);
+    } else if (sortOrder === 'top') {
+        filtered.sort((a, b) => (b.likes || 0) - (a.likes || 0));
     }
 
-    if(replyingTo) {
-        setReplyingTo(null);
+    return filtered;
+  }, [comments, commentScope, currentEpisodeIdentifier, sortOrder]);
+  
+  const handleLike = (commentId: string) => {
+    const updatedComments = comments.map(c => 
+      c.id === commentId ? { ...c, likes: (c.likes || 0) + 1 } : c
+    );
+    persistComments(updatedComments);
+  };
+
+  const handleAddFriend = (friend: User) => {
+    if(addFriend(friend)) {
+        if (user) {
+             addNotification({
+                type: 'friend_request',
+                text: 'accepted your friend request!',
+                relatedUser: user,
+                animeId: anime.id,
+            }, friend.username);
+        }
     }
   };
 
-  const handleLikeComment = (commentId: string) => {
-      if (!isLoggedIn) return;
-      const updatedComments = comments.map(c => 
-          c.id === commentId ? { ...c, likes: (c.likes || 0) + 1 } : c
-      );
-      persistComments(updatedComments);
-  }
-  
-  const { topLevelComments, repliesMap } = useMemo(() => {
-    const filteredComments = commentScope === 'episode' && currentEpisode
-        ? comments.filter(c => c.episodeIdentifier === currentEpisodeIdentifier || (!c.episodeIdentifier && currentEpisodeIdentifier === 's1e1')) // Show general comments on Ep1
-        : comments;
-
-    const topLevel: CommentType[] = [];
-    const replies = new Map<string, CommentType[]>();
-
-    for (const comment of filteredComments) {
-        if (comment.parentId) {
-            if (!replies.has(comment.parentId)) {
-                replies.set(comment.parentId, []);
-            }
-            replies.get(comment.parentId)!.push(comment);
-        } else {
-            topLevel.push(comment);
-        }
-    }
-
-    // Sort top-level comments
-    if (sortOrder === 'newest') topLevel.sort((a,b) => b.timestamp - a.timestamp);
-    else if (sortOrder === 'oldest') topLevel.sort((a,b) => a.timestamp - b.timestamp);
-    else if (sortOrder === 'top') topLevel.sort((a,b) => (b.likes || 0) - (a.likes || 0));
-    
-    // Sort replies by oldest first
-    replies.forEach(replyList => replyList.sort((a,b) => a.timestamp - b.timestamp));
-    
-    return { topLevelComments: topLevel, repliesMap: replies };
-  }, [comments, commentScope, currentEpisodeIdentifier, currentEpisode, sortOrder]);
-
-
-  const renderComment = (comment: CommentType) => {
-    const commentReplies = repliesMap.get(comment.id) || [];
-    const friendAdded = isFriend(comment.user.username);
-    
-    return (
-        <div key={comment.id} className="flex items-start space-x-3">
-            <button onClick={() => onUserSelect(comment.user)} className="flex-shrink-0 transition-transform hover:scale-110">
-                <img src={comment.user.avatar} alt={comment.user.username} className="w-10 h-10 rounded-full bg-[rgb(var(--color-primary))/0.3] mt-1" />
-            </button>
-            <div className="flex-1">
-                <div className="bg-[rgb(var(--surface-3))/0.5] rounded-[2rem] rounded-tl-xl p-4">
-                    <div className="flex items-baseline space-x-2">
-                        <button onClick={() => onUserSelect(comment.user)} className="font-semibold text-[rgb(var(--color-primary-accent))] hover:underline">{comment.user.username}</button>
-                        <p className="text-xs text-[rgb(var(--text-muted))]">{formatRelativeTime(comment.timestamp)}</p>
-                    </div>
-                    <p className="text-[rgb(var(--text-secondary))] mt-1 whitespace-pre-wrap">
-                        {comment.replyingTo && <span className="text-[rgb(var(--color-primary-accent))] font-semibold">@{comment.replyingTo} </span>}
-                        {comment.text}
-                    </p>
-                </div>
-                {isLoggedIn && (
-                    <div className="flex items-center gap-4 mt-2 pl-2">
-                         <button onClick={() => handleLikeComment(comment.id)} className="flex items-center gap-1.5 text-xs font-semibold text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))]">
-                            <ThumbsUpIcon className="w-4 h-4" /> <span>{comment.likes || 0}</span>
-                        </button>
-                        {user?.username !== comment.user.username && (
-                        <>
-                            <button onClick={() => setReplyingTo(comment.id)} className="flex items-center gap-1 text-xs font-semibold text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))]">
-                                Reply
-                            </button>
-                            <button onClick={() => addFriend(comment.user)} disabled={friendAdded} className="flex items-center gap-1 text-xs font-semibold text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))] disabled:text-[rgb(var(--color-secondary-accent))] disabled:cursor-not-allowed">
-                                {friendAdded ? <><CheckIcon/> Friend</> : <><UserPlusIcon/> Add Friend</>}
-                            </button>
-                        </>
-                        )}
-                    </div>
-                )}
-                {replyingTo === comment.id && (
-                    <div className="mt-2">
-                        <CommentForm 
-                            onSubmit={(text) => handlePostComment(text, comment)}
-                            cta="Post Reply"
-                            placeholder={`Replying to ${comment.user.username}...`}
-                            onCancel={() => setReplyingTo(null)}
-                            autoFocus={true}
-                        />
-                    </div>
-                )}
-                <div className="space-y-4 mt-4">
-                    {commentReplies.map(renderComment)}
-                </div>
-            </div>
-        </div>
-    )
-  }
 
   return (
     <div className="mt-12">
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
-        <h3 className="text-2xl font-bold text-[rgb(var(--text-primary))]">Comments</h3>
-        <div className="flex items-center gap-2">
-            {currentEpisode && (
+      <h3 className="text-2xl font-bold mb-6 text-[rgb(var(--text-primary))]">Comments</h3>
+      <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 p-6 rounded-2xl">
+        {isLoggedIn && user ? (
+          <div className="mb-6">
+            <CommentForm onSubmit={handleAddComment} cta="Post Comment" placeholder="Add a public comment..." />
+          </div>
+        ) : (
+          <div className="text-center p-4 mb-6 bg-[rgb(var(--surface-3))] rounded-xl">
+              <p className="text-[rgb(var(--text-secondary))]">Please log in to comment and interact.</p>
+          </div>
+        )}
+        
+        {/* Comment controls */}
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
             <div className="flex items-center bg-[rgb(var(--surface-3))] rounded-full p-1">
-                <button onClick={() => setCommentScope('episode')} className={`px-4 py-1.5 text-sm rounded-full transition-all ${commentScope === 'episode' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>Episode</button>
-                <button onClick={() => setCommentScope('all')} className={`px-4 py-1.5 text-sm rounded-full transition-all ${commentScope === 'all' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>All</button>
+                <button onClick={() => setCommentScope('episode')} className={`px-3 py-1 text-sm rounded-full transition-all ${commentScope === 'episode' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>This Episode</button>
+                <button onClick={() => setCommentScope('all')} className={`px-3 py-1 text-sm rounded-full transition-all ${commentScope === 'all' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>All Comments</button>
             </div>
-            )}
-            <div className="flex items-center bg-[rgb(var(--surface-3))] rounded-full p-1">
+             <div className="flex items-center bg-[rgb(var(--surface-3))] rounded-full p-1">
                 {(['newest', 'oldest', 'top'] as SortOrder[]).map(sort => (
-                    <button key={sort} onClick={() => setSortOrder(sort)} className={`px-3 py-1.5 text-sm rounded-full capitalize transition-all ${sortOrder === sort ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>{sort}</button>
+                    <button key={sort} onClick={() => setSortOrder(sort)} className={`px-3 py-1 text-xs sm:text-sm rounded-full capitalize transition-all ${sortOrder === sort ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>{sort}</button>
                 ))}
             </div>
         </div>
-      </div>
-      <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl rounded-[2rem] p-6">
-        {isLoggedIn && user ? (
-          <div className="mb-6 flex items-start space-x-3">
-            <img src={user.avatar} alt={user.username} className="w-10 h-10 rounded-full bg-[rgb(var(--color-primary))/0.3] flex-shrink-0" />
-            <div className="flex-1">
-                <CommentForm onSubmit={(text) => handlePostComment(text)} cta="Post Comment" placeholder="Add a comment..." />
-            </div>
+
+        {filteredComments.length > 0 ? (
+          <div className="space-y-6">
+            {filteredComments.map(comment => (
+              <div key={comment.id} className="flex items-start gap-4">
+                <img src={comment.user.avatar} alt={comment.user.username} className="w-10 h-10 rounded-full cursor-pointer" onClick={() => onUserSelect(comment.user)} />
+                <div className="flex-1">
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-bold text-[rgb(var(--text-primary))] cursor-pointer" onClick={() => onUserSelect(comment.user)}>{comment.user.username}</span>
+                    <span className="text-xs text-[rgb(var(--text-muted))]">{formatRelativeTime(comment.timestamp)}</span>
+                  </div>
+                  <p className="text-[rgb(var(--text-secondary))] whitespace-pre-wrap mt-1">{comment.text}</p>
+                  <div className="flex items-center gap-4 mt-2">
+                     <button onClick={() => handleLike(comment.id)} className="flex items-center gap-1 text-sm text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))]">
+                        <ThumbsUpIcon className="w-4 h-4" /> <span>{comment.likes || 0}</span>
+                    </button>
+                    <button onClick={() => setReplyingTo(comment.id)} className="text-sm font-semibold text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))]">Reply</button>
+                    {isLoggedIn && user?.uid !== comment.user.uid && (
+                        isFriend(comment.user.username) ? (
+                            <div className="flex items-center gap-1 text-sm text-green-400"><CheckIcon className="w-4 h-4" /> Friend</div>
+                        ) : (
+                            <button onClick={() => handleAddFriend(comment.user)} className="flex items-center gap-1 text-sm text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))]"><UserPlusIcon className="w-4 h-4" /> Add Friend</button>
+                        )
+                    )}
+                  </div>
+                   {replyingTo === comment.id && (
+                    <div className="mt-4">
+                        <CommentForm 
+                            onSubmit={(text) => { /* Reply logic to be implemented */ setReplyingTo(null); }}
+                            cta="Post Reply"
+                            placeholder={`Replying to ${comment.user.username}...`}
+                            onCancel={() => setReplyingTo(null)}
+                            autoFocus
+                        />
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         ) : (
-          <p className="text-center text-[rgb(var(--text-muted))] mb-6">Please log in to post a comment.</p>
+          <div className="text-center py-12 text-[rgb(var(--text-muted))]">
+            <MessageCircleIcon className="w-12 h-12 mx-auto mb-2" />
+            <p className="font-semibold">No comments yet.</p>
+            <p className="text-sm">Be the first to share your thoughts!</p>
+          </div>
         )}
-        <div className="space-y-6">
-          {topLevelComments.length > 0 ? topLevelComments.map(comment => renderComment(comment)) : (
-            <p className="text-center text-gray-500">No comments yet. Be the first!</p>
-          )}
-        </div>
       </div>
     </div>
   );

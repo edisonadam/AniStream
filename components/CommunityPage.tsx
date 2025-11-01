@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import type { CommunityPost, CommunityUser, Club, User } from '../types';
 import { formatRelativeTime } from '../utils';
 import { SearchIcon } from './icons/Icons';
 import ClubsPage from './ClubsPage';
+import CreateClubModal from './CreateClubModal';
 
 const USER_DIRECTORY_KEY = 'anistream-user-directory';
 const COMMUNITY_POSTS_KEY = 'anistream-community-posts';
@@ -21,17 +22,18 @@ const CommunityPage: React.FC<CommunityPageProps> = ({ onLoginClick, onClubSelec
     const [postText, setPostText] = useState('');
     const [userSearchQuery, setUserSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState<'feed' | 'clubs'>('feed');
+    const [isCreateClubModalOpen, setIsCreateClubModalOpen] = useState(false);
+    
+    const [userCreatedClubs, setUserCreatedClubs] = useState<Club[]>([]);
 
     useEffect(() => {
         try {
             const storedPosts = localStorage.getItem(COMMUNITY_POSTS_KEY);
             const storedUsers = localStorage.getItem(USER_DIRECTORY_KEY);
-            if (storedPosts) {
-                setPosts(JSON.parse(storedPosts).sort((a:CommunityPost, b:CommunityPost) => b.timestamp - a.timestamp));
-            }
-            if (storedUsers) {
-                setUsers(JSON.parse(storedUsers));
-            }
+            const storedUserClubs = localStorage.getItem('anistream-user-clubs');
+            if (storedPosts) setPosts(JSON.parse(storedPosts).sort((a:CommunityPost, b:CommunityPost) => b.timestamp - a.timestamp));
+            if (storedUsers) setUsers(JSON.parse(storedUsers));
+            if (storedUserClubs) setUserCreatedClubs(JSON.parse(storedUserClubs));
         } catch (e) {
             console.error('Failed to load community data', e);
         }
@@ -51,6 +53,13 @@ const CommunityPage: React.FC<CommunityPageProps> = ({ onLoginClick, onClubSelec
         setPostText('');
     };
     
+    const handleClubCreated = (newClub: Club) => {
+        const updatedClubs = [...userCreatedClubs, newClub];
+        setUserCreatedClubs(updatedClubs);
+        localStorage.setItem('anistream-user-clubs', JSON.stringify(updatedClubs));
+        onClubSelect(newClub);
+    };
+
     const filteredUsers = useMemo(() => {
         if (!userSearchQuery.trim()) return [];
         return users.filter(u => u.username.toLowerCase().includes(userSearchQuery.toLowerCase()));
@@ -73,15 +82,11 @@ const CommunityPage: React.FC<CommunityPageProps> = ({ onLoginClick, onClubSelec
             <div className="md:col-span-2 space-y-6">
                 <div className="bg-[rgb(var(--surface-2))/0.6] p-4 rounded-2xl">
                     <textarea value={postText} onChange={e => setPostText(e.target.value)} placeholder="What's on your mind?" className="w-full bg-[rgb(var(--surface-input))/0.2] border border-white/10 rounded-xl p-3 text-[rgb(var(--text-primary))] focus:ring-2 focus:ring-[rgb(var(--border-focus))]" rows={3} />
-                    <div className="text-right mt-2">
-                        <button onClick={handlePost} className="px-5 py-2 bg-[rgb(var(--color-primary))] text-white rounded-full font-semibold hover:bg-[rgb(var(--color-primary-hover))]">Post</button>
-                    </div>
+                    <div className="text-right mt-2"><button onClick={handlePost} className="px-5 py-2 bg-[rgb(var(--color-primary))] text-white rounded-full font-semibold hover:bg-[rgb(var(--color-primary-hover))]">Post</button></div>
                 </div>
                 {posts.map(post => (
                     <div key={post.id} className="bg-[rgb(var(--surface-2))/0.6] p-4 rounded-2xl flex items-start gap-4">
-                        <button onClick={() => onUserSelect(post.user as User)} className="flex-shrink-0 transition-transform hover:scale-110">
-                            <img src={post.user.avatar} alt={post.user.username} className="w-12 h-12 rounded-full" />
-                        </button>
+                        <button onClick={() => onUserSelect(post.user as User)} className="flex-shrink-0 transition-transform hover:scale-110"><img src={post.user.avatar} alt={post.user.username} className="w-12 h-12 rounded-full" /></button>
                         <div className="flex-1">
                             <div className="flex items-baseline gap-2">
                                 <button onClick={() => onUserSelect(post.user as User)} className="font-bold text-[rgb(var(--color-primary-accent))] hover:underline">{post.user.username}</button>
@@ -113,22 +118,30 @@ const CommunityPage: React.FC<CommunityPageProps> = ({ onLoginClick, onClubSelec
     );
     
     return (
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-subtle-fade-in-up">
-            <h1 className="text-3xl font-bold text-[rgb(var(--text-primary))] mb-8" style={{ textShadow: `0 0 8px rgb(var(--shadow-color) / 0.5)` }}>
-                Community Hub
-            </h1>
-
-            <div className="border-b border-white/10 mb-6">
-                <div className="flex justify-center gap-4">
-                    <button onClick={() => setActiveTab('feed')} className={`px-4 py-2 text-lg font-semibold transition-colors ${activeTab === 'feed' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>Feed</button>
-                    <button onClick={() => setActiveTab('clubs')} className={`px-4 py-2 text-lg font-semibold transition-colors ${activeTab === 'clubs' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>Clubs</button>
+        <>
+            {isCreateClubModalOpen && <CreateClubModal onClose={() => setIsCreateClubModalOpen(false)} onClubCreated={handleClubCreated} />}
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-subtle-fade-in-up">
+                <h1 className="text-3xl font-bold text-[rgb(var(--text-primary))] mb-8" style={{ textShadow: `0 0 8px rgb(var(--shadow-color) / 0.5)` }}>
+                    Community Hub
+                </h1>
+                <div className="border-b border-white/10 mb-6">
+                    <div className="flex justify-center gap-4">
+                        <button onClick={() => setActiveTab('feed')} className={`px-4 py-2 text-lg font-semibold transition-colors ${activeTab === 'feed' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>Feed</button>
+                        <button onClick={() => setActiveTab('clubs')} className={`px-4 py-2 text-lg font-semibold transition-colors ${activeTab === 'clubs' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>Clubs</button>
+                    </div>
+                </div>
+                <div key={activeTab} className="animate-cinematic-fade-in">
+                    {activeTab === 'feed' ? <FeedContent /> : (
+                        <ClubsPage 
+                            onClubSelect={onClubSelect} 
+                            isTabbed={true}
+                            onCreateClub={() => setIsCreateClubModalOpen(true)}
+                            userCreatedClubs={userCreatedClubs}
+                        />
+                    )}
                 </div>
             </div>
-
-            <div key={activeTab} className="animate-cinematic-fade-in">
-                {activeTab === 'feed' ? <FeedContent /> : <ClubsPage onClubSelect={onClubSelect} />}
-            </div>
-        </div>
+        </>
     );
 };
 

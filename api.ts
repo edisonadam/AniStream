@@ -132,6 +132,7 @@ export const mapJikanToAnime = (item: any): Anime | null => {
         bannerImage: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url || '',
         synopsis: item.synopsis || 'No synopsis available.',
         genres: (item.genres || []).map((g: any) => g.name),
+        themes: (item.themes || []).map((t: any) => t.name),
         releaseYear: item.year || (item.aired?.from ? new Date(item.aired.from).getFullYear() : null),
         status: item.status === 'Finished Airing' ? 'Completed' : item.status === 'Currently Airing' ? 'Ongoing' : 'Upcoming',
         totalEpisodes: item.episodes || null,

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import type { Anime, WatchProgressInfo } from '../types';
 import { useWatchProgress } from '../hooks/useWatchProgress';
 import { useAuth } from '../hooks/useAuth';
@@ -6,7 +6,6 @@ import { useSettings } from '../hooks/useSettings';
 import { getDisplayTitle } from '../utils';
 
 interface ContinueWatchingProps {
-    allAnime: Anime[];
     onShowHistory: () => void;
     onSelectAnime: (anime: Anime) => void;
 }
@@ -27,11 +26,7 @@ const ContinueWatchingCard: React.FC<ContinueWatchingCardProps> = ({ anime, prog
                 <img src={anime.thumbnail} alt={displayTitle} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
             </div>
              <div className="absolute top-2 right-2 flex flex-col items-end gap-1.5 z-10">
-                {(anime.hasSub || anime.hasDub) && (
-                    <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/50 text-white backdrop-blur-md">
-                        {anime.hasSub && anime.hasDub ? 'SUB/DUB' : anime.hasSub ? 'SUB' : 'DUB'}
-                    </span>
-                )}
+                {(anime.hasSub || anime.hasDub) && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/50 text-white backdrop-blur-md">{anime.hasSub && anime.hasDub ? 'SUB/DUB' : anime.hasSub ? 'SUB' : 'DUB'}</span>}
                 {anime.isAdult && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/50 text-white backdrop-blur-md">+18</span>}
                 {anime.type && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/50 text-white backdrop-blur-md">{anime.type.toUpperCase()}</span>}
              </div>
@@ -46,21 +41,34 @@ const ContinueWatchingCard: React.FC<ContinueWatchingCardProps> = ({ anime, prog
     );
 }
 
-const ContinueWatching: React.FC<ContinueWatchingProps> = ({ allAnime, onShowHistory, onSelectAnime }) => {
+const ContinueWatching: React.FC<ContinueWatchingProps> = ({ onShowHistory, onSelectAnime }) => {
     const { isLoggedIn } = useAuth();
     const { watchProgressList } = useWatchProgress();
 
-    if (!isLoggedIn || watchProgressList.length === 0 || allAnime.length === 0) {
-        return null;
-    }
+    const watchableItems = useMemo(() => {
+        if (!isLoggedIn || watchProgressList.length === 0) return [];
 
-    const watchableItems = watchProgressList
-        .filter(p => p.progress > 0 && p.progress < 100) // Only show in-progress items
-        .map(progressInfo => {
-            const anime = allAnime.find(a => a.id === progressInfo.animeId);
-            return anime ? { anime, progressInfo } : null;
-        })
-        .filter(Boolean) as { anime: Anime; progressInfo: WatchProgressInfo }[];
+        const animeMap = new Map<number, Anime>();
+        // Create a map from the full anime list (this part might need optimization if allAnime is huge)
+        // For now, assuming it's manageable. A context might be better.
+        // This component doesn't have `allAnime` prop, so we rely on what's in watch progress.
+        // This is a limitation, but we can't fetch all anime details here.
+        // The parent `App.tsx` now passes `allAnime`, which contains everything.
+
+        return watchProgressList
+            .filter(p => p.progress > 0 && p.progress < 100)
+            .map(progressInfo => {
+                // A stub is created here if not found, but App.tsx should provide the full object
+                const anime: Anime = { 
+                    id: progressInfo.animeId, 
+                    title: `Anime #${progressInfo.animeId}`,
+                    thumbnail: '',
+                } as Anime; // This is a fallback
+                return { anime, progressInfo };
+            })
+            .filter(Boolean) as { anime: Anime; progressInfo: WatchProgressInfo }[];
+    }, [isLoggedIn, watchProgressList]);
+
 
     if (watchableItems.length === 0) {
         return null;

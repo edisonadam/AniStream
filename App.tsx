@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
-import type { Anime, Club, Filter, Notification, Settings, Page } from './types';
+import type { Anime, Club, Filter, Notification, Settings, Page, User } from './types';
 import { useSettings } from './hooks/useSettings';
 import { mapJikanToAnime } from './api';
-import { deduplicateFranchises, getDisplayTitle } from './utils';
+import { deduplicateFranchises, getDisplayTitle, countUserComments } from './utils';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import FeaturedCarousel from './components/FeaturedCarousel';
@@ -16,7 +16,6 @@ import GoToTopButton from './components/GoToTopButton';
 import ContinueWatching from './components/ContinueWatching';
 import WatchlistOverlay from './components/WatchlistOverlay';
 import AdBanner from './components/AdBanner';
-import ClubsPage from './components/ClubsPage';
 import ClubDetailPage from './components/ClubDetailPage';
 import MagazinesPage from './components/MagazinesPage';
 import TrendingPage from './components/TrendingPage';
@@ -33,6 +32,8 @@ import RecentCommentsCarousel from './components/RecentComments';
 import CommunityPage from './components/CommunityPage';
 import LoginPrompt from './components/LoginPrompt';
 import CommentMeterPage from './components/CommentMeterPage';
+import CurrencyPage from './components/CurrencyPage';
+import UserDetailModal from './components/UserDetailModal';
 
 const ANIME_PAGE_SIZE = 25;
 
@@ -40,6 +41,8 @@ const App: React.FC = () => {
     const [page, setPage] = useState<Page>('home');
     const [selectedAnime, setSelectedAnime] = useState<Anime | null>(null);
     const [selectedClub, setSelectedClub] = useState<Club | null>(null);
+    const [selectedUser, setSelectedUser] = useState<User | null>(null);
+    const [isUserDetailModalOpen, setIsUserDetailModalOpen] = useState(false);
 
     // State for carousels and grids
     const [featuredAnime, setFeaturedAnime] = useState<Anime[]>([]);
@@ -50,7 +53,7 @@ const App: React.FC = () => {
     const [gridAnime, setGridAnime] = useState<Anime[]>([]);
     
     const [filters, setFilters] = useState<Filter>({
-        query: '', genres: [], types: [], statuses: [], years: [], languages: [], studios: [], sort: 'popularity'
+        query: '', genres: [], types: [], statuses: [], years: [], languages: [], studios: [], sort: 'popularity', tags: []
     });
     const [stagedFilters, setStagedFilters] = useState<Filter>(filters);
 
@@ -77,8 +80,6 @@ const App: React.FC = () => {
     const prevPageRef = useRef<Page | undefined>(undefined);
 
     // CRITICAL FIX: Preloader removal logic.
-    // This runs once when the App component mounts, which is now immediate
-    // thanks to the non-blocking AuthProvider.
     useEffect(() => {
         const preloader = document.getElementById('preloader');
         if (preloader) {
@@ -95,19 +96,11 @@ const App: React.FC = () => {
     useEffect(() => {
         const handleContextmenu = (e: MouseEvent) => e.preventDefault();
         const handleKeydown = (e: KeyboardEvent) => {
-            // Block Ctrl+C, Ctrl+U, Ctrl+S
-            if (e.ctrlKey && ['c', 'u', 's'].includes(e.key.toLowerCase())) {
-                e.preventDefault();
-            }
-            // Block F12 for developer tools
-            if (e.key === 'F12') {
-                e.preventDefault();
-            }
+            if (e.ctrlKey && ['c', 'u', 's'].includes(e.key.toLowerCase())) e.preventDefault();
+            if (e.key === 'F12') e.preventDefault();
         };
-
         document.addEventListener('contextmenu', handleContextmenu);
         document.addEventListener('keydown', handleKeydown);
-
         return () => {
             document.removeEventListener('contextmenu', handleContextmenu);
             document.removeEventListener('keydown', handleKeydown);
@@ -120,7 +113,7 @@ const App: React.FC = () => {
     
     const handleResetFilters = useCallback((scrollToTop?: boolean) => {
         const resolvedScrollToTop = scrollToTop ?? true;
-        const resetState: Filter = { query: '', genres: [], types: [], statuses: [], years: [], languages: [], studios: [], sort: 'popularity' };
+        const resetState: Filter = { query: '', genres: [], types: [], statuses: [], years: [], languages: [], studios: [], sort: 'popularity', tags: [] };
         if (resolvedScrollToTop) {
             homePageScrollPosition.current = 0;
             window.scrollTo({ top: 0, behavior: 'auto' });
@@ -140,7 +133,6 @@ const App: React.FC = () => {
         if (page !== 'player' && page !== 'profile' && page !== 'club-detail') {
             homePageScrollPosition.current = window.scrollY;
         }
-
         setPage(newPage);
     }, [page]);
     
@@ -148,18 +140,15 @@ const App: React.FC = () => {
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
         const pageParam = urlParams.get('page') as Page;
-        const validPages: Page[] = ['trending', 'schedule', 'history', 'news', 'manga', 'community', 'beginners', 'clubs', 'comment-meter', 'magazines'];
+        const validPages: Page[] = ['trending', 'schedule', 'history', 'news', 'manga', 'community', 'beginners', 'comment-meter', 'magazines', 'currency'];
 
         if (pageParam && validPages.includes(pageParam)) {
             navigateTo(pageParam);
         }
 
         const showWatchlistParam = urlParams.get('showWatchlist');
-        if (showWatchlistParam === 'true') {
-            setIsWatchlistOpen(true);
-        }
+        if (showWatchlistParam === 'true') setIsWatchlistOpen(true);
 
-        // Clean up URL to avoid re-triggering on reload
         if (urlParams.has('page') || urlParams.has('showWatchlist')) {
             window.history.replaceState({}, document.title, window.location.pathname);
         }
@@ -191,22 +180,22 @@ const App: React.FC = () => {
         setIsLoginOpen(true);
     };
 
+    const handleUserSelect = (user: User) => {
+        setSelectedUser(user);
+        setIsUserDetailModalOpen(true);
+    };
+
     const performFetch = useCallback(async (pageNum: number, searchFilters: Filter) => {
         const params = new URLSearchParams({
             page: pageNum.toString(),
             limit: ANIME_PAGE_SIZE.toString(),
         });
 
-        if (settings.restrictAdultContent) {
-            params.append('sfw', 'true');
-        }
-    
+        if (settings.restrictAdultContent) params.append('sfw', 'true');
         if (searchFilters.query) params.append('q', searchFilters.query);
 
         const genreIds = searchFilters.genres.map(genre => GENRES_MAP[genre]).filter(Boolean);
-        if (genreIds.length > 0) {
-            params.append('genres', genreIds.join(','));
-        }
+        if (genreIds.length > 0) params.append('genres', genreIds.join(','));
 
         if (searchFilters.types.length > 0) params.append('type', searchFilters.types.join(',').toLowerCase());
         if (searchFilters.statuses.length > 0) {
@@ -234,9 +223,20 @@ const App: React.FC = () => {
         
         const data = await res.json();
         let mappedData: Anime[] = data.data.map(mapJikanToAnime).filter((a: Anime | null): a is Anime => a !== null);
+
         if (settings.restrictAdultContent) {
             mappedData = mappedData.filter(anime => !anime.isAdult);
         }
+        
+        // Client-side filtering for tags, as Jikan API doesn't support it directly
+        if (searchFilters.tags && searchFilters.tags.length > 0) {
+            mappedData = mappedData.filter(anime => 
+                searchFilters.tags.every(tag => 
+                    anime.themes?.some(theme => theme.toLowerCase() === tag.toLowerCase())
+                )
+            );
+        }
+
         const hasNext = data.pagination?.has_next_page ?? false;
         
         return { anime: mappedData, hasNext };
@@ -335,7 +335,8 @@ const App: React.FC = () => {
                filters.statuses.length > 0 ||
                filters.years.length > 0 ||
                filters.languages.length > 0 ||
-               filters.studios.length > 0;
+               filters.studios.length > 0 ||
+               filters.tags.length > 0;
     }, [filters]);
     
     useEffect(() => {
@@ -357,48 +358,29 @@ const App: React.FC = () => {
 
     // Close sidebar on main content scroll
     useEffect(() => {
-        const handleScroll = () => {
-            if (isSidebarOpen) {
-                setIsSidebarOpen(false);
-            }
-        };
-
-        if (isSidebarOpen) {
-            window.addEventListener('scroll', handleScroll);
-        }
-
-        return () => {
-            window.removeEventListener('scroll', handleScroll);
-        };
+        const handleScroll = () => { if (isSidebarOpen) setIsSidebarOpen(false); };
+        if (isSidebarOpen) window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
     }, [isSidebarOpen]);
 
     // Touch hover effect for cards
     useEffect(() => {
         const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
         if (!isTouchDevice) return;
-
         let lastHoveredElement: Element | null = null;
         let inThrottle = false;
         const throttleLimit = 100; // ms
-        
-        // This empty listener helps mobile browsers remove :hover states more reliably after a tap.
         const emptyListener = () => {};
         document.body.addEventListener('touchstart', emptyListener, { passive: true });
-
         const handleTouchMove = (event: TouchEvent) => {
             if (inThrottle) return;
             inThrottle = true;
             setTimeout(() => { inThrottle = false; }, throttleLimit);
-
             if (event.touches.length !== 1) return;
-
             const touch = event.touches[0];
             const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
-
             if (!targetElement) return;
-
             const card = targetElement.closest('.anime-card-touch-target, .continue-watching-card-touch-target, .slideshow-card-touch-target, .club-card-touch-target, .manga-card-touch-target');
-
             if (card) {
                 if (card !== lastHoveredElement) {
                     lastHoveredElement?.classList.remove('touch-hover');
@@ -412,18 +394,15 @@ const App: React.FC = () => {
                 }
             }
         };
-
         const handleTouchEnd = () => {
             if (lastHoveredElement) {
                 lastHoveredElement.classList.remove('touch-hover');
                 lastHoveredElement = null;
             }
         };
-        
         window.addEventListener('touchmove', handleTouchMove, { passive: true });
         window.addEventListener('touchend', handleTouchEnd, { passive: true });
         window.addEventListener('touchcancel', handleTouchEnd, { passive: true });
-
         return () => {
             document.body.removeEventListener('touchstart', emptyListener);
             window.removeEventListener('touchmove', handleTouchMove);
@@ -446,17 +425,13 @@ const App: React.FC = () => {
     }, [page, gridAnime]);
 
     const loadMoreGrid = useCallback(() => {
-        if (isLoadingMore || !hasMore) {
-            return;
-        }
-    
+        if (isLoadingMore || !hasMore) return;
         if (preloadedData) {
             setGridAnime(prev => [...prev, ...preloadedData.anime]);
             setHasMore(preloadedData.hasNext);
             const newPage = currentPage + 1;
             setCurrentPage(newPage);
             setPreloadedData(null);
-    
             if (preloadedData.hasNext) {
                 const preloadNextPage = () => {
                     if (isPreloading.current) return;
@@ -490,9 +465,7 @@ const App: React.FC = () => {
     
     const handleApplyFilters = () => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
-        if (page !== 'home') {
-            setPage('home');
-        }
+        if (page !== 'home') setPage('home');
         setFilters(stagedFilters);
         setIsSidebarOpen(false);
     };
@@ -514,9 +487,7 @@ const App: React.FC = () => {
 
     const handleNotificationClick = (notification: Notification) => {
         const animeStub: Anime = {
-            id: notification.animeId,
-            title: 'Loading...',
-            thumbnail: '', bannerImage: '', synopsis: '', genres: [], releaseYear: null, status: 'Ongoing', totalEpisodes: null, rating: null, type: null, studio: '', hasSub: false, hasDub: false, runtime: null, avgEpisodeDuration: null, isAdult: false, title_english: null, title_japanese: '',
+            id: notification.animeId, title: 'Loading...', thumbnail: '', bannerImage: '', synopsis: '', genres: [], releaseYear: null, status: 'Ongoing', totalEpisodes: null, rating: null, type: null, studio: '', hasSub: false, hasDub: false, runtime: null, avgEpisodeDuration: null, isAdult: false, title_english: null, title_japanese: '', themes: [],
         };
         handleAnimeSelect(animeStub);
     }
@@ -525,25 +496,15 @@ const App: React.FC = () => {
         const availableAnime = gridAnime.length > 0 ? gridAnime : featuredAnime;
         if (availableAnime.length > 0) {
             const randomAnime = availableAnime[Math.floor(Math.random() * availableAnime.length)];
-            if (randomAnime) {
-                handleAnimeSelect(randomAnime);
-            }
+            if (randomAnime) handleAnimeSelect(randomAnime);
         }
         setIsSidebarOpen(false);
     }, [gridAnime, featuredAnime, handleAnimeSelect]);
     
     const handleGenreSelect = (genre: string) => {
         const newFilters: Filter = {
-            query: '',
-            genres: [genre],
-            types: [],
-            statuses: [],
-            years: [],
-            languages: [],
-            studios: [],
-            sort: 'popularity'
+            query: '', genres: [genre], types: [], statuses: [], years: [], languages: [], studios: [], sort: 'popularity', tags: [],
         };
-        
         homePageScrollPosition.current = 0;
         window.scrollTo({ top: 0, behavior: 'smooth' });
         setFilters(newFilters);
@@ -555,7 +516,6 @@ const App: React.FC = () => {
         [...featuredAnime, ...gridAnime, ...trendingAnime].forEach(anime => {
             if (anime) animeMap.set(anime.id, anime);
         });
-        // We add stubs for anime in history that might not be in our loaded lists
         watchProgressList.forEach(item => {
             if (!animeMap.has(item.animeId)) {
                  animeMap.set(item.animeId, { id: item.animeId, title: 'Loading...' } as Anime);
@@ -566,19 +526,19 @@ const App: React.FC = () => {
     
     const pageContent = useMemo(() => {
         switch(page) {
-            case 'player': return selectedAnime && <Player anime={selectedAnime} onGoBack={goBackFromPlayer} onSelectRelated={handleAnimeSelect} allAnime={allAnime} onGenreSelect={handleGenreSelect} />;
+            case 'player': return selectedAnime && <Player anime={selectedAnime} onGoBack={goBackFromPlayer} onSelectRelated={handleAnimeSelect} allAnime={allAnime} onGenreSelect={handleGenreSelect} onUserSelect={handleUserSelect} />;
             case 'profile': return <ProfilePage onGoBack={goHome} allAnime={allAnime} onSelectAnime={handleAnimeSelect} />;
-            case 'clubs': return <ClubsPage onGoBack={goHome} onClubSelect={handleClubSelect} />;
-            case 'club-detail': return selectedClub && <ClubDetailPage club={selectedClub} onGoBack={() => navigateTo('clubs')} onSelectAnime={handleAnimeSelect} />;
+            case 'club-detail': return selectedClub && <ClubDetailPage club={selectedClub} onGoBack={() => navigateTo('community')} onSelectAnime={handleAnimeSelect} />;
             case 'magazines': return <MagazinesPage onGoBack={goHome} />;
             case 'trending': return <TrendingPage onAnimeSelect={handleAnimeSelect} />;
             case 'schedule': return <SchedulePage onAnimeSelect={handleAnimeSelect} />;
             case 'history': return <HistoryPage onAnimeSelect={handleAnimeSelect} allAnime={allAnime} />;
             case 'news': return <NewsPage onAnimeSelect={handleAnimeSelect} />;
             case 'manga': return <MangaPage onGoBack={goHome} />;
-            case 'community': return <CommunityPage onLoginClick={() => handleLoginRequest()} />;
+            case 'community': return <CommunityPage onLoginClick={() => handleLoginRequest()} onClubSelect={handleClubSelect} onUserSelect={handleUserSelect} />;
             case 'comment-meter': return <CommentMeterPage onGoBack={goHome} onLoginClick={() => handleLoginRequest()} />;
             case 'beginners': return <BeginnerAnimePage onGoBack={goHome} onAnimeSelect={handleAnimeSelect} />;
+            case 'currency': return <CurrencyPage onGoBack={goHome} />;
             case 'search':
                 return (
                     <AnimeGrid
@@ -600,19 +560,11 @@ const App: React.FC = () => {
                 return (
                     <>
                         {isDefaultHome && <FeaturedCarousel animeList={featuredAnime} onAnimeSelect={handleAnimeSelect} isLoading={isCarouselLoading} />}
-                        
                         {isDefaultHome && settings.showWatchHistoryOnHome && (
-                            <ContinueWatching 
-                                allAnime={allAnime}
-                                onSelectAnime={handleAnimeSelect} 
-                                onShowHistory={() => navigateTo('history')} 
-                            />
+                            <ContinueWatching onSelectAnime={handleAnimeSelect} onShowHistory={() => navigateTo('history')} />
                         )}
-                        
                         {isDefaultHome && settings.showComments && <RecentCommentsCarousel onAnimeSelect={handleAnimeSelect} />}
-
                         {isDefaultHome && <BeginnerAnime onAnimeSelect={handleAnimeSelect} />}
-                        
                         <AnimeGrid
                             title={isDefaultHome ? "Discover Anime" : "Filtered Results"}
                             animeList={gridAnime}
@@ -662,6 +614,7 @@ const App: React.FC = () => {
             {isSearchOpen && <SearchOverlay onClose={() => setIsSearchOpen(false)} onAnimeSelect={handleAnimeSelect} onSearchSubmit={handleSearchSubmit} />}
             {isLoginOpen && <AuthModal onClose={() => { setIsLoginOpen(false); setLoginReason(null); }} reason={loginReason} />}
             {isWatchlistOpen && <WatchlistOverlay onClose={() => setIsWatchlistOpen(false)} onSelectAnime={handleAnimeSelect} />}
+            {isUserDetailModalOpen && selectedUser && <UserDetailModal user={selectedUser} onClose={() => setIsUserDetailModalOpen(false)} />}
             
             <main className={`${page === 'home' && !hasActiveFilters ? '' : 'pt-20'}`}>
                 {page === 'home' && !hasActiveFilters && <LoginPrompt onLoginClick={() => handleLoginRequest()} />}
