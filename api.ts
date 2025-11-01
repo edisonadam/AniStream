@@ -118,7 +118,7 @@ export const mapJikanToAnime = (item: any): Anime | null => {
     }
     
     const ratingString = item.rating || '';
-    const hasAdultRating = ratingString.includes('R - 17+') || ratingString.includes('R+ - Mild Nudity') || ratingString.includes('Rx - Hentai');
+    const hasAdultRating = ratingString.includes('Rx - Hentai');
     const hasExplicitGenre = (item.explicit_genres || []).some((g: any) => ['Hentai', 'Erotica'].includes(g.name));
     
     // An anime is adult if sfw is false, or it has an adult rating, or an explicit genre.

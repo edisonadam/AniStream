@@ -252,7 +252,7 @@ const SettingsPage: React.FC = () => {
             <SettingsSection title="Content">
                 <Toggle 
                     label="Restrict Adult Content"
-                    note="Hides content rated 18+ (R+, Rx)."
+                    note="Hides explicit content (Hentai, Erotica)."
                     checked={settings.restrictAdultContent}
                     onChange={() => updateSettings({ restrictAdultContent: !settings.restrictAdultContent })}
                 />
