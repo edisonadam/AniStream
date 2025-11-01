@@ -86,7 +86,7 @@ const CommunityPage: React.FC<CommunityPageProps> = ({ onLoginClick, onClubSelec
                 </div>
                 {posts.map(post => (
                     <div key={post.id} className="bg-[rgb(var(--surface-2))/0.6] p-4 rounded-2xl flex items-start gap-4">
-                        <button onClick={() => onUserSelect(post.user as User)} className="flex-shrink-0 transition-transform hover:scale-110"><img src={post.user.avatar} alt={post.user.username} className="w-12 h-12 rounded-full" /></button>
+                        <button onClick={() => onUserSelect(post.user as User)} className="flex-shrink-0 transition-transform hover:scale-110"><img loading="lazy" src={post.user.avatar} alt={post.user.username} className="w-12 h-12 rounded-full" /></button>
                         <div className="flex-1">
                             <div className="flex items-baseline gap-2">
                                 <button onClick={() => onUserSelect(post.user as User)} className="font-bold text-[rgb(var(--color-primary-accent))] hover:underline">{post.user.username}</button>
@@ -107,7 +107,7 @@ const CommunityPage: React.FC<CommunityPageProps> = ({ onLoginClick, onClubSelec
                     <div className="mt-4 space-y-2 max-h-96 overflow-y-auto">
                         {filteredUsers.map(u => (
                             <div key={u.uid} className="flex items-center gap-3 p-2 rounded-lg bg-[rgb(var(--surface-3))]">
-                                <img src={u.avatar} alt={u.username} className="w-8 h-8 rounded-full" />
+                                <img loading="lazy" src={u.avatar} alt={u.username} className="w-8 h-8 rounded-full" />
                                 <p className="font-semibold text-[rgb(var(--text-secondary))]">{u.username}</p>
                             </div>
                         ))}

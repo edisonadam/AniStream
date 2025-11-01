@@ -168,7 +168,7 @@ const Comments: React.FC<CommentsProps> = ({ anime, currentSeason, currentEpisod
           <div className="space-y-6">
             {filteredComments.map(comment => (
               <div key={comment.id} className="flex items-start gap-4">
-                <img src={comment.user.avatar} alt={comment.user.username} className="w-10 h-10 rounded-full cursor-pointer" onClick={() => onUserSelect(comment.user)} />
+                <img loading="lazy" src={comment.user.avatar} alt={comment.user.username} className="w-10 h-10 rounded-full cursor-pointer" onClick={() => onUserSelect(comment.user)} />
                 <div className="flex-1">
                   <div className="flex items-baseline gap-2">
                     <span className="font-bold text-[rgb(var(--text-primary))] cursor-pointer" onClick={() => onUserSelect(comment.user)}>{comment.user.username}</span>

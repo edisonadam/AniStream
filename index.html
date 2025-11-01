@@ -5,11 +5,29 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ANISTREAM - Your Anime Universe</title>
+
+    <!-- Basic SEO & PWA -->
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#8b5cf6">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="ANISTREAM">
+    <meta name="description" content="A sleek and modern anime streaming-style website with a dark neon aesthetic, featuring a responsive layout, featured slideshow, anime grid, and interactive UI elements." />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://anistream.example.com/" />
+    <meta property="og:title" content="ANISTREAM - Your Anime Universe" />
+    <meta property="og:description" content="A sleek and modern anime streaming-style website with a dark neon aesthetic, featuring a responsive layout, featured slideshow, anime grid, and interactive UI elements." />
+    <meta property="og:image" content="/og-image.png" />
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://anistream.example.com/" />
+    <meta property="twitter:title" content="ANISTREAM - Your Anime Universe" />
+    <meta property="twitter:description" content="A sleek and modern anime streaming-style website with a dark neon aesthetic, featuring a responsive layout, featured slideshow, anime grid, and interactive UI elements." />
+    <meta property="twitter:image" content="/og-image.png" />
+    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -174,6 +192,13 @@
       }
       .animate-ken-burns {
         animation: ken-burns-slow 20s ease-in-out infinite alternate;
+      }
+      @keyframes throb {
+        0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(var(--color-primary), 0.7); }
+        50% { transform: scale(1.1); box-shadow: 0 0 8px 3px rgba(var(--color-primary), 0); }
+      }
+      .animate-throb {
+        animation: throb 1.5s ease-in-out infinite;
       }
       
       /* Preloader Styles */

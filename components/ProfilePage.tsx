@@ -94,7 +94,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
                 </form>
             ) : (
                 <>
-                    <img src={user?.avatar} alt={user?.username} className="w-24 h-24 rounded-full mx-auto mb-4 ring-4 ring-[rgb(var(--color-primary))]/50" />
+                    <img loading="lazy" src={user?.avatar} alt={user?.username} className="w-24 h-24 rounded-full mx-auto mb-4 ring-4 ring-[rgb(var(--color-primary))]/50" />
                     <h2 className="text-3xl font-bold">{user?.username}</h2>
                     <p className="text-sm text-[rgb(var(--text-muted))]">Joined: {new Date(user?.joinedDate || Date.now()).toLocaleDateString()}</p>
                     <div className="mt-6 flex justify-center gap-4 text-center">
@@ -125,7 +125,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
                     {friends.map(friend => (
                         <div key={friend.username} className="flex items-center justify-between bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl p-3 rounded-2xl border border-white/10">
                             <div className="flex items-center gap-4">
-                                <img src={friend.avatar} alt={friend.username} className="w-12 h-12 rounded-full" />
+                                <img loading="lazy" src={friend.avatar} alt={friend.username} className="w-12 h-12 rounded-full" />
                                 <span className="font-bold text-[rgb(var(--text-primary))]">{friend.username}</span>
                             </div>
                             <button onClick={() => removeFriend(friend.username)} className="p-2 rounded-full bg-white/10 text-[rgb(var(--text-muted))] hover:bg-[rgb(var(--color-danger))]/80 hover:text-white transition-colors">

@@ -72,7 +72,7 @@ const RecentCommentsCarousel: React.FC<RecentCommentsCarouselProps> = ({ onAnime
                     key={comment.id + sortOrder}
                     className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${index === currentIndex ? 'opacity-100' : 'opacity-0'}`}
                 >
-                    <img src={comment.animeBanner} alt={comment.animeTitle} className={`w-full h-full object-cover ${index === currentIndex ? 'animate-ken-burns' : ''}`} />
+                    <img loading="lazy" src={comment.animeBanner} alt={comment.animeTitle} className={`w-full h-full object-cover ${index === currentIndex ? 'animate-ken-burns' : ''}`} />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent"></div>
                 </div>
             ))}
@@ -92,7 +92,7 @@ const RecentCommentsCarousel: React.FC<RecentCommentsCarouselProps> = ({ onAnime
                  <div key={currentIndex + sortOrder} className="animate-subtle-fade-in-up" onClick={() => handleCommentClick(comments[currentIndex])}>
                     <p className="text-xl sm:text-2xl italic font-light line-clamp-3 max-w-3xl cursor-pointer">"{comments[currentIndex].text}"</p>
                     <div className="flex items-center gap-3 mt-4">
-                        <img src={comments[currentIndex].user.avatar} alt={comments[currentIndex].user.username} className="w-10 h-10 rounded-full" />
+                        <img loading="lazy" src={comments[currentIndex].user.avatar} alt={comments[currentIndex].user.username} className="w-10 h-10 rounded-full" />
                         <div className="flex-1">
                             <p className="font-semibold">{comments[currentIndex].user.username}</p>
                             <p className="text-sm text-gray-300">

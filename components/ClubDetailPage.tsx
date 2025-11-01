@@ -29,7 +29,7 @@ const mapRelationToAnime = (relation: MalUrl): Anime => ({
 
 const MemberCard: React.FC<{ member: ClubMember }> = ({ member }) => (
     <a href={member.url} target="_blank" rel="noopener noreferrer" className="bg-[rgb(var(--surface-3))/0.5] rounded-2xl flex items-center p-3 gap-3 text-left hover:bg-[rgb(var(--surface-3))] transition-colors group">
-        <img src={member.image_url} alt={member.username} className="w-12 h-12 object-cover rounded-full flex-shrink-0" />
+        <img loading="lazy" src={member.image_url} alt={member.username} className="w-12 h-12 object-cover rounded-full flex-shrink-0" />
         <p className="font-bold text-[rgb(var(--text-primary))] truncate group-hover:text-[rgb(var(--color-primary-accent))] transition-colors">{member.username}</p>
     </a>
 );
@@ -38,7 +38,7 @@ const RelationCard: React.FC<{ relation: MalUrl }> = ({ relation }) => (
     <a href={relation.url} target="_blank" rel="noopener noreferrer" className="group flex-shrink-0 w-32 sm:w-36 text-center">
         <div className="aspect-[2/3] w-full rounded-xl overflow-hidden shadow-md bg-[rgb(var(--surface-3))] transform transition-transform duration-300 group-hover:scale-105">
             {relation.images?.jpg.image_url ? (
-                <img src={relation.images.jpg.image_url} alt={relation.name} className="w-full h-full object-cover" />
+                <img loading="lazy" src={relation.images.jpg.image_url} alt={relation.name} className="w-full h-full object-cover" />
             ) : (
                 <div className="w-full h-full flex items-center justify-center p-2 text-xs text-[rgb(var(--text-muted))]">{relation.name}</div>
             )}
@@ -136,7 +136,7 @@ const ClubDetailPage: React.FC<ClubDetailPageProps> = ({ club, onGoBack, onSelec
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                         {pictures.map((pic, index) => (
                             <div key={index} onClick={() => setLightboxImage(pic.jpg.image_url)} className="aspect-video w-full bg-[rgb(var(--surface-3))] rounded-xl overflow-hidden cursor-pointer group transition-transform duration-300 hover:scale-105">
-                                <img src={pic.jpg.image_url} alt={`Club gallery image ${index + 1}`} className="w-full h-full object-cover"/>
+                                <img loading="lazy" src={pic.jpg.image_url} alt={`Club gallery image ${index + 1}`} className="w-full h-full object-cover"/>
                             </div>
                         ))}
                     </div>
@@ -209,7 +209,7 @@ const ClubDetailPage: React.FC<ClubDetailPageProps> = ({ club, onGoBack, onSelec
             </button>
 
             <div className="relative w-full h-48 md:h-64 rounded-[2rem] overflow-hidden bg-[rgb(var(--surface-2))]">
-                <img src={bannerImage} alt={club.name} className="w-full h-full object-cover opacity-30" />
+                <img loading="lazy" src={bannerImage} alt={club.name} className="w-full h-full object-cover opacity-30" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
                 <div className="absolute bottom-0 left-0 p-6">
                     <h1 className="text-3xl md:text-5xl font-bold text-white" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}>{club.name}</h1>

@@ -116,7 +116,7 @@ const CharacterModal: React.FC<CharacterModalProps> = ({ character, onClose }) =
       <>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="md:col-span-1">
-            <img src={displayCharacter.image} alt={displayCharacter.name} className="w-full h-auto object-cover rounded-lg shadow-lg" />
+            <img loading="lazy" src={displayCharacter.image} alt={displayCharacter.name} className="w-full h-auto object-cover rounded-lg shadow-lg" />
           </div>
           <div className="md:col-span-2">
             <h2 className="text-3xl font-bold text-[rgb(var(--text-primary))]">{displayCharacter.name}</h2>
@@ -139,7 +139,7 @@ const CharacterModal: React.FC<CharacterModalProps> = ({ character, onClose }) =
               {displayCharacter.voiceActors.map(va => (
                 <div key={va.id} className="flex-shrink-0 w-28 text-center group">
                   <div className="aspect-[2/3] w-full rounded-lg overflow-hidden shadow-md transform transition-transform duration-300 group-hover:scale-105">
-                    <img src={va.image} alt={va.name} className="w-full h-full object-cover" />
+                    <img loading="lazy" src={va.image} alt={va.name} className="w-full h-full object-cover" />
                   </div>
                   <p className="mt-2 text-sm font-semibold text-[rgb(var(--text-primary))] truncate">{va.name}</p>
                   <p className="text-xs text-[rgb(var(--text-muted))]">{va.language}</p>

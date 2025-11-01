@@ -59,7 +59,7 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect }) => {
       aria-label={`Play ${displayTitle}`}
     >
       <div className="aspect-[2/3] w-full">
-        <img src={anime.thumbnail} alt={displayTitle} className="w-full h-full object-cover" />
+        <img loading="lazy" src={anime.thumbnail} alt={displayTitle} className="w-full h-full object-cover" />
       </div>
 
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-100 transition-opacity duration-300"></div>

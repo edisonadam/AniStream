@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { Filter, Settings, Page } from '../types';
-import { CloseIcon, UsersIcon, BookOpenIcon, GiftIcon, MoonIcon, SunIcon, HomeIcon, TrendingUpIcon, CalendarIcon, HistoryIcon, InfoIcon, AcademicCapIcon, EyeIcon, EyeOffIcon, MessageCircleIcon } from './icons/Icons';
+import { CloseIcon, UsersIcon, BookOpenIcon, GiftIcon, MoonIcon, SunIcon, HomeIcon, TrendingUpIcon, CalendarIcon, HistoryIcon, InfoIcon, AcademicCapIcon, EyeIcon, EyeOffIcon, MessageCircleIcon, SparklesIcon, ChevronDownIcon } from './icons/Icons';
 import Logo from './Logo';
 import { ANIME_TYPES, ANIME_STATUSES, YEAR_OPTIONS, LANGUAGE_OPTIONS, STUDIO_OPTIONS, GENRES, TAG_OPTIONS } from '../constants';
 
@@ -27,11 +27,40 @@ const SideButton: React.FC<{ icon: React.ReactNode; label: string; onClick: () =
     </button>
 );
 
+const FilterSection: React.FC<{ title: string; children: React.ReactNode; isOpen: boolean; onToggle: () => void; }> = ({ title, children, isOpen, onToggle }) => (
+    <div className="py-2 border-b border-white/10">
+      <button onClick={onToggle} className="w-full flex justify-between items-center font-semibold text-lg text-[rgb(var(--text-primary))] px-4 py-2 hover:bg-[rgb(var(--surface-3))/0.5] transition-colors rounded-md">
+        <span>{title}</span>
+        <ChevronDownIcon className={`w-5 h-5 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      <div className={`grid transition-all duration-300 ease-in-out ${isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+        <div className="overflow-hidden">
+            <div className="px-4 pt-2 pb-4">{children}</div>
+        </div>
+      </div>
+    </div>
+);
+
+
 const Sidebar: React.FC<SidebarProps> = ({ 
     isOpen, onClose, filters, onFilterChange, onApplyFilters, onResetFilters, 
     onNavigate, onGoHome, onSurpriseMe, 
     settings, updateSettings, isLoggedIn, onLoginClick
 }) => {
+  const [openSections, setOpenSections] = useState<Set<string>>(new Set(['Genres', 'Type']));
+
+  const toggleSection = (title: string) => {
+      setOpenSections(prev => {
+          const newSet = new Set(prev);
+          if (newSet.has(title)) {
+              newSet.delete(title);
+          } else {
+              newSet.add(title);
+          }
+          return newSet;
+      });
+  };
+
   const handleMultiSelect = (key: keyof Filter, value: string) => {
     const currentValues = (filters[key] as string[]) || [];
     const newValues = currentValues.includes(value)
@@ -58,13 +87,6 @@ const Sidebar: React.FC<SidebarProps> = ({
         updateSettings({ restrictAdultContent: !settings.restrictAdultContent });
     }
   };
-
-  const FilterSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-    <div className="py-4 border-b border-white/10">
-      <h3 className="font-semibold text-lg text-[rgb(var(--text-primary))] px-4 mb-2">{title}</h3>
-      <div className="px-4">{children}</div>
-    </div>
-  );
 
   const FilterButton: React.FC<{ name: string; isSelected: boolean; onClick: () => void }> = ({ name, isSelected, onClick }) => (
     <button
@@ -114,27 +136,27 @@ const Sidebar: React.FC<SidebarProps> = ({
              {isLoggedIn && <SideButton icon={<MessageCircleIcon />} label="Comment Meter" onClick={() => handleNavigation('comment-meter')} />}
             <SideButton icon={<BookOpenIcon />} label="Magazines" onClick={() => handleNavigation('magazines')} />
           </div>
-
-          <FilterSection title="Type">
+          
+          <FilterSection title="Genres" isOpen={openSections.has('Genres')} onToggle={() => toggleSection('Genres')}>
+            <div className="flex flex-wrap gap-2">{GENRES.map(g => <FilterButton key={g} name={g} isSelected={filters.genres.includes(g)} onClick={() => handleMultiSelect('genres', g)} />)}</div>
+          </FilterSection>
+          <FilterSection title="Type" isOpen={openSections.has('Type')} onToggle={() => toggleSection('Type')}>
             <div className="flex flex-wrap gap-2">{ANIME_TYPES.map(t => <FilterButton key={t} name={t} isSelected={filters.types.includes(t)} onClick={() => handleMultiSelect('types', t)} />)}</div>
           </FilterSection>
-          <FilterSection title="Status">
+          <FilterSection title="Status" isOpen={openSections.has('Status')} onToggle={() => toggleSection('Status')}>
             <div className="flex flex-wrap gap-2">{ANIME_STATUSES.map(s => <FilterButton key={s} name={s} isSelected={filters.statuses.includes(s)} onClick={() => handleMultiSelect('statuses', s)} />)}</div>
           </FilterSection>
-           <FilterSection title="Tags">
+          <FilterSection title="Tags" isOpen={openSections.has('Tags')} onToggle={() => toggleSection('Tags')}>
             <div className="flex flex-wrap gap-2">{TAG_OPTIONS.map(t => <FilterButton key={t} name={t} isSelected={filters.tags.includes(t)} onClick={() => handleMultiSelect('tags', t)} />)}</div>
           </FilterSection>
-          <FilterSection title="Year">
+          <FilterSection title="Year" isOpen={openSections.has('Year')} onToggle={() => toggleSection('Year')}>
             <div className="flex flex-wrap gap-2">{YEAR_OPTIONS.map(y => <FilterButton key={y} name={y} isSelected={filters.years.includes(y)} onClick={() => handleMultiSelect('years', y)} />)}</div>
           </FilterSection>
-          <FilterSection title="Language">
+          <FilterSection title="Language" isOpen={openSections.has('Language')} onToggle={() => toggleSection('Language')}>
             <div className="flex flex-wrap gap-2">{LANGUAGE_OPTIONS.map(l => <FilterButton key={l} name={l} isSelected={filters.languages.includes(l)} onClick={() => handleMultiSelect('languages', l)} />)}</div>
           </FilterSection>
-          <FilterSection title="Studio">
+          <FilterSection title="Studio" isOpen={openSections.has('Studio')} onToggle={() => toggleSection('Studio')}>
             <div className="flex flex-wrap gap-2">{STUDIO_OPTIONS.map(s => <FilterButton key={s} name={s} isSelected={filters.studios.includes(s)} onClick={() => handleMultiSelect('studios', s)} />)}</div>
-          </FilterSection>
-          <FilterSection title="Genres">
-            <div className="flex flex-wrap gap-2">{GENRES.map(g => <FilterButton key={g} name={g} isSelected={filters.genres.includes(g)} onClick={() => handleMultiSelect('genres', g)} />)}</div>
           </FilterSection>
         </div>
 

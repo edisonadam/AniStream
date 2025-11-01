@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import AnimeCard from './AnimeCard';
 import type { Anime, Filter } from '../types';
 import AnimeCardSkeleton from './AnimeCardSkeleton';
+import { SearchIcon } from './icons/Icons';
 
 interface AnimeGridProps {
   onAnimeSelect: (anime: Anime) => void;
@@ -21,7 +22,8 @@ const ANIME_PAGE_SIZE = 25; // As defined in App.tsx fetch logic
 const AnimeGrid: React.FC<AnimeGridProps> = ({ onAnimeSelect, animeList, title, filters, isLoading, onLoadMore, hasMore, isLoadingMore, sortValue, onSortChange }) => {
   const hasActiveFilters = Object.values(filters).some(v => {
     if (Array.isArray(v)) return v.length > 0;
-    return !!v;
+    if (typeof v === 'string' && v !== 'popularity') return true;
+    return false;
   });
 
   const lastElementRef = useRef<HTMLDivElement>(null);
@@ -130,22 +132,22 @@ const AnimeGrid: React.FC<AnimeGridProps> = ({ onAnimeSelect, animeList, title, 
             )}
         </>
       ) : (
-        <div className="text-center text-[rgb(var(--text-muted))] p-12 text-lg bg-[rgb(var(--surface-2))/0.5] rounded-2xl">
-            <p className="text-2xl mb-2">🎬</p>
+        <div className="text-center text-[rgb(var(--text-muted))] p-12 text-lg bg-[rgb(var(--surface-2))/0.5] rounded-2xl flex flex-col items-center gap-4">
+            <SearchIcon className="w-16 h-16 text-[rgb(var(--text-muted))]/50" />
             {filters.query ? (
                  <>
-                    <p className="font-semibold text-[rgb(var(--text-primary))]">No results found for "{filters.query}"</p>
-                    <p>Try a different search or clear some filters.</p>
+                    <p className="font-semibold text-lg text-[rgb(var(--text-primary))]">No results found for "{filters.query}"</p>
+                    <p>Try a different search term or adjust your filters.</p>
                 </>
             ) : hasActiveFilters ? (
                  <>
-                    <p className="font-semibold text-[rgb(var(--text-primary))]">No anime found matching your filters.</p>
-                    <p>Try adjusting or clearing your filters!</p>
+                    <p className="font-semibold text-lg text-[rgb(var(--text-primary))]">No anime found matching your filters.</p>
+                    <p>Try adjusting or clearing them for more results!</p>
                  </>
             ) : (
                 <>
-                    <p className="font-semibold text-[rgb(var(--text-primary))]">No anime to display.</p>
-                    <p>There might be an issue fetching data. Please try again later.</p>
+                    <p className="font-semibold text-lg text-[rgb(var(--text-primary))]">Nothing to see here... yet!</p>
+                    <p>There might be an issue fetching data, or the library is empty.</p>
                 </>
             )}
         </div>
