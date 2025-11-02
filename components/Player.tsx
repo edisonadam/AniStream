@@ -49,9 +49,9 @@ const EmbedModal: React.FC<{ animeId: number; onClose: () => void; }> = ({ anime
     const [theme, setTheme] = useState('dark');
     const [copied, setCopied] = useState(false);
 
-    const baseUrl = window.location.origin + window.location.pathname;
+    const baseUrl = window.location.origin + '/';
     const embedUrl = `${baseUrl}?embed=true&animeId=${animeId}&autoplay=${autoplay ? 1 : 0}&mute=${mute ? 1 : 0}&theme=${theme}`;
-    const iframeCode = `<iframe src="${embedUrl}" width="100%" height="100%" style="aspect-ratio: 16 / 9;" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>`;
+    const iframeCode = `<iframe src="${embedUrl}" width="100%" height="100%" style="aspect-ratio: 16 / 9;" frameborder="0" allow="autoplay; fullscreen" allowfullscreen referrerpolicy="no-referrer"></iframe>`;
 
     const handleCopy = () => {
         navigator.clipboard.writeText(iframeCode).then(() => {
@@ -729,7 +729,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
   
   const embedUrl = useMemo(() => {
     if (!playerAnime) return '';
-    const baseUrl = window.location.origin + window.location.pathname;
+    const baseUrl = window.location.origin + '/';
     return `${baseUrl}?embed=true&animeId=${playerAnime.id}&autoplay=1&theme=${settings.theme}`;
   }, [playerAnime, settings.theme]);
 
@@ -1078,6 +1078,7 @@ const AnimeInfoSection: React.FC<{anime: Anime, onTrailerClick: () => void}> = (
                             className="w-full h-full"
                             allow="autoplay; fullscreen"
                             allowFullScreen
+                            referrerPolicy="no-referrer"
                         ></iframe>
                     ) : (
                         <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 bg-black">
@@ -1195,6 +1196,7 @@ const AnimeInfoSection: React.FC<{anime: Anime, onTrailerClick: () => void}> = (
                                 className="w-full h-full"
                                 allow="autoplay; fullscreen"
                                 allowFullScreen
+                                referrerPolicy="no-referrer"
                             ></iframe>
                         ) : (
                             <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 bg-black">
