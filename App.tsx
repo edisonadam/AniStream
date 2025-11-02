@@ -757,6 +757,7 @@ const App: React.FC = () => {
     const showLoginPrompt = page === 'home' && !hasActiveFilters && !isLoggedIn;
 
     const sidebarRoot = document.getElementById('sidebar-root');
+    const gotoTopRoot = document.getElementById('goto-top-root');
 
     return (
         <div 
@@ -811,7 +812,10 @@ const App: React.FC = () => {
                 </div>
             </div>
             
-            <GoToTopButton />
+            {gotoTopRoot && ReactDOM.createPortal(
+                <GoToTopButton />,
+                gotoTopRoot
+            )}
         </div>
     );
 };

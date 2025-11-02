@@ -926,8 +926,8 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
 
   const TrailerList = () => (
       <>
-        {isLoadingTrailers ? <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:-mx-8 animate-pulse"><div className="flex-shrink-0 w-80 h-44 bg-[rgb(var(--surface-3))] rounded-xl"></div><div className="flex-shrink-0 w-80 h-44 bg-[rgb(var(--surface-3))] rounded-xl hidden sm:block"></div></div>
-        : trailers.length > 0 ? <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:-mx-8" style={{ scrollbarWidth: 'thin' }}>{trailers.map(t => <div key={t.key} className="flex-shrink-0 w-80"><div className="aspect-video bg-black rounded-xl overflow-hidden shadow-lg"><iframe src={`https://www.youtube.com/embed/${t.key}`} title={t.name} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen className="w-full h-full"></iframe></div></div>)}</div>
+        {isLoadingTrailers ? <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 animate-pulse"><div className="flex-shrink-0 w-80 h-44 bg-[rgb(var(--surface-3))] rounded-xl"></div><div className="flex-shrink-0 w-80 h-44 bg-[rgb(var(--surface-3))] rounded-xl hidden sm:block"></div></div>
+        : trailers.length > 0 ? <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8" style={{ scrollbarWidth: 'thin' }}>{trailers.map(t => <div key={t.key} className="flex-shrink-0 w-80"><div className="aspect-video bg-black rounded-xl overflow-hidden shadow-lg"><iframe src={`https://www.youtube.com/embed/${t.key}`} title={t.name} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen className="w-full h-full"></iframe></div></div>)}</div>
         : <p className="text-[rgb(var(--text-muted))]">No trailers available for this {mediaIds.mediaType === 'tv' ? 'season' : 'title'}.</p>}
       </>
   );
@@ -1230,9 +1230,9 @@ const AnimeInfoSection: React.FC<{anime: Anime, onTrailerClick: () => void}> = (
                                 </select>
                             </div>
                             <div className="flex items-center bg-[rgb(var(--surface-3))] rounded-full p-1">
-                                {(['sub', 'dub'] as (DefaultLanguage | 'dub')[]).map(lang => (
+                                {(['sub', 'dub', 'ssub'] as DefaultLanguage[]).map(lang => (
                                     <button key={lang} onClick={() => updateSettings({ defaultLanguage: lang })} className={`px-4 py-1.5 text-sm uppercase rounded-full transition-all ${settings.defaultLanguage === lang ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>
-                                        {lang}
+                                        {lang === 'ssub' ? 'S-Sub' : lang}
                                     </button>
                                 ))}
                             </div>
