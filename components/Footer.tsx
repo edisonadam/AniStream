@@ -23,6 +23,9 @@ const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
       <p className="text-gray-500 text-xs">
         © {new Date().getFullYear()} website.com | Website Made by Miruro no Kuon v1.1.2
       </p>
+      <div className="mt-4">
+         <button onClick={() => onNavigate('og-image-generator')} className="text-xs text-gray-600 hover:text-[rgb(var(--color-primary-accent))] transition-colors">[ Dev Tools ]</button>
+      </div>
     </footer>
   );
 };

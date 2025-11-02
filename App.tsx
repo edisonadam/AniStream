@@ -40,6 +40,7 @@ import RulesPage from './components/RulesPage';
 import DonationPage from './components/DonationPage';
 import AlphabeticalBrowse from './components/AlphabeticalBrowse';
 import WatchTogetherPage from './components/WatchTogetherPage';
+import OGImageGenerator from './components/OGImageGenerator';
 
 const ANIME_PAGE_SIZE = 25;
 
@@ -267,7 +268,7 @@ const App: React.FC = () => {
 
 
         const pageParam = urlParams.get('page') as Page;
-        const validPages: Page[] = ['trending', 'schedule', 'history', 'news', 'manga', 'community', 'beginners', 'comment-meter', 'magazines', 'currency', 'about', 'rules', 'donation'];
+        const validPages: Page[] = ['trending', 'schedule', 'history', 'news', 'manga', 'community', 'beginners', 'comment-meter', 'magazines', 'currency', 'about', 'rules', 'donation', 'og-image-generator'];
 
         if (pageParam && validPages.includes(pageParam)) {
             navigateTo(pageParam);
@@ -695,6 +696,7 @@ const App: React.FC = () => {
             case 'about': return <AboutPage onGoBack={goHome} />;
             case 'rules': return <RulesPage onGoBack={goHome} />;
             case 'donation': return <DonationPage onGoBack={goHome} />;
+            case 'og-image-generator': return <OGImageGenerator onGoBack={goHome} />;
             case 'search':
                 return (
                     <AnimeGrid
