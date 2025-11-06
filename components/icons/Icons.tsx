@@ -33,6 +33,7 @@ export const UserPlusIcon: React.FC<IconProps> = createIcon(<><path d="M16 21v-2
 export const MessageCircleIcon: React.FC<IconProps> = createIcon(<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />);
 export const CloseIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />);
 export const PlusIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />);
+export const PlusCircleIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />);
 export const CheckIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />);
 export const DotsVerticalIcon: React.FC<IconProps> = createSolidIcon(<path d="M10 6a2 2 0 11-4 0 2 2 0 014 0zM10 12a2 2 0 11-4 0 2 2 0 014 0zM10 18a2 2 0 11-4 0 2 2 0 014 0z" />);
 export const StarIcon: React.FC<IconProps> = ({ className }) => (
@@ -40,6 +41,7 @@ export const StarIcon: React.FC<IconProps> = ({ className }) => (
       <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
     </svg>
 );
+export const FilmIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />);
 export const ChevronLeftIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />);
 export const ChevronRightIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />);
 export const ChevronDownIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />);
@@ -90,6 +92,7 @@ export const ExclamationTriangleIcon: React.FC<IconProps> = createIcon(<path str
 export const ExternalLinkIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />);
 export const ShieldCheckIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 20.417l5.611 1.573a2.986 2.986 0 002.778 0L17.389 20.42a12.02 12.02 0 00-4.389-14.416z" />);
 export const HeartIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />);
+export const HeartIconSolid: React.FC<IconProps> = createSolidIcon(<path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />);
 export const ClipboardIcon: React.FC<IconProps> = createIcon(<>
     <path strokeLinecap="round" strokeLinejoin="round" d="M15.5 2H8.6c-.4 0-.8.2-1.1.5L3.5 6.5c-.3.3-.5.7-.5 1.1V20c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
     <path strokeLinecap="round" strokeLinejoin="round" d="M3.5 7h5V2" />
@@ -109,3 +112,8 @@ export const NewspaperIcon: React.FC<IconProps> = createIcon(<>
 export const CodeIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />);
 
 export const LevelUpIcon: React.FC<IconProps> = createIcon(<path strokeLinejoin="round" strokeLinecap="round" d="M21 15c0 1.1-.9 2-2 2H7.5l-3.5 3.5V5c0-1.1.9-2 2-2h13c1.1 0 2 .9 2 2v10z" />);
+export const PictureInPictureIcon: React.FC<IconProps> = createIcon(<>
+    <path d="M19 13v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4" />
+    <rect x="12" y="3" width="9" height="7" rx="2" />
+</>);
+export const ArrowTopRightOnSquareIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />);

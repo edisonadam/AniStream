@@ -22,6 +22,14 @@ interface AuthModalProps {
   reason?: string | null;
 }
 
+const AniListIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg className={`w-5 h-5 ${className || ''}`} viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M22.3802 34.2254C21.432 35.1736 20.01 35.1736 19.0618 34.2254L10.3752 25.5388C8.95325 24.1169 9.50853 21.7239 11.3235 21.1686L34.2254 14.1105C35.1736 13.8279 36.1721 14.8264 35.8895 15.7746L28.8314 38.6765C28.2761 40.4915 25.8831 41.0468 24.4612 39.6248L22.3802 34.2254Z" fill="#3DB4F2"/>
+        <path d="M28.8314 15.7746L22.3802 22.2258L27.7797 24.3068L34.2254 20.913L28.8314 15.7746Z" fill="#2A3240"/>
+    </svg>
+);
+
+
 const AuthModal: React.FC<AuthModalProps> = ({ onClose, reason }) => {
   const [activeTab, setActiveTab] = useState<'login' | 'signup'>('login');
   const [view, setView] = useState<'main' | 'phone' | 'reset_password'>('main');
@@ -168,6 +176,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, reason }) => {
         setIsLoading(false);
     }
   };
+
+  const handleAnilistLogin = () => {
+    alert("Login with AniList is coming soon!");
+  };
   
   const handleSendCode = async (e: React.FormEvent) => {
       e.preventDefault();
@@ -288,6 +300,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, reason }) => {
         </div>
 
         <div className="space-y-3">
+            <button onClick={handleAnilistLogin} disabled={isLoading} className="w-full flex items-center justify-center gap-3 py-3 bg-white/5 text-[rgb(var(--text-secondary))] rounded-2xl font-semibold hover:bg-white/10 transition-colors disabled:opacity-50">
+                <AniListIcon /> Continue with AniList
+            </button>
             <button onClick={handleGoogleSignIn} disabled={isLoading} className="w-full flex items-center justify-center gap-3 py-3 bg-white/5 text-[rgb(var(--text-secondary))] rounded-2xl font-semibold hover:bg-white/10 transition-colors disabled:opacity-50">
                 <GoogleIcon /> Continue with Google
             </button>
@@ -364,7 +379,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, reason }) => {
         
         {renderContent()}
         
-        {error && <p className="text-[rgb(var(--color-danger))] text-sm text-center mt-4">{error}</p>}
+        {error && <p className="text-[rgb(var(--text-danger))] text-sm text-center mt-4">{error}</p>}
         
         <div ref={recaptchaContainerRef}></div>
       </div>

@@ -6,6 +6,10 @@ import { WatchlistProvider } from './contexts/WatchlistContext';
 import { SettingsProvider } from './contexts/SettingsContext';
 import { WatchProgressProvider } from './contexts/WatchProgressContext';
 import { ProfileDataProvider } from './contexts/ProfileDataContext';
+import { ShortcutsProvider } from './contexts/ShortcutsContext';
+import { FloatingPlayerProvider } from './contexts/FloatingPlayerContext';
+import { FavoritesProvider } from './contexts/FavoritesContext';
+import { ToastProvider } from './contexts/ToastContext';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -18,17 +22,25 @@ const root = ReactDOM.createRoot(rootElement);
 // This is a common pattern to avoid having a provider depend on a child component.
 const AppWrapper = () => {
   return (
-    <SettingsProvider>
-      <AuthProvider>
-        <WatchlistProvider>
-          <WatchProgressProvider>
-            <ProfileDataProvider>
-              <App />
-            </ProfileDataProvider>
-          </WatchProgressProvider>
-        </WatchlistProvider>
-      </AuthProvider>
-    </SettingsProvider>
+    <ToastProvider>
+      <SettingsProvider>
+        <AuthProvider>
+          <WatchlistProvider>
+            <FavoritesProvider>
+              <WatchProgressProvider>
+                <ProfileDataProvider>
+                  <ShortcutsProvider>
+                    <FloatingPlayerProvider>
+                      <App />
+                    </FloatingPlayerProvider>
+                  </ShortcutsProvider>
+                </ProfileDataProvider>
+              </WatchProgressProvider>
+            </FavoritesProvider>
+          </WatchlistProvider>
+        </AuthProvider>
+      </SettingsProvider>
+    </ToastProvider>
   );
 };
 

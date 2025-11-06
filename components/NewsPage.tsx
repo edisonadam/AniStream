@@ -8,9 +8,9 @@ interface NewsPageProps {
 }
 
 const updateLogs = [
-  { version: '1.1.2', date: '2024-07-28', changes: ['Added alphabetical browse feature to home page.', 'Integrated AniTokens display in user profile dropdown.', 'Improved player loading sequence and error handling.', 'Fixed minor CSS bugs on mobile view.'] },
-  { version: '1.1.1', date: '2024-07-25', changes: ['Launched the Community Hub with user posts and clubs directory.', 'User detail modal implemented to view profiles from comments.', 'Enhanced touch-hover effects for better mobile interaction.'] },
-  { version: '1.1.0', date: '2024-07-22', changes: ['Major UI overhaul: new "Liquid Glass" design.', 'Added light mode and multiple color presets.', 'Introduced AniTokens and Comment Meter for community engagement.'] }
+  { version: '1.1.2', date: '2025-07-28', changes: ['Added alphabetical browse feature to home page.', 'Integrated AniTokens display in user profile dropdown.', 'Improved player loading sequence and error handling.', 'Fixed minor CSS bugs on mobile view.'] },
+  { version: '1.1.1', date: '2025-07-25', changes: ['Launched the Community Hub with user posts and clubs directory.', 'User detail modal implemented to view profiles from comments.', 'Enhanced touch-hover effects for better mobile interaction.'] },
+  { version: '1.1.0', date: '2025-07-22', changes: ['Major UI overhaul: new "Liquid Glass" design.', 'Added light mode and multiple color presets.', 'Introduced AniTokens and Comment Meter for community engagement.'] }
 ];
 
 
@@ -59,6 +59,8 @@ const NewsPage: React.FC<NewsPageProps> = ({ onAnimeSelect }) => {
         runtime: null,
         avgEpisodeDuration: null,
         isAdult: false,
+        seasons_count: null,
+        episodes_count: null,
     };
     onAnimeSelect(anime);
   };

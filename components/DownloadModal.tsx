@@ -14,6 +14,17 @@ type Quality = '1080p' | '720p' | '480p';
 
 const EPISODES_PER_PAGE = 25;
 
+const subtitleOptions = [
+    { value: 'eng', label: 'English' },
+    { value: 'spa', label: 'Spanish' },
+    { value: 'por', label: 'Portuguese' },
+    { value: 'ara', label: 'Arabic' },
+    { value: 'fre', label: 'French' },
+    { value: 'ger', label: 'German' },
+    { value: 'ita', label: 'Italian' },
+    { value: 'rus', label: 'Russian' },
+];
+
 const formatSize = (bytes: number): string => {
     if (bytes === 0) return '0 B';
     if (bytes > 1e9) return (bytes / 1e9).toFixed(2) + " GB";
@@ -41,6 +52,7 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ anime, episodes, season, 
 
   const [selectedEpisodes, setSelectedEpisodes] = useState<Set<number>>(new Set());
   const [selectedQuality, setSelectedQuality] = useState<Quality>('720p');
+  const [selectedSubtitle, setSelectedSubtitle] = useState<string>('eng');
   const [isZipping, setIsZipping] = useState(false);
   const [zipProgress, setZipProgress] = useState(0);
   const [zipStatus, setZipStatus] = useState('');
@@ -145,7 +157,7 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ anime, episodes, season, 
         if (!qualityInfo) {
             throw new Error(`Quality ${selectedQuality} not available.`);
         }
-        const filename = `${anime.title.replace(/[^\w\s-]/g, '').replace(/ /g, '_')}_S${String(season).padStart(2, '0')}E${String(episode.episode_number).padStart(3, '0')}_[${selectedQuality}].mp4`;
+        const filename = `${anime.title.replace(/[^\w\s-]/g, '').replace(/ /g, '_')}_S${String(season).padStart(2, '0')}E${String(episode.episode_number).padStart(3, '0')}_[${selectedQuality}]_[${selectedSubtitle}].mp4`;
 
         // Simulate download with progress
         const downloadDuration = 1500 + Math.random() * 1500; // 1.5s to 3s
@@ -217,11 +229,11 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ anime, episodes, season, 
     setZipProgress(100);
     setZipStatus('Zip created! Your download will start shortly.');
 
-    const filename = `${anime.title.replace(/[^\w\s-]/g, '').replace(/ /g, '_')}_S${String(season).padStart(2, '0')}_[${selectedQuality}]_${selectedEpisodes.size}_episodes.zip`;
+    const filename = `${anime.title.replace(/[^\w\s-]/g, '').replace(/ /g, '_')}_S${String(season).padStart(2, '0')}_[${selectedQuality}]_[${selectedSubtitle}]_${selectedEpisodes.size}_episodes.zip`;
     const mockContent = `This is a mock ZIP file containing ${selectedEpisodes.size} episodes.\n\n` +
       Array.from(selectedEpisodes).map(epNum => {
         const episode = sortedEpisodes.find(e => e.episode_number === epNum);
-        const epFilename = `${anime.title.replace(/[^\w\s-]/g, '').replace(/ /g, '_')}_S${String(season).padStart(2, '0')}E${String(epNum).padStart(3, '0')}_[${selectedQuality}].mp4`;
+        const epFilename = `${anime.title.replace(/[^\w\s-]/g, '').replace(/ /g, '_')}_S${String(season).padStart(2, '0')}E${String(epNum).padStart(3, '0')}_[${selectedQuality}]_[${selectedSubtitle}].mp4`;
         return `- ${epFilename} (URL: ${episode?.qualities?.[selectedQuality]?.url})`;
       }).join('\n');
     const blob = new Blob([mockContent], { type: 'application/zip' });
@@ -313,7 +325,7 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ anime, episodes, season, 
         <div className="flex-1 flex items-center justify-center p-12 text-center text-[rgb(var(--color-danger))]">{dataError}</div>
       ) : downloadableEpisodes.length > 0 ? (
         <>
-        <div className="flex-shrink-0 p-3 flex justify-between items-center border-b border-white/10">
+        <div className="flex-shrink-0 p-3 flex flex-wrap justify-between items-center border-b border-white/10 gap-2">
             <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
                     <input type="checkbox" checked={isAllSelected} onChange={handleSelectAll} id="select-all-episodes" className="h-5 w-5 rounded bg-[rgb(var(--surface-4))] border-[rgb(var(--border-color))] text-[rgb(var(--color-primary))] focus:ring-[rgb(var(--color-primary))]" />
@@ -326,7 +338,12 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ anime, episodes, season, 
                     {isPageSelected ? 'Deselect Page' : 'Select Page'}
                 </button>
             </div>
-             <select value={selectedQuality} onChange={e => setSelectedQuality(e.target.value as Quality)} className="bg-[rgba(0,0,0,0.2)] border border-white/10 rounded-lg py-1.5 px-3 text-sm text-[rgb(var(--text-primary))] focus:ring-2 focus:ring-[rgb(var(--border-focus))]"><option value="1080p">1080p</option><option value="720p">720p</option><option value="480p">480p</option></select>
+            <div className="flex items-center gap-2">
+                <select value={selectedQuality} onChange={e => setSelectedQuality(e.target.value as Quality)} className="bg-[rgba(0,0,0,0.2)] border border-white/10 rounded-lg py-1.5 px-3 text-sm text-[rgb(var(--text-primary))] focus:ring-2 focus:ring-[rgb(var(--border-focus))]"><option value="1080p">1080p</option><option value="720p">720p</option><option value="480p">480p</option></select>
+                <select value={selectedSubtitle} onChange={e => setSelectedSubtitle(e.target.value)} className="bg-[rgba(0,0,0,0.2)] border border-white/10 rounded-lg py-1.5 px-3 text-sm text-[rgb(var(--text-primary))] focus:ring-2 focus:ring-[rgb(var(--border-focus))]">
+                    {subtitleOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                </select>
+            </div>
         </div>
         
         <div className="flex-1 overflow-y-auto p-3 episode-list">

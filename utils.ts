@@ -114,3 +114,32 @@ export const formatRelativeTime = (timestamp: number): string => {
   }
   return "Just now";
 };
+
+/**
+ * Converts a partial anime object into a full Anime object with default values.
+ * @param partial The partial anime object, must have id, title, and thumbnail.
+ * @returns A full Anime object.
+ */
+export const mapPartialToFullAnime = (partial: Partial<Anime> & { id: number; title: string; thumbnail: string }): Anime => {
+    return {
+        title_english: partial.title_english || partial.title,
+        title_japanese: partial.title_japanese || '',
+        bannerImage: partial.bannerImage || partial.thumbnail,
+        synopsis: partial.synopsis || '',
+        genres: partial.genres || [],
+        releaseYear: partial.releaseYear || null,
+        status: partial.status || 'Completed',
+        totalEpisodes: partial.totalEpisodes || null,
+        episodes_count: partial.episodes_count || null,
+        seasons_count: partial.seasons_count || null,
+        rating: partial.rating || null,
+        type: partial.type || null,
+        studio: partial.studio || '',
+        hasSub: partial.hasSub ?? true,
+        hasDub: partial.hasDub ?? false,
+        runtime: partial.runtime || null,
+        avgEpisodeDuration: partial.avgEpisodeDuration || null,
+        isAdult: partial.isAdult ?? false,
+        ...partial,
+    };
+};

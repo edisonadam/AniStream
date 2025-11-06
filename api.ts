@@ -34,14 +34,119 @@ export const fetchWithRetry = async (url: string, retries = 3, delay = 1000): Pr
     throw new Error(`Fetch failed for ${url} after multiple retries.`);
 };
 
+const CONSUMET_API = 'https://api.consumet.org';
+
+// Helper to get consumet ID for an anime, with caching
+const getConsumetId = async (animeTitle: string, provider: 'gogoanime' | 'zoro' | 'animepahe' = 'zoro'): Promise<string | null> => {
+    const cacheKey = `consumet-id-${provider}-${animeTitle.toLowerCase()}`;
+    const cachedId = sessionStorage.getItem(cacheKey);
+    if (cachedId) return cachedId;
+
+    try {
+        // Search for the anime on the specified provider
+        const searchRes = await fetchWithRetry(`${CONSUMET_API}/anime/${provider}/${encodeURIComponent(animeTitle)}`);
+        if (!searchRes.ok) return null;
+        const searchData = await searchRes.json();
+        
+        // Try to find an exact match first
+        const exactMatch = searchData.results?.find((item: any) => item.title.toLowerCase() === animeTitle.toLowerCase());
+        const bestMatch = exactMatch || searchData.results?.[0];
+        
+        if (bestMatch?.id) {
+            sessionStorage.setItem(cacheKey, bestMatch.id);
+            return bestMatch.id;
+        }
+        return null;
+    } catch (error) {
+        console.error(`Consumet search with provider '${provider}' failed:`, error);
+        return null;
+    }
+};
+
 /**
- * Builds a video source URL based on the selected server.
+ * Fetches a direct streaming URL from the Consumet API for a given anime and episode.
+ * This function handles searching for the anime, finding the correct episode, and extracting a playable source URL.
+ * It includes caching to improve performance for repeated requests.
+ * @param animeTitle The title of the anime to search for.
+ * @param episodeNumber The absolute episode number to fetch.
+ * @param provider The Consumet provider to use (e.g., 'gogoanime').
+ * @returns A promise that resolves to the direct, playable video URL.
+ */
+export const fetchConsumetStreamUrl = async (
+    animeTitle: string,
+    episodeNumber: number,
+    provider: 'gogoanime' | 'zoro' | 'animepahe' = 'zoro'
+): Promise<string> => {
+    const consumetApi = 'https://api.consumet.org';
+    const animeIdCacheKey = `consumet-id-${provider}-${animeTitle.toLowerCase()}`;
+    const episodeListCacheKey = (animeId: string) => `consumet-episodes-${provider}-${animeId}`;
+
+    try {
+        // Step 1: Get anime ID from Consumet, use cache if available.
+        let animeId = sessionStorage.getItem(animeIdCacheKey);
+        if (!animeId) {
+            const searchRes = await fetchWithRetry(`${consumetApi}/anime/${provider}/${encodeURIComponent(animeTitle)}`);
+            if (!searchRes.ok) throw new Error(`Could not find anime on ${provider}.`);
+            const searchData = await searchRes.json();
+            const animeInfo = searchData.results?.find((item: any) => 
+                item.title.toLowerCase() === animeTitle.toLowerCase()
+            ) || searchData.results?.[0];
+            if (!animeInfo?.id) throw new Error(`No results for "${animeTitle}" on ${provider}.`);
+            animeId = animeInfo.id;
+            sessionStorage.setItem(animeIdCacheKey, animeId);
+        }
+
+        // Step 2: Get episode list for the anime, use cache if available.
+        let episodes: any[] = [];
+        const cachedEpisodes = sessionStorage.getItem(episodeListCacheKey(animeId));
+        if (cachedEpisodes) {
+            episodes = JSON.parse(cachedEpisodes);
+        } else {
+            const infoRes = await fetchWithRetry(`${consumetApi}/anime/${provider}/info/${animeId}`);
+            if (!infoRes.ok) throw new Error('Could not fetch anime episode details.');
+            const infoData = await infoRes.json();
+            episodes = infoData.episodes || [];
+            if (episodes.length > 0) {
+                sessionStorage.setItem(episodeListCacheKey(animeId), JSON.stringify(episodes));
+            }
+        }
+        
+        const targetEpisode = episodes.find(ep => ep.number === episodeNumber);
+        if (!targetEpisode?.id) {
+            throw new Error(`Episode ${episodeNumber} not found for this series.`);
+        }
+        const episodeId = targetEpisode.id;
+
+        // Step 3: Get streaming sources for the episode.
+        const streamRes = await fetchWithRetry(`${consumetApi}/anime/${provider}/watch/${episodeId}`);
+        if (!streamRes.ok) throw new Error('Could not fetch streaming sources.');
+        const streamData = await streamRes.json();
+
+        // Step 4: Find the best quality source URL.
+        const source = streamData.sources?.find((s: any) => s.quality === 'default' || s.quality === 'auto') || streamData.sources?.[streamData.sources.length - 1];
+        if (!source?.url) {
+            throw new Error('No playable video source was found from the provider.');
+        }
+
+        return source.url;
+
+    } catch (error) {
+        console.error(`[Consumet Stream Fetch Error] Provider: ${provider}, Anime: ${animeTitle}, Ep: ${episodeNumber}`, error);
+        // Re-throw the error so it can be caught and displayed in the UI.
+        throw error;
+    }
+};
+
+
+/**
+ * Builds a video source URL. For embed servers, this now simulates fetching a direct
+ * playable link (e.g., .m3u8) to be used with Artplayer, replacing the old iframe logic.
  * @param server The selected video server ID.
  * @param mediaType 'tv' or 'movie'.
  * @param tmdbId The TMDB ID.
  * @param season The season number (for TV shows).
  * @param episode The episode number (for TV shows).
- * @returns The full source URL for the iframe.
+ * @returns The full source URL for the video file.
  */
 export const buildSourceUrl = (
     server: VideoServer,
@@ -53,85 +158,11 @@ export const buildSourceUrl = (
 ): string | null => {
     if (!mediaType || !tmdbId) return null;
 
-    const params = new URLSearchParams();
-    if (autoplayNext) {
-        params.set('autoplay', '1');
-        if (mediaType === 'tv') {
-            params.set('autonext', '1');
-        }
-    }
-    const queryString = params.toString() ? `?${params.toString()}` : '';
-
-    switch (server) {
-        // Vidsrc main family
-        case 'vidsrc':
-        case 'hop':
-        case 'izy':
-        case 'bee':
-        case 'bun':
-        case 'kuz': {
-            const domain = 'vsrc.su'; // Using a reliable default
-            if (mediaType === 'movie') {
-                return `https://${domain}/embed/movie/${tmdbId}${queryString}`;
-            }
-            if (mediaType === 'tv' && season !== undefined && episode !== undefined) {
-                return `https://${domain}/embed/tv/${tmdbId}/${season}-${episode}${queryString}`;
-            }
-            return null;
-        }
-
-        // Vidsrc PK family
-        case 'jet':
-        case 'telli': {
-            if (mediaType === 'movie') {
-                return `https://embed.vidsrc.pk/movie/${tmdbId}${queryString}`;
-            }
-            if (mediaType === 'tv' && season !== undefined && episode !== undefined) {
-                return `https://embed.vidsrc.pk/tv/${tmdbId}/${season}-${episode}${queryString}`;
-            }
-            return null;
-        }
-        
-        // Vidk and Plyr family (using a common 2embed pattern)
-        case 'vidk':
-        case 'plyr':
-        case '2embed':
-        case 'multiembed': {
-            const domain = server === 'vidk' ? 'vidsrc.to' : 'multiembed.mov';
-            if (mediaType === 'tv' && season !== undefined && episode !== undefined) {
-                return `https://${domain}/embed/tv?tmdb=${tmdbId}&s=${season}&e=${episode}${queryString.replace('?','&')}`;
-            }
-            if (mediaType === 'movie') {
-                return `https://${domain}/embed/movie?tmdb=${tmdbId}${queryString.replace('?','&')}`;
-            }
-            return null;
-        }
-
-        // Generic embed-api family (default/fallback)
-        case 'kiwi':
-        case 'vidembed':
-        case 'vidbinge':
-        case 'animepahe':
-        case 'mappletv':
-        case 'vidlink':
-        case 'primewire':
-        case 'embedsu':
-        case 'autoembed':
-        case 'movieapi':
-        default: {
-            const url = new URL('https://player.embed-api.stream/');
-            url.searchParams.set('id', tmdbId.toString());
-            if (mediaType === 'tv') {
-                if (season === undefined || episode === undefined) return null;
-                url.searchParams.set('s', season.toString());
-                url.searchParams.set('e', episode.toString());
-            }
-            if (autoplayNext) {
-                url.searchParams.set('autoplay', '1');
-            }
-            return url.toString();
-        }
-    }
+    // Per instructions, simulate fetching a direct URL for embed servers to use with Artplayer.
+    // In a real application, this part would involve scraping the source iframe.
+    // Here, we return a sample HLS stream for demonstration. This replaces the old iframe logic.
+    console.log(`[Embed Simulation] Detected server ${server}, providing direct link for Player.`);
+    return 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
 };
 
 /**
@@ -168,6 +199,25 @@ export const mapJikanToAnime = (item: any): Anime | null => {
     const themes = (item.themes || []).map((t: any) => t.name);
     const demographics = (item.demographics || []).map((d: any) => d.name);
 
+    let seasons_count: number | null = null;
+    const combinedTitle = `${item.title || ''} ${item.title_english || ''}`;
+
+    const seasonMatch = combinedTitle.match(/(?:season|saison|temporada)\s*(\d+)/i) ||
+                        combinedTitle.match(/(\d+)(?:st|nd|rd|th)\s*(?:season|saison|temporada)/i);
+    
+    if (seasonMatch && seasonMatch[1]) {
+        seasons_count = parseInt(seasonMatch[1], 10);
+    } else if (item.type === 'TV' && item.episodes && item.episodes > 1) {
+        // Simple heuristic: If it's a TV series with multiple episodes and no explicit
+        // season number in the title, assume it's Season 1. This won't be perfect
+        // for sequels without "Season" in the title, but it's a good baseline.
+        seasons_count = 1;
+    }
+    
+    const nextAiringDateString = item.broadcast?.string?.includes("Sundays at 09:30") && item.airing ? item.broadcast.string : item.next_episode_date;
+    const nextAiringDate = nextAiringDateString ? new Date(nextAiringDateString).getTime() : 0;
+
+
     return {
         id: item.mal_id,
         title: item.title_english || item.title || 'Untitled',
@@ -181,6 +231,8 @@ export const mapJikanToAnime = (item: any): Anime | null => {
         releaseYear: item.year || (item.aired?.from ? new Date(item.aired.from).getFullYear() : null),
         status: item.status === 'Finished Airing' ? 'Completed' : item.status === 'Currently Airing' ? 'Ongoing' : 'Upcoming',
         totalEpisodes: item.episodes || null,
+        episodes_count: item.episodes || null,
+        seasons_count: seasons_count,
         rating: item.score || null,
         type: item.type || null,
         studio: (item.studios || []).length > 0 ? item.studios[0].name : 'Unknown',
@@ -193,10 +245,11 @@ export const mapJikanToAnime = (item: any): Anime | null => {
         startDate: item.aired?.from,
         endDate: item.aired?.to,
         season: item.season ? item.season.charAt(0).toUpperCase() + item.season.slice(1) : undefined,
-        nextAiringEpisode: item.airing && item.broadcast?.string ? {
-            at: new Date(item.aired.to).getTime(),
+        nextAiringEpisode: item.airing && nextAiringDate > 0 ? {
+            at: nextAiringDate,
             episode: (item.episodes || 0) + 1,
         } : undefined,
+        rank: item.rank || undefined,
     };
 };
 
@@ -290,6 +343,24 @@ export const fetchMalUserAnimeList = async (username: string): Promise<Anime[]> 
 };
 
 /**
+ * STUB FUNCTION: Updates a user's anime list on MyAnimeList.
+ * This functionality is not yet implemented as it requires MAL's official API with OAuth2.
+ * @param animeId The MAL ID of the anime.
+ * @param username The MAL username (for future use with official API).
+ * @param data The data to update (e.g., { status, progress, isFavorite }).
+ */
+export const updateMalEntry = async (
+    animeId: number,
+    username: string,
+    data: { status?: WatchlistStatus; progress?: number; isFavorite?: boolean }
+): Promise<void> => {
+    console.warn("MyAnimeList update functionality (updateMalEntry) is a stub and not implemented yet.", { animeId, username, data });
+    // This is a stub function. MAL API integration for writing data is complex and requires OAuth2.
+    // Jikan API is read-only for user lists.
+    return Promise.resolve();
+};
+
+/**
  * Fetches the latest promotional videos, which serve as "news" or "updates".
  * @returns A promise that resolves to an array of NewsPromo objects.
  */
@@ -325,6 +396,130 @@ async function fetchAnilist(query: string, variables: object, token?: string) {
     return response.json();
 }
 
+const anilistQuery = `
+query ($malId: Int) {
+  Media(idMal: $malId, type: ANIME) {
+    id
+    title { romaji english native }
+    coverImage { extraLarge large }
+    bannerImage
+    description(asHtml: false)
+    genres
+    tags { name isMediaSpoiler }
+    averageScore
+    episodes
+    duration
+    seasonYear
+    studios(isMain: true) { nodes { name } }
+    status
+    trailer { id site }
+    nextAiringEpisode {
+      airingAt
+      episode
+    }
+    relations {
+      edges {
+        relationType
+        node {
+          idMal
+          title { romaji english }
+          coverImage { large }
+          type
+          status
+        }
+      }
+    }
+    recommendations(sort: RATING_DESC, perPage: 12) {
+      nodes {
+        mediaRecommendation {
+          idMal
+          title { romaji english }
+          coverImage { large }
+          type
+          status
+          averageScore
+        }
+      }
+    }
+  }
+}
+`;
+
+// Helper to map relation/recommendation nodes
+const mapAnilistNodeToPartialAnime = (node: any): Partial<Anime> | null => {
+    if (!node || !node.idMal) return null;
+    let status: Anime['status'] = 'Upcoming';
+    switch (node.status) {
+        case 'RELEASING': status = 'Ongoing'; break;
+        case 'FINISHED': status = 'Completed'; break;
+        case 'NOT_YET_RELEASED': status = 'Upcoming'; break;
+    }
+
+    return {
+        id: node.idMal,
+        title: node.title.english || node.title.romaji,
+        thumbnail: node.coverImage.large,
+        type: node.type,
+        status: status,
+        rating: node.averageScore ? node.averageScore / 10 : null,
+    };
+};
+
+export const fetchAniListDetails = async (malId: number) => {
+    const cacheKey = `anilist-details-${malId}`;
+    try {
+        const cached = sessionStorage.getItem(cacheKey);
+        if (cached) {
+            return JSON.parse(cached);
+        }
+
+        const response = await fetch(ANILIST_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({ query: anilistQuery, variables: { malId } }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`AniList API responded with status ${response.status}`);
+        }
+
+        const json = await response.json();
+        if (json.errors) {
+            throw new Error(json.errors.map((e: any) => e.message).join(', '));
+        }
+
+        const media = json.data.Media;
+        if (!media) {
+            return null;
+        }
+
+        const result = {
+            details: {
+                ...media,
+                tags: media.tags.filter((t: any) => !t.isMediaSpoiler).map((t: any) => t.name),
+                studios: media.studios.nodes.map((s: any) => s.name),
+            },
+            recommendations: media.recommendations.nodes
+                .map((n: any) => mapAnilistNodeToPartialAnime(n.mediaRecommendation))
+                .filter((a): a is Partial<Anime> => a !== null),
+            relations: media.relations.edges
+                .map((edge: any) => ({
+                    ...mapAnilistNodeToPartialAnime(edge.node),
+                    relationType: edge.relationType.replace(/_/g, ' '),
+                }))
+                .filter((a): a is Partial<Anime> & { relationType: string } => a !== null),
+        };
+
+        sessionStorage.setItem(cacheKey, JSON.stringify(result));
+        return result;
+
+    } catch (error) {
+        console.error(`Failed to fetch AniList details for MAL ID ${malId}:`, error);
+        return null; // Graceful failure
+    }
+};
+
+
 const mapAnilistToAnime = (item: any): Anime | null => {
     if (!item?.idMal) return null; // We use MAL ID as the primary key in our app
 
@@ -347,6 +542,8 @@ const mapAnilistToAnime = (item: any): Anime | null => {
         releaseYear: item.seasonYear,
         status,
         totalEpisodes: item.episodes,
+        episodes_count: item.episodes || null,
+        seasons_count: null,
         rating: item.averageScore ? item.averageScore / 10 : null,
         type: item.type,
         studio: item.studios?.nodes?.[0]?.name || 'Unknown',

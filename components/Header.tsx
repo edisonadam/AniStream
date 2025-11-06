@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { HamburgerIcon, SearchIcon, BellIcon, UserIcon, CloseIcon, BookmarkIcon, LogoutIcon, UsersIcon, MessageCircleIcon, LevelUpIcon } from './icons/Icons';
+import { HamburgerIcon, SearchIcon, BellIcon, UserIcon, CloseIcon, BookmarkIcon, LogoutIcon, UsersIcon, MessageCircleIcon, LevelUpIcon, HeartIcon, RefreshCwIcon, SettingsIcon } from './icons/Icons';
 import { useAuth } from '../hooks/useAuth';
-import type { Notification, Anime, Page } from '../types';
+import type { Notification, Anime, Page, NotificationType } from '../types';
 import Logo from './Logo';
 import { useProfileData } from '../hooks/useProfileData';
 import { useSettings } from '../hooks/useSettings';
 import { getDisplayTitle } from '../utils';
+import { formatRelativeTime } from '../utils';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -24,6 +25,20 @@ const NavLink: React.FC<{ page: Page; onNavigate: (page: Page) => void; children
         {children}
     </button>
 );
+
+const NotificationIcon: React.FC<{ type: NotificationType }> = ({ type }) => {
+    switch (type) {
+        case 'watchlist': return <BookmarkIcon className="w-5 h-5 text-blue-400" />;
+        case 'favorites': return <HeartIcon className="w-5 h-5 text-pink-400" />;
+        case 'mal_sync': return <RefreshCwIcon className="w-5 h-5 text-teal-400" />;
+        case 'system': return <SettingsIcon className="w-5 h-5 text-gray-400" />;
+        case 'general': return <BellIcon className="w-5 h-5 text-purple-400" />;
+        case 'reply': return <MessageCircleIcon className="w-5 h-5 text-green-400" />;
+        case 'share': return <UsersIcon className="w-5 h-5 text-cyan-400" />;
+        case 'friend_request': return <UserIcon className="w-5 h-5 text-orange-400" />;
+        default: return <BellIcon className="w-5 h-5 text-gray-400" />;
+    }
+}
 
 const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClick, onShowWatchlist, onNavigate, onGoHome, onNotificationClick, trendingAnime = [], onTrendingAnimeClick = (_) => {} }) => {
   const { isLoggedIn, user, logout } = useAuth();
@@ -65,7 +80,9 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
   }
 
   const handleNotificationItemClick = (notification: Notification) => {
-    onNotificationClick(notification);
+    if (notification.animeId) {
+        onNotificationClick(notification);
+    }
     setIsNotificationOpen(false);
   }
 
@@ -112,26 +129,24 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
                     <BellIcon />
                     {unreadCount > 0 && <span className="absolute top-1 right-1 block h-2.5 w-2.5 rounded-full bg-[rgb(var(--color-primary))] ring-2 ring-[rgb(var(--surface-1))] animate-throb"></span>}
                   </button>
-                  <div className={`origin-top-right absolute right-0 mt-2 w-72 sm:w-96 rounded-2xl shadow-lg shadow-[rgb(var(--shadow-color))/0.3] bg-[rgb(var(--surface-2))] border border-white/10 transition-all duration-300 ease-out transform ${isNotificationOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'}`}>
+                  <div className={`origin-top-right absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl shadow-lg shadow-[rgb(var(--shadow-color))/0.3] bg-[rgb(var(--surface-2))/0.8] backdrop-blur-xl border border-white/10 transition-all duration-300 ease-out transform ${isNotificationOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'}`}>
                       <div className="p-3 flex justify-between items-center font-semibold text-[rgb(var(--text-primary))] border-b border-white/10">
                         <span>Notifications</span>
-                        {notifications.length > 0 && unreadCount > 0 && (
-                            <button onClick={() => { markNotificationsAsRead(); setIsNotificationOpen(false); }} className="text-xs font-semibold text-[rgb(var(--color-primary-accent))] hover:underline">
-                                Mark all as read
-                            </button>
-                        )}
+                        <button onClick={() => { onNavigate('notifications'); setIsNotificationOpen(false); }} className="text-xs font-semibold text-[rgb(var(--color-primary-accent))] hover:underline">
+                            View All →
+                        </button>
                       </div>
                       <div className="py-1 max-h-96 overflow-y-auto">
-                        {notifications.length > 0 ? notifications.map(n => (
+                        {notifications.length > 0 ? notifications.slice(0, 5).map(n => (
                           <button key={n.id} onClick={() => handleNotificationItemClick(n)} className={`block w-full text-left px-4 py-3 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] transition-colors ${!n.read ? 'bg-[rgb(var(--color-primary))/0.1]' : ''}`}>
                             <div className="flex items-start gap-3">
-                                {n.relatedUser && <img loading="lazy" src={n.relatedUser.avatar} alt={n.relatedUser.username} className="w-8 h-8 rounded-full flex-shrink-0"/>}
+                                <div className="flex-shrink-0 pt-0.5"><NotificationIcon type={n.type} /></div>
                                 <div className="flex-1">
                                     <p>
                                         {n.relatedUser && <span className="font-bold text-[rgb(var(--color-primary-accent))]">{n.relatedUser.username} </span>}
                                         {n.text}
                                     </p>
-                                    <p className="text-xs text-[rgb(var(--text-muted))] mt-1">{new Date(n.timestamp).toLocaleString()}</p>
+                                    <p className="text-xs text-[rgb(var(--text-muted))] mt-1">{formatRelativeTime(n.timestamp)}</p>
                                 </div>
                             </div>
                           </button>
@@ -139,6 +154,13 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
                             <p className="text-center p-8 text-sm text-[rgb(var(--text-muted))]">No notifications to display.</p>
                         )}
                       </div>
+                      {notifications.length > 0 && (
+                        <div className="p-2 border-t border-white/10">
+                            <button onClick={() => { markNotificationsAsRead(); }} className="w-full text-center text-xs font-semibold text-[rgb(var(--color-primary-accent))] hover:underline p-2 rounded-lg hover:bg-white/5 transition-colors">
+                                Mark all as read
+                            </button>
+                        </div>
+                      )}
                   </div>
                 </div>
 

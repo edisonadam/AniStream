@@ -3,30 +3,7 @@ import type { Anime, Club, ClubMember, ClubStaff, ClubRelations, MalUrl, ClubPic
 import { ChevronLeftIcon, UsersIcon, CalendarIcon, CloseIcon } from './icons/Icons';
 import AnimeCard from './AnimeCard';
 import { fetchWithRetry } from '../api';
-
-// Helper to map a relation item to a minimal Anime object for selection
-const mapRelationToAnime = (relation: MalUrl): Anime => ({
-    id: relation.mal_id,
-    title: relation.name,
-    thumbnail: relation.images?.jpg.image_url || '',
-    // Fill with default/empty values for other required fields
-    title_english: null,
-    title_japanese: '',
-    bannerImage: relation.images?.jpg.image_url || '',
-    synopsis: '',
-    genres: [],
-    releaseYear: null,
-    status: 'Completed',
-    totalEpisodes: null,
-    rating: null,
-    type: null,
-    studio: '',
-    hasSub: true,
-    hasDub: false,
-    runtime: null,
-    avgEpisodeDuration: null,
-    isAdult: false,
-});
+import { mapPartialToFullAnime } from '../utils';
 
 const MemberCard: React.FC<{ member: ClubMember }> = ({ member }) => (
     <a href={member.url} target="_blank" rel="noopener noreferrer" className="bg-[rgb(var(--surface-3))/0.5] rounded-2xl flex items-center p-3 gap-3 text-left hover:bg-[rgb(var(--surface-3))] transition-colors group">
@@ -150,7 +127,7 @@ const ClubDetailPage: React.FC<ClubDetailPageProps> = ({ club, onGoBack, onSelec
                             <div>
                                 <h3 className="text-xl font-semibold mb-4 text-[rgb(var(--text-primary))]">Related Anime</h3>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
-                                    {relations.anime.map(item => <AnimeCard key={item.mal_id} anime={mapRelationToAnime(item)} onSelect={onSelectAnime} />)}
+                                    {relations.anime.map(item => <AnimeCard key={item.mal_id} anime={mapPartialToFullAnime({ id: item.mal_id, title: item.name, thumbnail: item.images?.jpg.image_url || '' })} onSelect={onSelectAnime} />)}
                                 </div>
                             </div>
                         )}

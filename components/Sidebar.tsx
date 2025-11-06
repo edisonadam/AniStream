@@ -1,7 +1,8 @@
 
+
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import type { Filter, Settings, Page } from '../types';
-import { CloseIcon, UsersIcon, BookOpenIcon, GiftIcon, MoonIcon, SunIcon, HomeIcon, TrendingUpIcon, CalendarIcon, HistoryIcon, InfoIcon, AcademicCapIcon, EyeIcon, EyeOffIcon, MessageCircleIcon, LevelUpIcon, ChevronDownIcon, ClipboardIcon, ShieldCheckIcon, HeartIcon, NewspaperIcon } from './icons/Icons';
+import { CloseIcon, UsersIcon, BookOpenIcon, GiftIcon, MoonIcon, SunIcon, HomeIcon, TrendingUpIcon, CalendarIcon, HistoryIcon, InfoIcon, AcademicCapIcon, EyeIcon, EyeOffIcon, MessageCircleIcon, LevelUpIcon, ChevronDownIcon, ClipboardIcon, ShieldCheckIcon, HeartIcon, NewspaperIcon, StarIcon } from './icons/Icons';
 import Logo from './Logo';
 import { ANIME_TYPES, ANIME_STATUSES, YEAR_OPTIONS, LANGUAGE_OPTIONS, STUDIO_OPTIONS, GENRES, TAG_OPTIONS } from '../constants';
 
@@ -98,12 +99,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   }
 
   const handleSfwToggle = () => {
-    if (settings.restrictAdultContent && !isLoggedIn) {
-        onLoginClick('You must be logged in to view adult content.');
-        onClose();
-    } else {
-        updateSettings({ restrictAdultContent: !settings.restrictAdultContent });
-    }
+    updateSettings({ restrictAdultContent: !settings.restrictAdultContent });
   };
 
   const FilterButton: React.FC<{ name: string; isSelected: boolean; onClick: () => void }> = ({ name, isSelected, onClick }) => (
@@ -183,6 +179,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             <div className="p-4 space-y-2 border-b border-white/10">
               <SideButton icon={<HomeIcon />} label="Home" onClick={handleGoHome} />
               <SideButton icon={<TrendingUpIcon />} label="Trending" onClick={() => handleNavigation('trending')} />
+              <SideButton icon={<StarIcon />} label="Top 100" onClick={() => handleNavigation('top-100')} />
               <SideButton icon={<CalendarIcon />} label="Schedule" onClick={() => handleNavigation('schedule')} />
               <SideButton icon={<HistoryIcon />} label="History" onClick={() => handleNavigation('history')} />
               <SideButton icon={<InfoIcon />} label="Updates & Logs" onClick={() => handleNavigation('news')} />
@@ -204,25 +201,32 @@ const Sidebar: React.FC<SidebarProps> = ({
               <SideButton icon={<HeartIcon />} label="Donation" onClick={() => handleNavigation('donation')} />
             </div>
        
-          <FilterSection title="Genres" isOpen={openSections.has('Genres')} onToggle={() => toggleSection('Genres')} sectionRef={(el) => (sectionRefs.current['Genres'] = el)}>
+          {/* FIX: Use block body for arrow function to prevent returning a value for callback ref */}
+          <FilterSection title="Genres" isOpen={openSections.has('Genres')} onToggle={() => toggleSection('Genres')} sectionRef={(el) => { sectionRefs.current['Genres'] = el; } }>
             <div className="flex flex-wrap gap-2">{GENRES.map(g => <FilterButton key={g} name={g} isSelected={filters.genres.includes(g)} onClick={() => handleMultiSelect('genres', g)} />)}</div>
           </FilterSection>
-          <FilterSection title="Type" isOpen={openSections.has('Type')} onToggle={() => toggleSection('Type')} sectionRef={(el) => (sectionRefs.current['Type'] = el)}>
+          {/* FIX: Use block body for arrow function to prevent returning a value for callback ref */}
+          <FilterSection title="Type" isOpen={openSections.has('Type')} onToggle={() => toggleSection('Type')} sectionRef={(el) => { sectionRefs.current['Type'] = el; } }>
             <div className="flex flex-wrap gap-2">{ANIME_TYPES.map(t => <FilterButton key={t} name={t} isSelected={filters.types.includes(t)} onClick={() => handleMultiSelect('types', t)} />)}</div>
           </FilterSection>
-          <FilterSection title="Status" isOpen={openSections.has('Status')} onToggle={() => toggleSection('Status')} sectionRef={(el) => (sectionRefs.current['Status'] = el)}>
+          {/* FIX: Use block body for arrow function to prevent returning a value for callback ref */}
+          <FilterSection title="Status" isOpen={openSections.has('Status')} onToggle={() => toggleSection('Status')} sectionRef={(el) => { sectionRefs.current['Status'] = el; } }>
             <div className="flex flex-wrap gap-2">{ANIME_STATUSES.map(s => <FilterButton key={s} name={s} isSelected={filters.statuses.includes(s)} onClick={() => handleMultiSelect('statuses', s)} />)}</div>
           </FilterSection>
-          <FilterSection title="Tags" isOpen={openSections.has('Tags')} onToggle={() => toggleSection('Tags')} sectionRef={(el) => (sectionRefs.current['Tags'] = el)}>
+          {/* FIX: Use block body for arrow function to prevent returning a value for callback ref */}
+          <FilterSection title="Tags" isOpen={openSections.has('Tags')} onToggle={() => toggleSection('Tags')} sectionRef={(el) => { sectionRefs.current['Tags'] = el; } }>
             <div className="flex flex-wrap gap-2">{TAG_OPTIONS.map(t => <FilterButton key={t} name={t} isSelected={filters.tags.includes(t)} onClick={() => handleMultiSelect('tags', t)} />)}</div>
           </FilterSection>
-          <FilterSection title="Year" isOpen={openSections.has('Year')} onToggle={() => toggleSection('Year')} sectionRef={(el) => (sectionRefs.current['Year'] = el)}>
+          {/* FIX: Use block body for arrow function to prevent returning a value for callback ref */}
+          <FilterSection title="Year" isOpen={openSections.has('Year')} onToggle={() => toggleSection('Year')} sectionRef={(el) => { sectionRefs.current['Year'] = el; } }>
             <div className="flex flex-wrap gap-2">{YEAR_OPTIONS.map(y => <FilterButton key={y} name={y} isSelected={filters.years.includes(y)} onClick={() => handleMultiSelect('years', y)} />)}</div>
           </FilterSection>
-          <FilterSection title="Language" isOpen={openSections.has('Language')} onToggle={() => toggleSection('Language')} sectionRef={(el) => (sectionRefs.current['Language'] = el)}>
+          {/* FIX: Use block body for arrow function to prevent returning a value for callback ref */}
+          <FilterSection title="Language" isOpen={openSections.has('Language')} onToggle={() => toggleSection('Language')} sectionRef={(el) => { sectionRefs.current['Language'] = el; } }>
             <div className="flex flex-wrap gap-2">{LANGUAGE_OPTIONS.map(l => <FilterButton key={l} name={l} isSelected={filters.languages.includes(l)} onClick={() => handleMultiSelect('languages', l)} />)}</div>
           </FilterSection>
-          <FilterSection title="Studio" isOpen={openSections.has('Studio')} onToggle={() => toggleSection('Studio')} sectionRef={(el) => (sectionRefs.current['Studio'] = el)}>
+          {/* FIX: Use block body for arrow function to prevent returning a value for callback ref */}
+          <FilterSection title="Studio" isOpen={openSections.has('Studio')} onToggle={() => toggleSection('Studio')} sectionRef={(el) => { sectionRefs.current['Studio'] = el; } }>
             <div className="flex flex-wrap gap-2">{STUDIO_OPTIONS.map(s => <FilterButton key={s} name={s} isSelected={filters.studios.includes(s)} onClick={() => handleMultiSelect('studios', s)} />)}</div>
           </FilterSection>
         </div>
@@ -248,22 +252,24 @@ const Sidebar: React.FC<SidebarProps> = ({
                         {settings.displayTitleLanguage === 'english' ? 'EN' : 'JP'}
                     </button>
 
-                    <button 
-                        onClick={handleSfwToggle} 
-                        title={`Turn ${settings.restrictAdultContent ? 'Off' : 'On'} Adult Content Restriction`} 
-                        aria-label={`Turn ${settings.restrictAdultContent ? 'Off' : 'On'} Adult Content Restriction`}
-                        className="p-2.5 rounded-full bg-[rgb(var(--surface-3))] text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-4))] hover:text-[rgb(var(--text-primary))] transition-colors"
-                    >
-                        {settings.restrictAdultContent ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
-                    </button>
+                    {isLoggedIn && (
+                      <button 
+                          onClick={handleSfwToggle} 
+                          title={`Turn ${settings.restrictAdultContent ? 'Off' : 'On'} Adult Content Restriction`} 
+                          aria-label={`Turn ${settings.restrictAdultContent ? 'Off' : 'On'} Adult Content Restriction`}
+                          className="p-2.5 rounded-full bg-[rgb(var(--surface-3))] text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-4))] hover:text-[rgb(var(--text-primary))] transition-colors"
+                      >
+                          {settings.restrictAdultContent ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+                      </button>
+                    )}
                 </div>
             </div>
 
             <div className="p-4 grid grid-cols-2 gap-4 border-t border-white/5">
-                <button onClick={() => { onResetFilters(); onGoHome(); onClose(); }} className="w-full py-2.5 bg-[rgb(var(--surface-3))] rounded-lg font-semibold hover:bg-[rgb(var(--surface-4))] text-[rgb(var(--text-primary))]">
+                <button onClick={() => { onResetFilters(); onClose(); }} className="w-full py-2.5 bg-[rgb(var(--surface-3))] rounded-lg font-semibold hover:bg-[rgb(var(--surface-4))] text-[rgb(var(--text-primary))]">
                     Reset
                 </button>
-                <button onClick={onApplyFilters} className="w-full py-2.5 bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))] rounded-lg font-semibold hover:bg-[rgb(var(--color-primary-hover))] shadow-lg shadow-[rgb(var(--shadow-color))/0.3]">
+                <button onClick={() => { onApplyFilters(); onClose(); }} className="w-full py-2.5 bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))] rounded-lg font-semibold hover:bg-[rgb(var(--color-primary-hover))] shadow-lg shadow-[rgb(var(--shadow-color))/0.3]">
                     Apply Filters
                 </button>
             </div>

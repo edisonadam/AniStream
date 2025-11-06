@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Anime, Comment } from '../types';
 import { getAllComments, formatRelativeTime } from '../utils';
@@ -59,6 +61,8 @@ const RecentCommentsCarousel: React.FC<RecentCommentsCarouselProps> = ({ onAnime
             id: comment.animeId, title: comment.animeTitle, thumbnail: comment.animeThumbnail, bannerImage: comment.animeBanner,
             synopsis: '', genres: [], releaseYear: null, status: 'Completed', totalEpisodes: null, rating: null, type: null, studio: '',
             hasSub: true, hasDub: false, runtime: null, avgEpisodeDuration: null, isAdult: false, title_english: comment.animeTitle, title_japanese: '',
+            seasons_count: null,
+            episodes_count: null,
         };
         onAnimeSelect(partialAnime);
     };

@@ -4,14 +4,12 @@ import type { Settings, Theme, ColorPreset } from '../types';
 const defaultSettings: Settings = {
   theme: 'dark',
   colorPreset: 'abyssal-blue',
-  autoplayNext: true,
-  autoSkipIntro: false,
-  autoSkipOutro: false,
   videoServer: 'kiwi',
   blurEpisodeThumbnails: true,
   restrictAdultContent: true,
   displayTitleLanguage: 'english',
   malUsername: '',
+  autoSyncMal: false,
   anilistUsername: '',
   anilistToken: '',
   autoSyncAniList: false,
@@ -23,6 +21,18 @@ const defaultSettings: Settings = {
   rememberVolume: true,
   rememberPlaybackSpeed: false,
   showSeekThumbnails: false,
+  playerFocusMode: 'overlay',
+  forceDesktopMode: false,
+  emailNotifications: true,
+  inAppToastAlerts: true,
+  malSyncAlerts: true,
+  autoMarkAsRead: false,
+  // New & updated settings
+  homepageTrailer: true,
+  autoPlay: true,
+  autoSkip: false,
+  startMuted: false,
+  videoLoadStrategy: 'idle',
 };
 
 interface SettingsContextType {
@@ -47,7 +57,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
         const parsed = JSON.parse(storedSettings);
         
         // Clean up legacy settings
-        const legacyKeys = ['primaryAccentColor', 'forceDesktopMode', 'cardLayout', 'cardSize', 'characterNameLanguage', 'syncThreshold', 'borderRadius', 'vidsrcDomain', 'episodeViewStyle', 'hideSpoilers', 'forceMaxQuality'];
+        const legacyKeys = ['primaryAccentColor', 'forceDesktopMode', 'cardLayout', 'cardSize', 'characterNameLanguage', 'syncThreshold', 'borderRadius', 'vidsrcDomain', 'episodeViewStyle', 'hideSpoilers', 'forceMaxQuality', 'autoplayNext', 'autoSkipIntro', 'autoSkipOutro'];
         legacyKeys.forEach(key => delete parsed[key]);
         
         // Merge stored settings with defaults to ensure new settings are applied
@@ -62,6 +72,15 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     const root = document.documentElement;
     root.setAttribute('data-theme', settings.theme);
     root.setAttribute('data-color-preset', settings.colorPreset);
+
+    const viewport = document.querySelector('meta[name="viewport"]');
+    if (viewport) {
+      if (settings.forceDesktopMode) {
+        viewport.setAttribute('content', 'width=1280');
+      } else {
+        viewport.setAttribute('content', 'width=device-width, initial-scale=1.0');
+      }
+    }
     
     try {
       localStorage.setItem('anistream-settings', JSON.stringify(settings));
@@ -75,9 +94,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
   }, []);
 
   const restoreDefaults = useCallback(() => {
-    if (window.confirm("Are you sure you want to restore all settings to their default values?")) {
-        setSettings(defaultSettings);
-    }
+    setSettings(defaultSettings);
   }, []);
 
   return (

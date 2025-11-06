@@ -1,4 +1,4 @@
-import type { ColorPreset, VideoServer, DefaultLanguage, Anime, WatchlistStatus } from './types';
+import type { ColorPreset, VideoServer, DefaultLanguage, Anime, WatchlistStatus, Shortcuts } from './types';
 
 export const GENRES_MAP: Record<string, number> = {
     'Action': 1, 'Adventure': 2, 'Comedy': 4, 'Drama': 8, 'Fantasy': 10, 'Horror': 14,
@@ -72,6 +72,8 @@ export const BEGINNER_ANIME_LIST: Anime[] = [
         releaseYear: 2006,
         status: "Completed",
         totalEpisodes: 37,
+        episodes_count: 37,
+        seasons_count: 1,
         rating: 8.62,
         type: "TV",
         studio: "Madhouse",
@@ -89,6 +91,8 @@ export const BEGINNER_ANIME_LIST: Anime[] = [
         releaseYear: 2009,
         status: "Completed",
         totalEpisodes: 64,
+        episodes_count: 64,
+        seasons_count: 1,
         rating: 9.1,
         type: "TV",
         studio: "Bones",
@@ -106,6 +110,8 @@ export const BEGINNER_ANIME_LIST: Anime[] = [
         releaseYear: 2019,
         status: "Completed",
         totalEpisodes: 26,
+        episodes_count: 26,
+        seasons_count: 1,
         rating: 8.55,
         type: "TV",
         studio: "ufotable",
@@ -123,6 +129,8 @@ export const BEGINNER_ANIME_LIST: Anime[] = [
         releaseYear: 2016,
         status: "Completed",
         totalEpisodes: 13,
+        episodes_count: 13,
+        seasons_count: 1,
         rating: 7.95,
         type: "TV",
         studio: "Bones",
@@ -140,6 +148,8 @@ export const BEGINNER_ANIME_LIST: Anime[] = [
         releaseYear: 2011,
         status: "Completed",
         totalEpisodes: 148,
+        episodes_count: 148,
+        seasons_count: 1,
         rating: 9.04,
         type: "TV",
         studio: "Madhouse",
@@ -157,6 +167,8 @@ export const BEGINNER_ANIME_LIST: Anime[] = [
         releaseYear: 2013,
         status: "Completed",
         totalEpisodes: 25,
+        episodes_count: 25,
+        seasons_count: 1,
         rating: 8.54,
         type: "TV",
         studio: "Wit Studio",
@@ -174,6 +186,8 @@ export const BEGINNER_ANIME_LIST: Anime[] = [
         releaseYear: 2015,
         status: "Completed",
         totalEpisodes: 12,
+        episodes_count: 12,
+        seasons_count: 1,
         rating: 8.51,
         type: "TV",
         studio: "Madhouse",
@@ -191,6 +205,8 @@ export const BEGINNER_ANIME_LIST: Anime[] = [
         releaseYear: 2020,
         status: "Completed",
         totalEpisodes: 24,
+        episodes_count: 24,
+        seasons_count: 1,
         rating: 8.68,
         type: "TV",
         studio: "MAPPA",
@@ -240,11 +256,11 @@ export const VIDEO_SERVERS: ServerOption[] = [
     { id: 'kuz', name: 'Kuz', type: 'dub' },
 
     // S-Sub servers (same as dub per request)
-    { id: 'hop', name: 'Hop', type: 'ssub' },
-    { id: 'izy', name: 'Izy', type: 'ssub' },
-    { id: 'bee', name: 'Bee', type: 'ssub' },
-    { id: 'bun', name: 'Bun', type: 'ssub' },
-    { id: 'kuz', name: 'Kuz', type: 'ssub' },
+    { id: 'hop', name: 'Hop (S)', type: 'ssub' },
+    { id: 'izy', name: 'Izy (S)', type: 'ssub' },
+    { id: 'bee', name: 'Bee (S)', type: 'ssub' },
+    { id: 'bun', name: 'Bun (S)', type: 'ssub' },
+    { id: 'kuz', name: 'Kuz (S)', type: 'ssub' },
 ];
 
 export const VIDSRC_DOMAINS: string[] = [
@@ -280,3 +296,20 @@ export const LEVEL_DATA = [
     { level: 50, name: 'Anime Legend', tokens: 3000000 },
 ];
 export const MAX_LEVEL_TOKENS = 3000000;
+
+export const defaultShortcuts: Shortcuts = {
+  'togglePlay': ['Space', 'K'],
+  'seekBackward': ['ArrowLeft', 'J'],
+  'seekForward': ['ArrowRight', 'L'],
+  'volumeUp': ['ArrowUp'],
+  'volumeDown': ['ArrowDown'],
+  'fullscreen': ['F'],
+  'mute': ['M'],
+  'skip': ['S'],
+  'toggleDarkMode': ['D'],
+  'nextEpisode': ['N'],
+  'previousEpisode': ['P'],
+  'escape': ['Escape'],
+  'showShortcuts': ['/', '?'],
+  'focusPlayer': ['Shift+Enter']
+};

@@ -14,6 +14,8 @@ interface ProfileDataContextType {
   isFriend: (username: string) => boolean;
   addNotification: (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>, targetUsername?: string) => void;
   markNotificationsAsRead: () => void;
+  markSingleNotificationAsRead: (notificationId: string) => void;
+  clearAllNotifications: () => void;
   addAniTokens: (amount: number) => void;
   spendAniTokens: (amount: number) => boolean;
 }
@@ -32,6 +34,10 @@ export const ProfileDataProvider: React.FC<ProfileDataProviderProps> = ({ childr
   const [aniTokens, setAniTokens] = useState<number>(0);
   const { user } = useAuth();
 
+  const persistNotifications = useCallback((list: Notification[], userId: string) => {
+      localStorage.setItem(`notifications-${userId}`, JSON.stringify(list));
+  }, []);
+
   useEffect(() => {
     if (user) {
       try {
@@ -42,7 +48,20 @@ export const ProfileDataProvider: React.FC<ProfileDataProviderProps> = ({ childr
         setFriends(storedFriends ? JSON.parse(storedFriends) : []);
 
         const storedNotifications = localStorage.getItem(`notifications-${user.uid}`);
-        setNotifications(storedNotifications ? JSON.parse(storedNotifications) : []);
+        if (storedNotifications) {
+          setNotifications(JSON.parse(storedNotifications));
+        } else {
+          // Add mock notifications for new users
+          const mockNotifications: Notification[] = [
+              { id: '1', type: 'system', text: 'Welcome to ANISTREAM! Explore and enjoy.', timestamp: Date.now() - 10000, read: false },
+              { id: '2', type: 'watchlist', text: 'You added "Jujutsu Kaisen" to your watchlist.', timestamp: Date.now() - 60000, read: false, animeId: 40748, animeTitle: 'Jujutsu Kaisen' },
+              { id: '3', type: 'favorites', text: 'You favorited "Solo Leveling".', timestamp: Date.now() - 120000, read: true, animeId: 52299, animeTitle: 'Solo Leveling' },
+              { id: '4', type: 'mal_sync', text: 'MyAnimeList sync was successful.', timestamp: Date.now() - 300000, read: true },
+              { id: '5', type: 'general', text: 'A new episode of "Frieren: Beyond Journey\'s End" is out!', timestamp: Date.now() - 600000, read: true, animeId: 52991, animeTitle: 'Frieren: Beyond Journey\'s End' }
+          ];
+          setNotifications(mockNotifications);
+          persistNotifications(mockNotifications, user.uid);
+        }
 
         const storedTokens = localStorage.getItem(`aniTokens-${user.uid}`);
         setAniTokens(storedTokens ? parseInt(storedTokens, 10) : 100000); // Start with 100k tokens
@@ -61,7 +80,7 @@ export const ProfileDataProvider: React.FC<ProfileDataProviderProps> = ({ childr
       setNotifications([]);
       setAniTokens(0);
     }
-  }, [user]);
+  }, [user, persistNotifications]);
 
   const persistRatings = useCallback((list: Rating[]) => {
     if (user) localStorage.setItem(`ratings-${user.uid}`, JSON.stringify(list));
@@ -70,10 +89,6 @@ export const ProfileDataProvider: React.FC<ProfileDataProviderProps> = ({ childr
   const persistFriends = useCallback((list: User[]) => {
       if (user) localStorage.setItem(`friends-${user.uid}`, JSON.stringify(list));
   }, [user]);
-
-  const persistNotifications = useCallback((list: Notification[], userId: string) => {
-      localStorage.setItem(`notifications-${userId}`, JSON.stringify(list));
-  }, []);
   
   const persistTokens = useCallback((tokens: number) => {
       if (user) localStorage.setItem(`aniTokens-${user.uid}`, tokens.toString());
@@ -159,6 +174,14 @@ export const ProfileDataProvider: React.FC<ProfileDataProviderProps> = ({ childr
             persistNotifications(newList, targetUser.uid);
             return newList;
         });
+        
+        // Send push notification
+        if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('ANISTREAM', {
+                body: `${notificationData.relatedUser?.username || 'System'} ${notificationData.text}`,
+                icon: notificationData.relatedUser?.avatar || '/vite.svg'
+            });
+        }
     } else {
         // This is for notifying another user, a simulation for a client-side app
         try {
@@ -182,12 +205,28 @@ export const ProfileDataProvider: React.FC<ProfileDataProviderProps> = ({ childr
     });
   }, [user, persistNotifications]);
 
+  const markSingleNotificationAsRead = useCallback((notificationId: string) => {
+    if (!user) return;
+    setNotifications(prev => {
+        const newList = prev.map(n => n.id === notificationId ? { ...n, read: true } : n);
+        persistNotifications(newList, user.uid);
+        return newList;
+    });
+  }, [user, persistNotifications]);
+
+  const clearAllNotifications = useCallback(() => {
+    if (!user) return;
+    setNotifications([]);
+    persistNotifications([], user.uid);
+  }, [user, persistNotifications]);
+
+
   return (
     <ProfileDataContext.Provider value={{ 
         ratings, friends, notifications, aniTokens,
         rateAnime, getRating,
         addFriend, removeFriend, isFriend, 
-        addNotification, markNotificationsAsRead,
+        addNotification, markNotificationsAsRead, markSingleNotificationAsRead, clearAllNotifications,
         addAniTokens, spendAniTokens,
     }}>
       {children}

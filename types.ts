@@ -13,6 +13,8 @@ export interface Anime {
   releaseYear: number | null;
   status: 'Ongoing' | 'Completed' | 'Upcoming';
   totalEpisodes: number | null;
+  seasons_count: number | null;
+  episodes_count: number | null;
   rating: number | null;
   type: 'TV' | 'Movie' | 'OVA' | 'Special' | 'ONA' | null;
   studio: string;
@@ -31,6 +33,7 @@ export interface Anime {
     at: number; // timestamp
     episode: number;
   }
+  rank?: number;
 }
 
 export interface Manga {
@@ -116,21 +119,22 @@ export type Theme = 'light' | 'dark';
 export type ColorPreset = 'abyssal-blue' | 'violet-fusion' | 'cyber-cyan' | 'sunset-orange';
 export type EpisodeViewStyle = 'compact' | 'grid' | 'horizontal';
 export type DefaultLanguage = 'sub' | 'dub' | 'ssub';
-export type Page = 'home' | 'player' | 'profile' | 'club-detail' | 'magazines' | 'trending' | 'schedule' | 'history' | 'news' | 'manga' | 'beginners' | 'search' | 'community' | 'comment-meter' | 'currency' | 'about' | 'rules' | 'donation' | 'watch-together' | 'og-image-generator';
+export type Page = 'home' | 'player' | 'profile' | 'club-detail' | 'magazines' | 'trending' | 'schedule' | 'history' | 'news' | 'manga' | 'beginners' | 'search' | 'community' | 'comment-meter' | 'currency' | 'about' | 'rules' | 'donation' | 'watch-together' | 'og-image-generator' | 'top-100' | 'notifications';
+export type ToastType = 'success' | 'warning' | 'error' | 'info' | 'favorite' | 'unfavorite';
 
 export type WatchlistStatus = 'Watching' | 'Completed' | 'On-Hold' | 'Dropped' | 'Plan to Watch';
+
+export type NotificationType = 'reply' | 'share' | 'friend_request' | 'watchlist' | 'favorites' | 'mal_sync' | 'system' | 'general';
 
 export interface Settings {
   theme: Theme;
   colorPreset: ColorPreset;
-  autoplayNext: boolean;
-  autoSkipIntro: boolean;
-  autoSkipOutro: boolean;
   videoServer: VideoServer;
   blurEpisodeThumbnails: boolean;
   restrictAdultContent: boolean;
   displayTitleLanguage: 'english' | 'japanese';
   malUsername: string;
+  autoSyncMal: boolean;
   anilistUsername: string;
   anilistToken: string;
   autoSyncAniList: boolean;
@@ -142,6 +146,18 @@ export interface Settings {
   rememberVolume: boolean;
   rememberPlaybackSpeed: boolean;
   showSeekThumbnails: boolean;
+  playerFocusMode: 'overlay' | 'fullscreen';
+  forceDesktopMode: boolean;
+  emailNotifications: boolean;
+  inAppToastAlerts: boolean;
+  malSyncAlerts: boolean;
+  autoMarkAsRead: boolean;
+  // New & updated settings
+  homepageTrailer: boolean;
+  autoPlay: boolean;
+  autoSkip: boolean;
+  startMuted: boolean;
+  videoLoadStrategy: 'idle' | 'visible' | 'eager';
 }
 
 export interface WatchProgressInfo {
@@ -159,13 +175,14 @@ export interface Rating {
 
 export interface Notification {
   id: string;
-  type: 'reply' | 'share' | 'friend_request';
+  type: NotificationType;
   text: string;
-  relatedUser: User;
-  animeId: number;
-  commentId?: string;
   timestamp: number;
   read: boolean;
+  relatedUser?: User;
+  animeId?: number;
+  commentId?: string;
+  animeTitle?: string; // For context in notifications list
 }
 
 export interface VoiceActor {
@@ -294,3 +311,11 @@ export interface Room {
   participants: Record<string, { username: string; avatar: string }>;
   chat: Record<string, ChatMessage>;
 }
+
+// Keyboard Shortcuts
+export type ShortcutAction = 
+  'togglePlay' | 'seekBackward' | 'seekForward' | 'volumeUp' | 'volumeDown' | 
+  'fullscreen' | 'mute' | 'skip' | 'toggleDarkMode' | 'nextEpisode' | 
+  'previousEpisode' | 'escape' | 'showShortcuts' | 'focusPlayer';
+
+export type Shortcuts = Record<ShortcutAction, string[]>;

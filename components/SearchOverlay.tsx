@@ -132,20 +132,36 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose, onAnimeSelect, o
                         </div>
                         <div className="flex-1 min-w-0">
                             <p className="font-semibold text-[rgb(var(--text-primary))] truncate">{getDisplayTitle(anime, settings)}</p>
-                            <div className="flex items-center gap-1.5 text-xs text-[rgb(var(--text-muted))] mt-1">
+                            <div className="flex items-center flex-wrap gap-x-2 gap-y-1 text-xs text-[rgb(var(--text-muted))] mt-1">
                                 {anime.releaseYear && <span>{anime.releaseYear}</span>}
                                 {anime.type && <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-sm bg-black/50 text-white backdrop-blur-md">{anime.type.toUpperCase()}</span>}
-                                {(anime.hasSub || anime.hasDub) && (
-                                    <span className={`px-1.5 py-0.5 text-[10px] font-bold rounded-full text-white ${
-                                        anime.hasSub && anime.hasDub
-                                            ? 'bg-gradient-to-r from-[rgb(var(--color-primary))/0.8] to-[rgb(var(--color-tertiary-accent))/0.8]'
-                                            : anime.hasSub
-                                            ? 'bg-[rgb(var(--color-primary))/0.6]'
-                                            : 'bg-[rgb(var(--color-tertiary-accent))/0.6]'
-                                    }`}>
-                                        {anime.hasSub && anime.hasDub ? 'SUB/DUB' : anime.hasSub ? 'SUB' : 'DUB'}
-                                    </span>
-                                )}
+                                
+                                {(() => {
+                                    const subDubPart = 
+                                        anime.hasSub && anime.hasDub ? 'SUB / DUB' :
+                                        anime.hasSub ? 'SUB' :
+                                        anime.hasDub ? 'DUB' : null;
+
+                                    const seasonEpParts: string[] = [];
+                                    if (anime.seasons_count != null) seasonEpParts.push(`S${anime.seasons_count}`);
+                                    if (anime.episodes_count != null) seasonEpParts.push(`${anime.episodes_count} ep`);
+                                    
+                                    const allParts = [subDubPart, ...seasonEpParts].filter(Boolean);
+
+                                    if (allParts.length === 0) return null;
+
+                                    const tooltipText = `Sub: ${anime.hasSub ? 'Yes' : 'No'}, Dub: ${anime.hasDub ? 'Yes' : 'No'}, Seasons: ${anime.seasons_count ?? 'Unknown'}, Episodes: ${anime.episodes_count ?? 'Unknown'}`;
+
+                                    return (
+                                        <span 
+                                            className="px-1.5 py-0.5 text-[10px] font-bold rounded-full text-white bg-black/60 backdrop-blur-md"
+                                            title={tooltipText}
+                                            aria-label={tooltipText}
+                                        >
+                                            {allParts.join(' • ')}
+                                        </span>
+                                    );
+                                })()}
                             </div>
                         </div>
                     </li>

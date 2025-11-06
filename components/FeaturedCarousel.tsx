@@ -5,13 +5,117 @@ import { useWatchlist } from '../hooks/useWatchlist';
 import { useAuth } from '../hooks/useAuth';
 import { useSettings } from '../hooks/useSettings';
 import { getDisplayTitle } from '../utils';
-import { updateAnilistEntry } from '../api';
+import { updateAnilistEntry, fetchWithRetry } from '../api';
+import { loadYouTubeAPI } from '../youtubeApi';
 
 interface FeaturedCarouselProps {
   animeList: Anime[];
   onAnimeSelect: (anime: Anime) => void;
   isLoading: boolean;
 }
+
+const getYouTubeId = (url: string): string | null => {
+    if (!url) return null;
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+};
+
+const YouTubeBackgroundPlayer: React.FC<{ videoId: string; onError: () => void }> = ({ videoId, onError: handlePlayerError }) => {
+    const playerRef = useRef<HTMLDivElement>(null);
+    const ytPlayer = useRef<any>(null);
+
+    useEffect(() => {
+        if (!videoId || !playerRef.current) return;
+
+        const playerElement = playerRef.current; // Capture ref value
+        
+        const getValidOrigin = (): string | undefined => {
+            if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
+                return window.location.origin;
+            }
+            if (window.location.protocol === 'blob:') {
+                const match = window.location.href.match(/^blob:(https?:\/\/[^/]+)/);
+                if (match && match[1]) {
+                    return match[1];
+                }
+            }
+            return undefined;
+        };
+
+        const initializePlayer = async () => {
+            try {
+                await loadYouTubeAPI();
+                
+                if (!playerElement || ytPlayer.current) return;
+
+                const onError = (event: any) => {
+                    const payload = {
+                        timestamp: new Date().toISOString(),
+                        videoId,
+                        pageUrl: window.location.href,
+                        userAgent: navigator.userAgent,
+                        playerError: event.data,
+                        location: 'FeaturedCarousel'
+                    };
+                    console.error('YouTube Player Error Report:', payload);
+                    handlePlayerError();
+                };
+
+                const playerVars: any = {
+                    autoplay: 1,
+                    controls: 0,
+                    showinfo: 0,
+                    rel: 0,
+                    iv_load_policy: 3,
+                    modestbranding: 1,
+                    loop: 1,
+                    playlist: videoId,
+                    mute: 1,
+                    playsinline: 1,
+                };
+                
+                const origin = getValidOrigin();
+                if (origin) {
+                    playerVars.origin = origin;
+                }
+
+                ytPlayer.current = new window.YT.Player(playerElement, {
+                    videoId: videoId,
+                    playerVars: playerVars,
+                    events: {
+                        onReady: (event: any) => event.target.playVideo(),
+                        onStateChange: (event: any) => {
+                            if (event.data === window.YT.PlayerState.ENDED) {
+                                ytPlayer.current?.seekTo(0);
+                            }
+                        },
+                        onError: onError,
+                    },
+                });
+            } catch (error) {
+                console.error("Failed to initialize YouTube player in carousel:", error);
+                handlePlayerError();
+            }
+        };
+
+        initializePlayer();
+
+        return () => {
+            ytPlayer.current?.destroy();
+            ytPlayer.current = null;
+        };
+    }, [videoId, handlePlayerError]);
+
+
+    return (
+        <div
+            ref={playerRef}
+            className="absolute top-1/2 left-1/2 w-full h-full min-w-[177.77vh] min-h-[100vw] -translate-x-1/2 -translate-y-1/2 scale-105"
+        />
+    );
+};
+
 
 const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeSelect, isLoading }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -25,7 +129,28 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
   const [touchEndX, setTouchEndX] = useState<number | null>(null);
   const minSwipeDistance = 50;
 
+  const [trailers, setTrailers] = useState<Record<number, string>>({});
+  const [trailerErrors, setTrailerErrors] = useState<Set<number>>(new Set());
+
   const slides = animeList.slice(0, 5);
+
+  useEffect(() => {
+    if (slides.length > 0 && settings.homepageTrailer) {
+        slides.forEach(slide => {
+            if (!trailers[slide.id]) {
+                fetchWithRetry(`https://api.jikan.moe/v4/anime/${slide.id}/videos`)
+                    .then(res => res.ok ? res.json() : Promise.resolve({ data: {} }))
+                    .then(data => {
+                        const trailer = data.data?.promo?.[0]?.trailer?.embed_url;
+                        if (trailer) {
+                            setTrailers(prev => ({ ...prev, [slide.id]: trailer }));
+                        }
+                    })
+                    .catch(console.error);
+            }
+        });
+    }
+  }, [slides, settings.homepageTrailer, trailers]);
 
   const resetTimeout = useCallback(() => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -108,6 +233,10 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
           updateAnilistEntry(currentSlide.id, settings.anilistToken, { status });
       }
   };
+  
+  const handleTrailerError = useCallback((slideId: number) => {
+    setTrailerErrors(prev => new Set(prev).add(slideId));
+  }, []);
 
 
   if (isLoading) {
@@ -141,11 +270,24 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
       onTouchEnd={onTouchEnd}
     >
       {/* Slides */}
-      {slides.map((slide, index) => (
-        <div key={slide.id} className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${index === currentIndex ? 'opacity-100' : 'opacity-0'}`}>
-          <img loading="lazy" src={slide.bannerImage} alt={getDisplayTitle(slide, settings)} className={`w-full h-full object-cover ${index === currentIndex ? 'animate-ken-burns' : ''}`} />
-        </div>
-      ))}
+      {slides.map((slide, index) => {
+          const trailerUrl = settings.homepageTrailer ? trailers[slide.id] : null;
+          const isActive = index === currentIndex;
+          const videoId = trailerUrl ? getYouTubeId(trailerUrl) : null;
+          const hasError = trailerErrors.has(slide.id);
+          
+          return (
+            <div key={slide.id} className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${isActive ? 'opacity-100' : 'opacity-0'}`}>
+                {isActive && videoId && !hasError ? (
+                    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                       <YouTubeBackgroundPlayer videoId={videoId} onError={() => handleTrailerError(slide.id)} />
+                    </div>
+                ) : (
+                    <img loading="lazy" src={slide.bannerImage} alt={getDisplayTitle(slide, settings)} className={`w-full h-full object-cover ${isActive ? 'animate-ken-burns' : ''}`} />
+                )}
+            </div>
+          )
+      })}
 
       {/* Gradient Fades */}
       <div className="absolute top-0 left-0 w-full h-48 bg-gradient-to-b from-[rgb(var(--bg-gradient-start))] to-transparent z-10"></div>

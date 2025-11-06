@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark" data-color-preset="abyssal-blue" class="scroll-fade-container">
   <head>
-    <meta charset="UTF-8" />
+    <meta charset="utf-g" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ANISTREAM - Your Anime Universe</title>
@@ -216,6 +216,10 @@
       .animate-modal-pop-in {
         animation: modal-pop-in 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
       }
+      @keyframes marquee {
+        from { transform: translateX(0); }
+        to { transform: translateX(-50%); }
+      }
       @keyframes ken-burns-slow {
         0% { transform: scale(1) translate(0, 0); }
         100% { transform: scale(1.05) translate(-2%, 1%); }
@@ -229,6 +233,44 @@
       }
       .animate-throb {
         animation: throb 1.5s ease-in-out infinite;
+      }
+
+      /* Player button press animation */
+      .art-control:active, .floating-player-button:active {
+        transform: scale(0.92) !important;
+        transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      
+      /* PiP Dragging Styles */
+      body.pip-dragging { 
+        pointer-events: none; 
+        user-select: none;
+      }
+      .pip-handle {
+        position: absolute;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        right: -14px;
+        top: calc(50% - 14px);
+        background: rgba(255,255,255,0.12);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: grab;
+        user-select: none;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.25);
+        pointer-events: all;
+      }
+      .pip-handle:active {
+        cursor: grabbing;
+      }
+      .pip-handle::after {
+        content: "";
+        width: 10px;
+        height: 10px;
+        border-radius: 2px;
+        background: rgba(255,255,255,0.85);
       }
       
       /* Preloader Styles */
@@ -250,12 +292,20 @@
         letter-spacing: 0.1em;
         text-transform: uppercase;
         color: #fff;
-        text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 15px var(--logo-glow-1, #8b5cf6), 0 0 25px var(--logo-glow-1, #8b5cf6);
+        animation: pulse-glow 2s ease-in-out infinite;
+      }
+      @keyframes pulse-glow {
+        0%, 100% {
+          text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 15px var(--logo-glow-1), 0 0 25px var(--logo-glow-1);
+        }
+        50% {
+          text-shadow: 0 0 10px #fff, 0 0 20px var(--logo-glow-2), 0 0 30px var(--logo-glow-2), 0 0 45px var(--logo-glow-2);
+        }
       }
       #preloader .spinner {
         width: 48px;
         height: 48px;
-        border: 4px solid rgb(var(--border-color));
+        border: 4px solid transparent;
         border-top-color: var(--logo-glow-1, #8b5cf6);
         border-radius: 50%;
         animation: spin 1s linear infinite;
@@ -272,6 +322,77 @@
         filter: blur(4px) brightness(0.7);
         pointer-events: none;
       }
+
+      /* Player Focus Overlay Styles */
+      body.player-focused-mode {
+        overflow: hidden;
+      }
+      .player-focus-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 9990; /* High, but below modals */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity .25s ease;
+      }
+      .player-focus-overlay.visible {
+        pointer-events: auto;
+        opacity: 1;
+      }
+      .player-focus-overlay-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0,0,0,0.86);
+        backdrop-filter: blur(6px);
+      }
+      .player-focus-overlay-content {
+        position: relative;
+        z-index: 1;
+        max-width: 1200px;
+        width: calc(100% - 24px);
+        margin: 0 12px;
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+        transform: translateY(8px) scale(.99);
+        transition: transform .22s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity .22s ease;
+        pointer-events: auto;
+      }
+      .player-focus-overlay.visible .player-focus-overlay-content {
+        transform: translateY(0) scale(1);
+      }
+      .player-focus-overlay-close {
+        position: absolute;
+        top: -40px;
+        right: 0;
+        z-index: 3;
+        background: rgba(31, 31, 31, 0.7);
+        backdrop-filter: blur(5px);
+        color: white;
+        border: 1px solid rgba(255,255,255,0.1);
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+      }
+       .player-focus-overlay-close:hover {
+        background: rgb(var(--color-primary));
+        transform: scale(1.1);
+       }
+      .player-focus-overlay-slot {
+        width: 100%;
+        background: black;
+        min-height: 200px;
+        border-radius: 14px; /* Match content radius */
+      }
+
 
       /* Touch Hover Enhancement */
       .anime-card-touch-target.touch-hover {
@@ -306,6 +427,22 @@
       .manga-card-touch-target.touch-hover h3 {
         color: rgb(var(--color-primary-accent));
       }
+
+      /* Pinch-to-zoom Player Style */
+      .player-zoomed-to-fit {
+        position: fixed !important;
+        inset: 0 !important;
+        z-index: 10000;
+        width: 100vw !important;
+        height: 100vh !important;
+        max-width: none !important;
+        max-height: none !important;
+        border-radius: 0 !important;
+        background-color: black;
+      }
+      .player-zoomed-to-fit .artplayer-video {
+        object-fit: contain;
+      }
     </style>
   <script type="importmap">
 {
@@ -318,7 +455,8 @@
     "firebase/app": "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
     "firebase/auth": "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
     "firebase/database": "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js",
-    "firebase/": "https://aistudiocdn.com/firebase@^12.5.0/"
+    "firebase/": "https://aistudiocdn.com/firebase@^12.5.0/",
+    "artplayer": "https://aistudiocdn.com/artplayer@^5.3.0"
   }
 }
 </script>
@@ -331,8 +469,11 @@
     </div>
     <div id="root"></div>
     <div id="modal-root"></div>
+    <div id="detail-modal-root"></div>
     <div id="sidebar-root"></div>
     <div id="goto-top-root"></div>
+    <div id="toast-root"></div>
+    <div id="dropdown-root"></div>
     <script type="module" src="/index.tsx"></script>
     <script>
       if ('serviceWorker' in navigator) {

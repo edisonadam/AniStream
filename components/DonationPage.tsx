@@ -5,27 +5,13 @@ interface DonationPageProps {
   onGoBack: () => void;
 }
 
-const DonationOption: React.FC<{ name: string; address: string }> = ({ name, address }) => {
-    const [copied, setCopied] = React.useState(false);
-    const copyToClipboard = () => {
-        navigator.clipboard.writeText(address).then(() => {
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-        });
-    };
+const DonationPlatformOption: React.FC<{ name: string; url: string; colorClass: string; icon: React.ReactNode }> = ({ name, url, colorClass, icon }) => (
+    <a href={url} target="_blank" rel="noopener noreferrer" className={`flex items-center justify-center gap-3 w-full py-3 rounded-xl font-bold text-white transition-transform duration-300 hover:scale-105 ${colorClass}`}>
+        {icon}
+        <span>Support on {name}</span>
+    </a>
+);
 
-    return (
-        <div className="bg-[rgb(var(--surface-3))] p-4 rounded-xl">
-            <h3 className="text-lg font-semibold text-[rgb(var(--color-primary-accent))]">{name}</h3>
-            <div className="flex flex-col sm:flex-row items-center gap-2 mt-2">
-                <input type="text" readOnly value={address} className="w-full bg-[rgb(var(--surface-4))] border border-white/10 rounded-lg px-3 py-1 text-sm text-[rgb(var(--text-muted))]" />
-                <button onClick={copyToClipboard} className="w-full sm:w-auto px-4 py-1.5 bg-white/10 rounded-lg text-sm font-semibold hover:bg-white/20 transition-colors flex-shrink-0">
-                    {copied ? 'Copied!' : 'Copy'}
-                </button>
-            </div>
-        </div>
-    );
-};
 
 const DonationPage: React.FC<DonationPageProps> = ({ onGoBack }) => {
   return (
@@ -48,9 +34,18 @@ const DonationPage: React.FC<DonationPageProps> = ({ onGoBack }) => {
           </p>
           
           <div className="space-y-4">
-              <DonationOption name="Bitcoin (BTC)" address="bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh" />
-              <DonationOption name="Ethereum (ETH)" address="0x71C7656EC7ab88b098defB751B7401B5f6d8976F" />
-              <DonationOption name="Monero (XMR)" address="483Cq9Tf4hA6hA4f4d2fA1bB2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w" />
+               <DonationPlatformOption 
+                  name="Ko-fi" 
+                  url="https://ko-fi.com/example" 
+                  colorClass="bg-[#13C3FF] hover:bg-[#10a8db]" 
+                  icon={<svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M23.83 8.33c0-3.14-2.12-5.9-5.32-5.9H9.37a.5.5 0 0 0-.5.5v2.85h9.45c2.23 0 3.93 1.34 3.93 3.32 0 1.9-1.5 3.2-3.66 3.2H11.8v2.85h4.94c3.34 0 5.43-2.42 5.43-5.82zM0 3h16.22v2.85H3.14v3.89h11.23v2.85H3.14v5.36H18.2V21H0V3z"></path></svg>} 
+              />
+              <DonationPlatformOption 
+                  name="Patreon" 
+                  url="https://patreon.com/example" 
+                  colorClass="bg-[#FF424D] hover:bg-[#e63b45]" 
+                  icon={<svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 569 546" fill="currentColor"><path d="M569,546.12H433.43V0H569V546.12ZM266.6,178.49c-98.15,0-178.49,80.34-178.49,178.49S168.45,535.47,266.6,535.47s178.49-80.34,178.49-178.49S364.75,178.49,266.6,178.49Z"></path></svg>} 
+              />
           </div>
 
           <div className="pt-6 border-t border-white/10 text-center">

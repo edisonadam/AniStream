@@ -1,5 +1,3 @@
-
-
 import React, { useEffect } from 'react';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { CloseIcon, PlayIcon, StarIcon } from './icons/Icons';
@@ -9,7 +7,7 @@ import { getDisplayTitle } from '../utils';
 
 interface WatchlistOverlayProps {
     onClose: () => void;
-    onSelectAnime: (anime: Anime) => void;
+    onSelectAnime: (anime: Anime, source?: string) => void;
 }
 
 const WatchlistOverlay: React.FC<WatchlistOverlayProps> = ({ onClose, onSelectAnime }) => {
@@ -24,7 +22,7 @@ const WatchlistOverlay: React.FC<WatchlistOverlayProps> = ({ onClose, onSelectAn
     }, []);
 
     const handleResume = (anime: Anime) => {
-        onSelectAnime(anime);
+        onSelectAnime(anime, 'Watchlist');
         onClose();
     };
 

@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { useSettings } from '../hooks/useSettings';
 import { useWatchProgress } from '../hooks/useWatchProgress';
 import { useWatchlist } from '../hooks/useWatchlist';
+import { useToast } from '../hooks/useToast';
 import { COLOR_PRESETS, VIDEO_SERVERS } from '../constants';
 import { fetchMalUserAnimeList, fetchAnilistUserAnimeList } from '../api';
 import type { Anime } from '../types';
+import ShortcutSettings from './ShortcutSettings'; // Import the new component
 
 const SettingsSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
     <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 p-6 rounded-2xl">
@@ -56,20 +58,41 @@ const SettingsPage: React.FC = () => {
     const { settings, updateSettings, restoreDefaults } = useSettings();
     const { clearProgress } = useWatchProgress();
     const { watchlist, overwriteWatchlist } = useWatchlist();
+    const { addToast } = useToast();
     const [isImporting, setIsImporting] = useState<'' | 'mal' | 'anilist'>('');
     const [importStatus, setImportStatus] = useState('');
     const [deleteBeforeImporting, setDeleteBeforeImporting] = useState(false);
+    const [notificationPermission, setNotificationPermission] = useState(Notification.permission);
+
+    const handleNotificationToggle = () => {
+        if (Notification.permission === 'default') {
+            Notification.requestPermission().then(permission => {
+                setNotificationPermission(permission);
+                if (permission === 'granted') {
+                    addToast('Push notifications enabled!', 'success');
+                    new Notification('ANISTREAM', { body: 'Notifications enabled!' });
+                } else {
+                    addToast('Push notifications were not enabled.', 'warning');
+                }
+            });
+        } else if (Notification.permission === 'denied') {
+            addToast('Notifications are blocked by your browser.', 'error');
+        } else if (Notification.permission === 'granted') {
+            addToast('To disable notifications, please use browser settings.', 'info');
+        }
+    };
 
     const handleClearWatchHistory = () => {
         if (window.confirm("Are you sure? This will clear all local watch history and continue watching progress.")) {
             clearProgress();
-            alert("Watch history cleared.");
+            addToast("Watch history cleared.", 'info');
         }
     }
     
     const handleImport = async (type: 'mal' | 'anilist') => {
         setIsImporting(type);
         setImportStatus('Importing...');
+        addToast(`Starting import from ${type === 'mal' ? 'MyAnimeList' : 'AniList'}...`, 'info');
         try {
             let externalList: Anime[] = [];
             if (type === 'mal') {
@@ -80,9 +103,11 @@ const SettingsPage: React.FC = () => {
                 externalList = await fetchAnilistUserAnimeList(settings.anilistUsername);
             }
 
+            let finalMessage = '';
+
             if (deleteBeforeImporting) {
                 overwriteWatchlist(externalList);
-                setImportStatus(`Successfully imported ${externalList.length} titles and replaced your old watchlist.`);
+                finalMessage = `Successfully imported ${externalList.length} titles and replaced your old watchlist.`;
             } else {
                 const mergedList = [...watchlist];
                 const watchlistIds = new Set(watchlist.map(a => a.id));
@@ -95,22 +120,25 @@ const SettingsPage: React.FC = () => {
                     }
                 });
                 overwriteWatchlist(mergedList);
-                setImportStatus(`Successfully imported and merged ${newItemsCount} new title(s) into your watchlist.`);
+                finalMessage = `Successfully imported and merged ${newItemsCount} new title(s) into your watchlist.`;
             }
 
+            setImportStatus(finalMessage);
+            addToast(finalMessage, 'success');
+
         } catch (e) {
-            setImportStatus(e instanceof Error ? e.message : 'An unknown error occurred.');
+            const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred.';
+            setImportStatus(errorMessage);
+            addToast(errorMessage, 'error');
         } finally {
-            setTimeout(() => {
-                setIsImporting('');
-                setImportStatus('');
-            }, 5000);
+            setIsImporting('');
+            setTimeout(() => setImportStatus(''), 5000);
         }
     };
     
     const handleExportWatchlist = (format: 'json' | 'text' | 'xml') => {
         if (watchlist.length === 0) {
-            alert("Your watchlist is empty. Nothing to export.");
+            addToast("Your watchlist is empty. Nothing to export.", 'warning');
             return;
         }
 
@@ -145,6 +173,23 @@ const SettingsPage: React.FC = () => {
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(href);
+        addToast(`Exported watchlist as ${format.toUpperCase()}`, 'success');
+    };
+
+    const handleRestorePlaybackDefaults = () => {
+        if (window.confirm("Are you sure you want to restore playback settings to their default values?")) {
+            updateSettings({
+                homepageTrailer: true,
+                autoPlay: true,
+                autoSkip: false,
+                startMuted: false,
+                videoLoadStrategy: 'idle',
+                rememberVolume: true,
+                rememberPlaybackSpeed: false,
+                showSeekThumbnails: false,
+            });
+            addToast("Playback settings restored to default.", "success");
+        }
     };
 
     return (
@@ -153,26 +198,65 @@ const SettingsPage: React.FC = () => {
                 <Dropdown label="Color Preset" selected={settings.colorPreset} onChange={v => updateSettings({ colorPreset: v })} options={COLOR_PRESETS.map(p => ({ value: p.id, label: p.name }))} tooltip="Change the primary color theme of the website." />
                 <Dropdown label="Title Language" selected={settings.displayTitleLanguage} onChange={v => updateSettings({ displayTitleLanguage: v })} options={[{value: 'english', label: 'English'}, {value: 'japanese', label: 'Japanese'}]} tooltip="Choose whether to display anime titles in English or Japanese (Romaji)." />
                 <Dropdown label="Load More Style" selected={settings.loadMoreMode} onChange={v => updateSettings({ loadMoreMode: v })} options={[{value: 'auto', label: 'Automatic (Infinite Scroll)'}, {value: 'manual', label: 'Manual (Button)'}]} tooltip="How new content is loaded on grid pages." />
+                <Toggle label="Force Desktop Mode" checked={settings.forceDesktopMode} onChange={() => updateSettings({ forceDesktopMode: !settings.forceDesktopMode })} tooltip="Forces the desktop layout on all devices, including mobile." />
                 <Toggle label="Watch History on Home Page" checked={settings.showWatchHistoryOnHome} onChange={() => updateSettings({ showWatchHistoryOnHome: !settings.showWatchHistoryOnHome })} tooltip="Show or hide the 'Continue Watching' section on the home page." />
             </SettingsSection>
+            
+            <SettingsSection title="Playback & Homepage">
+                <Toggle label="Homepage Trailer" checked={settings.homepageTrailer} onChange={() => updateSettings({ homepageTrailer: !settings.homepageTrailer })} tooltip="Stop video previews on the homepage for a streamlined experience. (Consumes more data)" />
+                <Toggle label="Auto Play Next Episode" checked={settings.autoPlay} onChange={() => updateSettings({ autoPlay: !settings.autoPlay })} tooltip="Automatically starts the next episode without user interaction." />
+                <Toggle label="Auto Skip Intro/Outro" checked={settings.autoSkip} onChange={() => updateSettings({ autoSkip: !settings.autoSkip })} tooltip="Automatically skips intros and outros for a seamless experience." />
+                <Toggle label="Start Videos Muted" checked={settings.startMuted} onChange={() => updateSettings({ startMuted: !settings.startMuted })} tooltip="Choose whether to start videos muted or unmuted." />
+                <Dropdown 
+                    label="Video Load Strategy" 
+                    selected={settings.videoLoadStrategy} 
+                    onChange={v => updateSettings({ videoLoadStrategy: v })} 
+                    options={[
+                        {value: 'idle', label: 'Idle (Recommended)'}, 
+                        {value: 'visible', label: 'Visible'}, 
+                        {value: 'eager', label: 'Eager'}
+                    ]}
+                    tooltip="Control when and how video resources begin loading." 
+                />
+                <Toggle label="Remember Player Volume" checked={settings.rememberVolume} onChange={() => updateSettings({ rememberVolume: !settings.rememberVolume })} tooltip="Saves and restores the player volume between sessions." />
+                <Toggle label="Remember Playback Speed" checked={settings.rememberPlaybackSpeed} onChange={() => updateSettings({ rememberPlaybackSpeed: !settings.rememberPlaybackSpeed })} tooltip="Saves and restores the playback speed between sessions." />
+                <Toggle label="Show Seek Thumbnails (Beta)" checked={settings.showSeekThumbnails} onChange={() => updateSettings({ showSeekThumbnails: !settings.showSeekThumbnails })} tooltip="Show a thumbnail preview when hovering over the seek bar. May not be available for all sources." />
+                 <div className="pt-4 border-t border-white/10 flex justify-end">
+                    <button onClick={handleRestorePlaybackDefaults} className="px-4 py-2 bg-white/10 rounded-xl text-sm font-semibold text-[rgb(var(--text-secondary))] hover:bg-white/20">Restore Playback Defaults</button>
+                </div>
+            </SettingsSection>
 
-            <SettingsSection title="Content & Player">
+
+            <SettingsSection title="Notifications">
+                <Toggle 
+                    label="Enable Desktop Push Notifications" 
+                    checked={notificationPermission === 'granted'} 
+                    onChange={handleNotificationToggle}
+                    tooltip="Allow the site to send you notifications for friend requests, replies, etc." 
+                />
+                <Toggle label="Email Notifications" checked={settings.emailNotifications} onChange={() => updateSettings({ emailNotifications: !settings.emailNotifications })} tooltip="Receive notifications via email (feature coming soon)." />
+                <Toggle label="In-App Toast Alerts" checked={settings.inAppToastAlerts} onChange={() => updateSettings({ inAppToastAlerts: !settings.inAppToastAlerts })} tooltip="Show pop-up alerts for actions like adding to watchlist." />
+                <Toggle label="MAL/AniList Sync Alerts" checked={settings.malSyncAlerts} onChange={() => updateSettings({ malSyncAlerts: !settings.malSyncAlerts })} tooltip="Show toast alerts for sync status." />
+                <Toggle label="Auto-Mark as Read" checked={settings.autoMarkAsRead} onChange={() => updateSettings({ autoMarkAsRead: !settings.autoMarkAsRead })} tooltip="Automatically mark notifications as read after opening the dropdown." />
+            </SettingsSection>
+
+            <SettingsSection title="Content">
                 <Toggle label="Restrict Adult Content" checked={settings.restrictAdultContent} onChange={() => updateSettings({ restrictAdultContent: !settings.restrictAdultContent })} tooltip="Hides explicit content (e.g., Hentai, Erotica). Requires login to disable." />
                  <Toggle label="Show Comments Section" checked={settings.showComments} onChange={() => updateSettings({ showComments: !settings.showComments })} tooltip="Show or hide the comments section on the player page." />
                  <Toggle label="Blur Episode Thumbnails" checked={settings.blurEpisodeThumbnails} onChange={() => updateSettings({ blurEpisodeThumbnails: !settings.blurEpisodeThumbnails })} tooltip="Blur thumbnails in the episode list to avoid spoilers." />
                  <Toggle label="Hide Filler Episodes" checked={settings.hideFillerEpisodes} onChange={() => updateSettings({ hideFillerEpisodes: !settings.hideFillerEpisodes })} tooltip="Automatically hide episodes marked as filler in the player." />
                  <Dropdown label="Default Provider" selected={settings.videoServer} onChange={v => updateSettings({ videoServer: v })} options={VIDEO_SERVERS.map(s => ({ value: s.id, label: s.name }))} tooltip="Choose your preferred video source provider." />
                 <Dropdown label="Default Language" selected={settings.defaultLanguage} onChange={v => updateSettings({ defaultLanguage: v })} options={[{value: 'sub', label: 'Subtitles'}, {value: 'dub', label: 'Dubbing'}, {value: 'ssub', label: 'S-Sub'}]} tooltip="Select your preferred audio/subtitle language."/>
-                <Toggle label="Auto Play Next Episode" checked={settings.autoplayNext} onChange={() => updateSettings({ autoplayNext: !settings.autoplayNext })} tooltip="Automatically play the next episode when the current one ends." />
-                <Toggle label="Auto Skip Intro" checked={settings.autoSkipIntro} onChange={() => updateSettings({ autoSkipIntro: !settings.autoSkipIntro })} tooltip="Automatically skip intros if timestamps are available." />
-                 <Toggle label="Auto Skip Outro" checked={settings.autoSkipOutro} onChange={() => updateSettings({ autoSkipOutro: !settings.autoSkipOutro })} tooltip="Automatically skip outros if timestamps are available." />
-                 <Toggle label="Remember Player Volume" checked={settings.rememberVolume} onChange={() => updateSettings({ rememberVolume: !settings.rememberVolume })} tooltip="Saves and restores the player volume between sessions." />
-                <Toggle label="Remember Playback Speed" checked={settings.rememberPlaybackSpeed} onChange={() => updateSettings({ rememberPlaybackSpeed: !settings.rememberPlaybackSpeed })} tooltip="Saves and restores the playback speed between sessions." />
-                <Toggle label="Show Seek Thumbnails (Beta)" checked={settings.showSeekThumbnails} onChange={() => updateSettings({ showSeekThumbnails: !settings.showSeekThumbnails })} tooltip="Show a thumbnail preview when hovering over the seek bar. May not be available for all sources." />
+                <Dropdown label="Player Focus Mode" selected={settings.playerFocusMode} onChange={v => updateSettings({ playerFocusMode: v })} options={[{value: 'overlay', label: 'Overlay'}, {value: 'fullscreen', label: 'Fullscreen'}]} tooltip="Choose the behavior for the player 'Focus' button." />
+            </SettingsSection>
+            
+            <SettingsSection title="Keyboard Shortcuts">
+                <ShortcutSettings />
             </SettingsSection>
             
             <SettingsSection title="MyAnimeList Integration">
                 <TextInput label="Username:" value={settings.malUsername} onChange={v => updateSettings({ malUsername: v })} placeholder="Enter MAL username" />
+                <Toggle label="Auto Sync with MAL" checked={settings.autoSyncMal} onChange={() => updateSettings({ autoSyncMal: !settings.autoSyncMal })} tooltip="Automatically sync watchlist status and episode progress with your MyAnimeList account." />
                 <div className="flex justify-end">
                     <button onClick={() => handleImport('mal')} disabled={!settings.malUsername || isImporting === 'mal'} className="px-4 py-2 bg-[rgb(var(--color-primary))] text-sm text-[rgb(var(--text-on-primary))] rounded-xl font-semibold hover:bg-[rgb(var(--color-primary-hover))] disabled:opacity-50 disabled:cursor-wait">
                          {isImporting === 'mal' ? 'Importing...' : 'Import from MAL'}
@@ -214,7 +298,6 @@ const SettingsPage: React.FC = () => {
             
             <SettingsSection title="Danger Zone">
                 <button onClick={handleClearWatchHistory} className="w-full text-center font-semibold text-[rgb(var(--color-danger))] hover:underline">Clear Watch History</button>
-                <button onClick={restoreDefaults} className="w-full text-center font-semibold text-[rgb(var(--color-warning))] pt-4 border-t border-white/10 hover:underline">Restore Default Settings</button>
             </SettingsSection>
         </div>
     );
