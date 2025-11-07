@@ -17,8 +17,9 @@ const RecentCommentsCarousel: React.FC<RecentCommentsCarouselProps> = ({ onAnime
     const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
 
     useEffect(() => {
-        const all = getAllComments();
-        setAllComments(all);
+        getAllComments().then(comments => {
+            setAllComments(comments);
+        });
     }, []);
 
     const sortedAndFilteredComments = useMemo(() => {
