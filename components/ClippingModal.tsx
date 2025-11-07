@@ -33,12 +33,12 @@ const ClippingModal: React.FC<ClippingModalProps> = ({ onClose }) => {
                 </div>
                 <div className="flex justify-around items-center gap-4 my-6">
                     <div>
-                        <label className="block text-sm font-medium text-[rgb(var(--text-secondary))]">Start Time</label>
-                        <input type="time" step="1" value={startTime} onChange={e => setStartTime(e.target.value)} className="bg-[rgb(var(--surface-input))] border border-white/10 rounded-lg p-2" />
+                        <label className="block text-sm font-medium text-[rgb(var(--text-secondary))]">Start</label>
+                        <input type="text" pattern="[0-5][0-9]:[0-5][0-9]" placeholder="MM:SS" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-24 text-center bg-[rgb(var(--surface-input))] border border-white/10 rounded-lg p-2" />
                     </div>
                     <div>
-                         <label className="block text-sm font-medium text-[rgb(var(--text-secondary))]">End Time</label>
-                        <input type="time" step="1" value={endTime} onChange={e => setEndTime(e.target.value)} className="bg-[rgb(var(--surface-input))] border border-white/10 rounded-lg p-2" />
+                         <label className="block text-sm font-medium text-[rgb(var(--text-secondary))]">End</label>
+                        <input type="text" pattern="[0-5][0-9]:[0-5][0-9]" placeholder="MM:SS" value={endTime} onChange={e => setEndTime(e.target.value)} className="w-24 text-center bg-[rgb(var(--surface-input))] border border-white/10 rounded-lg p-2" />
                     </div>
                 </div>
                 <button onClick={handleDownload} disabled={isDownloading} className="w-full py-3 bg-[rgb(var(--color-primary))] text-white rounded-full font-semibold hover:bg-[rgb(var(--color-primary-hover))] disabled:opacity-50 flex items-center justify-center gap-2">

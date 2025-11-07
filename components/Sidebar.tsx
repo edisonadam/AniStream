@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import type { Filter, Settings, Page } from '../types';
-import { CloseIcon, UsersIcon, BookOpenIcon, GiftIcon, MoonIcon, SunIcon, HomeIcon, TrendingUpIcon, CalendarIcon, HistoryIcon, InfoIcon, AcademicCapIcon, EyeIcon, EyeOffIcon, MessageCircleIcon, LevelUpIcon, ChevronDownIcon, ClipboardIcon, ShieldCheckIcon, HeartIcon, NewspaperIcon, StarIcon, MailIcon, QuestionMarkCircleIcon, FilmIcon } from './icons/Icons';
+import { CloseIcon, UsersIcon, BookOpenIcon, GiftIcon, MoonIcon, SunIcon, HomeIcon, TrendingUpIcon, CalendarIcon, HistoryIcon, InfoIcon, AcademicCapIcon, EyeIcon, EyeOffIcon, MessageCircleIcon, LevelUpIcon, ChevronDownIcon, ClipboardIcon, ShieldCheckIcon, HeartIcon, NewspaperIcon, StarIcon, MailIcon, QuestionMarkCircleIcon, FilmIcon, DownloadIcon } from './icons/Icons';
 import Logo from './Logo';
 import { ANIME_TYPES, ANIME_STATUSES, YEAR_OPTIONS, LANGUAGE_OPTIONS, STUDIO_OPTIONS, GENRES, TAG_OPTIONS } from '../constants';
 
@@ -18,6 +18,8 @@ interface SidebarProps {
   updateSettings: (newSettings: Partial<Settings>) => void;
   isLoggedIn: boolean;
   onLoginClick: (reason: string) => void;
+  installPrompt: Event | null;
+  onInstallClick: () => void;
 }
 
 const SideButton: React.FC<{ icon: React.ReactNode; label: string; onClick: () => void; }> = ({ icon, label, onClick }) => (
@@ -45,7 +47,8 @@ const FilterSection: React.FC<{ title: string; children: React.ReactNode; isOpen
 const Sidebar: React.FC<SidebarProps> = ({ 
     isOpen, onClose, filters, onFilterChange, onApplyFilters, onResetFilters, 
     onNavigate, onGoHome, onSurpriseMe, 
-    settings, updateSettings, isLoggedIn, onLoginClick
+    settings, updateSettings, isLoggedIn, onLoginClick,
+    installPrompt, onInstallClick
 }) => {
   const [openSections, setOpenSections] = useState<Set<string>>(new Set(['Genres', 'Type']));
   const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({}); // Store refs
@@ -63,6 +66,11 @@ const Sidebar: React.FC<SidebarProps> = ({
   const handleSurprise = () => {
     onClose();
     onSurpriseMe();
+  };
+
+  const handleInstall = () => {
+    onClose();
+    onInstallClick();
   };
 
   const toggleSection = (title: string) => {
@@ -141,6 +149,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               <SideButton icon={<HistoryIcon />} label="History" onClick={() => handleNavigation('history')} />
               <SideButton icon={<InfoIcon />} label="Updates & Logs" onClick={() => handleNavigation('news')} />
               <SideButton icon={<FilmIcon />} label="Trailers & Intros/Outros" onClick={() => handleNavigation('videos')} />
+              {installPrompt && <SideButton icon={<DownloadIcon />} label="Install App" onClick={handleInstall} />}
             </div>
 
             <div className="p-4 space-y-2 border-b border-white/10">

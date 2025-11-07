@@ -58,8 +58,8 @@ const HistoryPage: React.FC<HistoryPageProps> = ({ onAnimeSelect, allAnime }) =>
                                     Last Watched: S{progressInfo.currentSeason} E{progressInfo.currentEpisode}
                                 </p>
                                 <div className="mt-2">
-                                     <div className="w-full bg-[rgb(var(--surface-3))] rounded-full h-1.5">
-                                        <div className="bg-[rgb(var(--color-primary))] h-1.5 rounded-full" style={{width: `${progressInfo.progress}%`}}></div>
+                                     <div className="w-full bg-[rgb(var(--surface-3))] rounded-full h-2">
+                                        <div className="bg-[rgb(var(--color-primary))] h-2 rounded-full" style={{width: `${progressInfo.progress}%`}}></div>
                                     </div>
                                 </div>
                             </div>

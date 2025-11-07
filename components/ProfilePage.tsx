@@ -4,10 +4,11 @@ import { useSettings } from '../hooks/useSettings';
 import { useProfileData } from '../hooks/useProfileData';
 import { useWatchProgress } from '../hooks/useWatchProgress';
 import { useWatchlist } from '../hooks/useWatchlist';
-import { ChevronLeftIcon, CloseIcon } from './icons/Icons';
+import { ChevronLeftIcon, CloseIcon, VerifiedIcon } from './icons/Icons';
 import type { Anime, WatchProgressInfo, Rating, User } from '../types';
 import AnimeCard from './AnimeCard';
 import SettingsPage from './SettingsPage'; // Import the new settings page component
+import { getDisplayTitle } from '../utils';
 
 interface ProfilePageProps {
     onGoBack: () => void;
@@ -20,6 +21,7 @@ type Tab = 'profile-settings' | 'friends';
 
 const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectAnime, getEpisodeStatus }) => {
     const { user, updateUser, logout } = useAuth();
+    const { settings } = useSettings();
     const { ratings, friends, removeFriend } = useProfileData();
     const { watchProgressList } = useWatchProgress();
     const { watchlist } = useWatchlist();
@@ -69,10 +71,6 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
         setIsEditingProfile(false);
     };
 
-    const continueWatchingList = useMemo(() => {
-        return watchProgressList.filter(item => item.progress > 0 && item.progress < 100);
-    }, [watchProgressList]);
-
     const ProfileTabContent = () => (
       <div className="space-y-12">
         {/* Profile Header */}
@@ -111,10 +109,46 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
             )}
         </div>
         
-        <DataSection title="Continue Watching" data={continueWatchingList} renderItem={(item: WatchProgressInfo) => animeMap.get(item.animeId) && <AnimeCard anime={animeMap.get(item.animeId)!} onSelect={onSelectAnime} episodeStatus={getEpisodeStatus(item.animeId)} />} />
-        <DataSection title="My Watchlist" data={watchlist} renderItem={(item: Anime) => <AnimeCard anime={item} onSelect={onSelectAnime} episodeStatus={getEpisodeStatus(item.id)} />} />
-        <DataSection title="Viewing History" data={watchProgressList} renderItem={(item: WatchProgressInfo) => animeMap.get(item.animeId) && <AnimeCard anime={animeMap.get(item.animeId)!} onSelect={onSelectAnime} episodeStatus={getEpisodeStatus(item.animeId)} />} />
-        <DataSection title="My Ratings" data={ratings} renderItem={(item: Rating) => animeMap.get(item.animeId) && <AnimeCard anime={animeMap.get(item.animeId)!} onSelect={onSelectAnime} episodeStatus={getEpisodeStatus(item.animeId)} />} />
+        <DataSection title="My Watchlist" data={watchlist.slice(0, 6)} renderItem={(item: Anime) => <AnimeCard anime={item} onSelect={onSelectAnime} episodeStatus={getEpisodeStatus(item.id)} />} />
+        
+        <div>
+            <h3 className="text-2xl font-bold mb-4">Viewing History</h3>
+            {watchProgressList.length > 0 ? (
+                <div className="space-y-3 max-h-[28rem] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin' }}>
+                    {watchProgressList.map(({ animeId, ...progressInfo }) => {
+                        const anime = animeMap.get(animeId);
+                        if (!anime) return null;
+                        return (
+                            <div 
+                                key={anime.id}
+                                onClick={() => onSelectAnime(anime)}
+                                className="group flex items-center gap-4 bg-[rgb(var(--surface-2))/0.5] p-3 rounded-xl hover:bg-[rgb(var(--surface-2))] transition-colors cursor-pointer"
+                            >
+                                <img src={anime.thumbnail} alt={getDisplayTitle(anime, settings)} className="w-16 h-24 object-cover rounded-md flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="font-bold text-[rgb(var(--text-primary))] truncate group-hover:text-[rgb(var(--color-primary-accent))] transition-colors">{getDisplayTitle(anime, settings)}</h3>
+                                    <p className="text-sm text-[rgb(var(--text-muted))]">
+                                        Last Watched: S{progressInfo.currentSeason} E{progressInfo.currentEpisode}
+                                    </p>
+                                    <div className="mt-2">
+                                        <div className="w-full bg-[rgb(var(--surface-3))] rounded-full h-2">
+                                            <div className="bg-[rgb(var(--color-primary))] h-2 rounded-full" style={{width: `${progressInfo.progress}%`}}></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex-shrink-0 text-sm text-right text-[rgb(var(--text-muted))]">
+                                    <p>{new Date(progressInfo.timestamp).toLocaleDateString()}</p>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            ) : (
+                <p className="text-[rgb(var(--text-muted))]">Nothing here yet!</p>
+            )}
+        </div>
+        
+        <DataSection title="My Ratings" data={ratings.slice(0, 6)} renderItem={(item: Rating) => animeMap.get(item.animeId) && <AnimeCard anime={animeMap.get(item.animeId)!} onSelect={onSelectAnime} episodeStatus={getEpisodeStatus(item.animeId)} />} />
       </div>
     );
     
@@ -193,7 +227,7 @@ const DataSection = <T extends { animeId: number } | { id: number }>({ title, da
         <div>
             <h3 className="text-2xl font-bold mb-4">{title}</h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
-                {data.slice(0, 6).map((item, index) => (
+                {data.map((item, index) => (
                     <div key={('animeId' in item ? item.animeId : item.id) + '-' + index}>
                         {renderItem(item)}
                     </div>

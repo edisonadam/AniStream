@@ -119,6 +119,9 @@ const App: React.FC = () => {
     const [recentEpisodes, setRecentEpisodes] = useState<RecentEpisode[]>([]);
     const [newEpisodeAnime, setNewEpisodeAnime] = useState<(Anime & { episodeNumber: number })[]>([]);
     const [isNewEpisodesLoading, setIsNewEpisodesLoading] = useState(true);
+    
+    // PWA Install Prompt state
+    const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
 
     const { settings, updateSettings } = useSettings();
     const { shortcuts } = useShortcuts();
@@ -153,6 +156,31 @@ const App: React.FC = () => {
             }
         }
     }, [isCarouselLoading]);
+
+    // PWA Install Prompt Handler
+    useEffect(() => {
+        const handleBeforeInstallPrompt = (e: Event) => {
+            e.preventDefault();
+            setInstallPrompt(e);
+        };
+        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+        return () => {
+            window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+        };
+    }, []);
+
+    const handleInstallClick = () => {
+        if (!installPrompt) return;
+        (installPrompt as any).prompt();
+        (installPrompt as any).userChoice.then((choiceResult: { outcome: 'accepted' | 'dismissed' }) => {
+            if (choiceResult.outcome === 'accepted') {
+                addToast('App installed successfully!', 'success');
+            } else {
+                addToast('Installation cancelled.', 'info');
+            }
+            setInstallPrompt(null);
+        });
+    };
 
     // Welcome toast on login
     useEffect(() => {
@@ -1124,11 +1152,11 @@ const App: React.FC = () => {
                 return (
                     <>
                         {isDefaultHome && <FeaturedCarousel animeList={featuredAnime} onAnimeSelect={(anime) => handleAnimeSelect(anime, 'Home')} isLoading={isCarouselLoading} getEpisodeStatus={getEpisodeStatus} />}
-                        {isDefaultHome && settings.showNewEpisodeBadges && <NewEpisodesSection newEpisodeAnime={newEpisodeAnime} onAnimeSelect={(anime) => handleAnimeSelect(anime, 'New Episodes')} getEpisodeStatus={getEpisodeStatus} isLoading={isNewEpisodesLoading} />}
-                        {isDefaultHome && <TopAnime animeList={topAnimeList.slice(0, 10)} isLoading={isTopAnimeLoading} onAnimeSelect={(anime) => handleAnimeSelect(anime, 'Top 10')} onShowTop100={() => navigateTo('top-100')} getEpisodeStatus={getEpisodeStatus} />}
                         {isDefaultHome && settings.showWatchHistoryOnHome && (
                             <ContinueWatching onSelectAnime={(anime) => handleAnimeSelect(anime, 'Continue Watching')} onShowHistory={() => navigateTo('history')} allAnime={allAnime} getEpisodeStatus={getEpisodeStatus} />
                         )}
+                        {isDefaultHome && settings.showNewEpisodeBadges && <NewEpisodesSection newEpisodeAnime={newEpisodeAnime} onAnimeSelect={(anime) => handleAnimeSelect(anime, 'New Episodes')} getEpisodeStatus={getEpisodeStatus} isLoading={isNewEpisodesLoading} />}
+                        {isDefaultHome && <TopAnime animeList={topAnimeList.slice(0, 10)} isLoading={isTopAnimeLoading} onAnimeSelect={(anime) => handleAnimeSelect(anime, 'Top 10')} onShowTop100={() => navigateTo('top-100')} getEpisodeStatus={getEpisodeStatus} />}
                         {isDefaultHome && <ThisSeasonAnime onAnimeSelect={(anime) => handleAnimeSelect(anime, 'Best This Season')} onShowSchedule={() => navigateTo('schedule')} getEpisodeStatus={getEpisodeStatus} />}
                         {isDefaultHome && <BeginnerAnime onAnimeSelect={(anime) => handleAnimeSelect(anime, 'For Beginners')} getEpisodeStatus={getEpisodeStatus} />}
                         <AnimeGrid
@@ -1250,6 +1278,8 @@ const App: React.FC = () => {
                     updateSettings={updateSettings}
                     isLoggedIn={isLoggedIn}
                     onLoginClick={handleLoginRequest}
+                    installPrompt={installPrompt}
+                    onInstallClick={handleInstallClick}
                 />,
                 sidebarRoot
             )}

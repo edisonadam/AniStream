@@ -132,6 +132,7 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
 
   const [trailers, setTrailers] = useState<Record<number, string>>({});
   const [trailerErrors, setTrailerErrors] = useState<Set<number>>(new Set());
+  const [showVideo, setShowVideo] = useState(false);
 
   const slides = animeList.slice(0, 5);
 
@@ -152,6 +153,14 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
         });
     }
   }, [slides, settings.homepageTrailer, trailers]);
+  
+  useEffect(() => {
+    setShowVideo(false); // Hide video when slide changes
+    const timer = setTimeout(() => {
+        setShowVideo(true);
+    }, 2000); // 2 second delay for banner
+    return () => clearTimeout(timer);
+  }, [currentIndex]);
 
   const resetTimeout = useCallback(() => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -171,7 +180,7 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
 
   const startAutoPlay = useCallback(() => {
     stopAutoPlay();
-    intervalRef.current = setInterval(nextSlide, 7000); // Slower rotation
+    intervalRef.current = setInterval(nextSlide, 12000); // 2s banner + 10s video
   }, [stopAutoPlay, nextSlide]);
 
   useEffect(() => {
@@ -186,7 +195,7 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
     resetTimeout();
     timeoutRef.current = setTimeout(() => {
       startAutoPlay();
-    }, 10000); // Resume after 10s of inactivity
+    }, 12000); // Resume after 12s of inactivity
   }, [stopAutoPlay, resetTimeout, startAutoPlay]);
 
   const goToSlide = (index: number) => {
@@ -280,12 +289,11 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
           
           return (
             <div key={slide.id} className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${isActive ? 'opacity-100' : 'opacity-0'}`}>
-                {isActive && videoId && !hasError ? (
-                    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <img loading="lazy" src={slide.bannerImage} alt={getDisplayTitle(slide, settings)} className={`w-full h-full object-cover ${isActive ? 'animate-ken-burns' : ''}`} />
+                {isActive && videoId && !hasError && showVideo && (
+                    <div className="absolute inset-0 overflow-hidden pointer-events-none animate-cinematic-fade-in" style={{ animationDuration: '1.5s' }}>
                        <YouTubeBackgroundPlayer videoId={videoId} onError={() => handleTrailerError(slide.id)} />
                     </div>
-                ) : (
-                    <img loading="lazy" src={slide.bannerImage} alt={getDisplayTitle(slide, settings)} className={`w-full h-full object-cover ${isActive ? 'animate-ken-burns' : ''}`} />
                 )}
             </div>
           )
