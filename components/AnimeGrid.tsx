@@ -16,7 +16,7 @@ interface AnimeGridProps {
   sortValue: Filter['sort'];
   onSortChange?: (sort: Filter['sort']) => void;
   loadMoreMode: Settings['loadMoreMode'];
-  isNew: (animeId: number) => { isNew: boolean; episodeNumber: number | null };
+  getEpisodeStatus: (animeId: number) => { isNew: boolean; episodeNumber: number | null };
   currentPage: number;
   totalPages: number;
   isPreloading?: boolean;
@@ -25,7 +25,7 @@ interface AnimeGridProps {
 
 const ANIME_PAGE_SIZE = 25; // As defined in App.tsx fetch logic
 
-const AnimeGrid: React.FC<AnimeGridProps> = ({ onAnimeSelect, animeList, title, filters, isLoading, onLoadMore, hasMore, isLoadingMore, sortValue, onSortChange, loadMoreMode, isNew, currentPage, totalPages, isPreloading = false, onCollapse }) => {
+const AnimeGrid: React.FC<AnimeGridProps> = ({ onAnimeSelect, animeList, title, filters, isLoading, onLoadMore, hasMore, isLoadingMore, sortValue, onSortChange, loadMoreMode, getEpisodeStatus, currentPage, totalPages, isPreloading = false, onCollapse }) => {
   const hasActiveFilters = Object.values(filters).some(v => {
     if (Array.isArray(v)) return v.length > 0;
     if (typeof v === 'string' && v !== 'popularity') return true;
@@ -135,7 +135,7 @@ const AnimeGrid: React.FC<AnimeGridProps> = ({ onAnimeSelect, animeList, title, 
             <div ref={gridContainerRef} className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
               {animeList.map((anime, index) => (
                 <div key={anime.id} className="animate-subtle-fade-in-up" style={{ animationDelay: `${(index % ANIME_PAGE_SIZE) * 30}ms` }}>
-                    <AnimeCard anime={anime} onSelect={onAnimeSelect} isNew={isNew(anime.id).isNew} />
+                    <AnimeCard anime={anime} onSelect={onAnimeSelect} episodeStatus={getEpisodeStatus(anime.id)} />
                 </div>
               ))}
             </div>

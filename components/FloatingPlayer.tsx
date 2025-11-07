@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useLayoutEffect } from 'react';
 import Artplayer from 'artplayer';
 import { useFloatingPlayer } from '../hooks/useFloatingPlayer';
 import type { Anime } from '../types';
@@ -20,6 +20,14 @@ const DraggableFloatingPlayer: React.FC<FloatingPlayerProps> = ({ onDock }) => {
     const [isInteracting, setIsInteracting] = useState(false);
     const [isPausedForOverlay, setIsPausedForOverlay] = useState(false);
     const posRef = useRef({ x: 0, y: 0 });
+    const dragStateRef = useRef({ isDragging: false, initialX: 0, initialY: 0, startX: 0, startY: 0 });
+
+    useLayoutEffect(() => {
+        const container = containerRef.current;
+        if (container) {
+            container.style.transform = `translate3d(${posRef.current.x}px, ${posRef.current.y}px, 0)`;
+        }
+    });
 
     const dispatchEvent = (name: string, detail?: any) => document.dispatchEvent(new CustomEvent(name, { detail }));
 
@@ -152,10 +160,10 @@ const DraggableFloatingPlayer: React.FC<FloatingPlayerProps> = ({ onDock }) => {
     useEffect(() => {
         const container = containerRef.current;
         if (!container) return;
-        const dragState = { isDragging: false, initialX: 0, initialY: 0, startX: 0, startY: 0 };
         
         const onPointerDown = (e: PointerEvent) => {
             if (e.button !== 0) return;
+            const dragState = dragStateRef.current;
             dragState.isDragging = true;
             document.body.classList.add('pip-dragging');
             container.style.transition = 'none';
@@ -167,6 +175,7 @@ const DraggableFloatingPlayer: React.FC<FloatingPlayerProps> = ({ onDock }) => {
         };
 
         const onPointerMove = (e: PointerEvent) => {
+            const dragState = dragStateRef.current;
             if (!dragState.isDragging) return;
             const dx = e.clientX - dragState.startX;
             const dy = e.clientY - dragState.startY;
@@ -174,11 +183,14 @@ const DraggableFloatingPlayer: React.FC<FloatingPlayerProps> = ({ onDock }) => {
         };
 
         const onPointerUp = () => {
+            const dragState = dragStateRef.current;
             if (!dragState.isDragging) return;
             dragState.isDragging = false;
             document.body.classList.remove('pip-dragging');
-            container.style.transition = 'transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)';
-            container.style.cursor = 'grab';
+            if(container) {
+                container.style.transition = 'transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)';
+                container.style.cursor = 'grab';
+            }
             snapToCorner();
         };
 
@@ -200,6 +212,7 @@ const DraggableFloatingPlayer: React.FC<FloatingPlayerProps> = ({ onDock }) => {
             container.removeEventListener('pointerdown', onPointerDown);
             document.removeEventListener('pointermove', onPointerMove);
             document.removeEventListener('pointerup', onPointerUp);
+            document.body.classList.remove('pip-dragging');
         };
     }, [setPosition, snapToCorner]);
 

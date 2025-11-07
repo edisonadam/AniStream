@@ -104,7 +104,6 @@ export default function ShortcutSettings() {
                   : "border-[rgb(var(--border-color))] text-[rgb(var(--text-primary))]"
               }`}
             >
-              {/* FIX: Cast `keys` to string[] to resolve `join` method error. */}
               {editing === action ? "Press key..." : (keys as string[]).join(" / ")}
             </button>
           </div>

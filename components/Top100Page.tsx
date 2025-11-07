@@ -9,9 +9,10 @@ interface Top100PageProps {
   isLoading: boolean;
   onSelectAnime: (anime: Anime) => void;
   onGoBack: () => void;
+  getEpisodeStatus: (animeId: number) => { isNew: boolean; episodeNumber: number | null };
 }
 
-const Top100Page: React.FC<Top100PageProps> = ({ topAnimeList, isLoading, onSelectAnime, onGoBack }) => {
+const Top100Page: React.FC<Top100PageProps> = ({ topAnimeList, isLoading, onSelectAnime, onGoBack, getEpisodeStatus }) => {
     const { settings } = useSettings();
 
     const ListItemSkeleton: React.FC = () => (
@@ -39,28 +40,41 @@ const Top100Page: React.FC<Top100PageProps> = ({ topAnimeList, isLoading, onSele
                  <div className="space-y-3">{Array.from({ length: 15 }).map((_, i) => <ListItemSkeleton key={`skel-${i}`} />)}</div>
             ) : (
                 <div className="space-y-3">
-                    {topAnimeList.map((anime, index) => (
-                        <div 
-                            key={anime.id}
-                            onClick={() => onSelectAnime(anime)}
-                            className="group relative flex items-center gap-4 bg-[rgb(var(--surface-2))/0.5] p-2 pr-4 rounded-xl hover:bg-[rgb(var(--surface-2))] transition-colors cursor-pointer"
-                        >
-                            <span className="w-12 text-center text-2xl font-bold text-[rgb(var(--text-muted))] group-hover:text-[rgb(var(--color-primary-accent))] transition-colors">{index + 1}</span>
-                            <img src={anime.thumbnail} alt="" className="w-14 h-20 object-cover rounded-md flex-shrink-0" />
-                            <div className="flex-1 min-w-0">
-                                <h3 className="font-bold text-[rgb(var(--text-primary))] truncate group-hover:text-[rgb(var(--color-primary-accent))] transition-colors">{getDisplayTitle(anime, settings)}</h3>
-                                <p className="text-sm text-[rgb(var(--text-muted))] capitalize">
-                                    {anime.type} &bull; {anime.status}
-                                </p>
-                            </div>
-                            {anime.rating && (
-                                <div className="flex items-center gap-1.5 text-lg font-bold text-[rgb(var(--color-warning))]">
-                                    <StarIcon className="w-5 h-5"/>
-                                    <span>{anime.rating.toFixed(2)}</span>
+                    {topAnimeList.map((anime, index) => {
+                        const { episodeNumber } = getEpisodeStatus(anime.id);
+                        return (
+                            <div 
+                                key={anime.id}
+                                onClick={() => onSelectAnime(anime)}
+                                className="group relative flex items-center gap-4 bg-[rgb(var(--surface-2))/0.5] p-2 pr-4 rounded-xl hover:bg-[rgb(var(--surface-2))] transition-colors cursor-pointer"
+                            >
+                                <span className="w-12 text-center text-2xl font-bold text-[rgb(var(--text-muted))] group-hover:text-[rgb(var(--color-primary-accent))] transition-colors">{index + 1}</span>
+                                <img src={anime.thumbnail} alt="" className="w-14 h-20 object-cover rounded-md flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="font-bold text-[rgb(var(--text-primary))] truncate group-hover:text-[rgb(var(--color-primary-accent))] transition-colors">{getDisplayTitle(anime, settings)}</h3>
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-sm text-[rgb(var(--text-muted))] capitalize">
+                                            {anime.type} &bull; {anime.status}
+                                        </p>
+                                        {anime.status === 'Ongoing' && episodeNumber && (anime.totalEpisodes || anime.episodes_count) && (
+                                            <span
+                                                className="inline-flex items-center rounded-full bg-cyan-500/20 px-2 py-0.5 text-xs font-semibold text-cyan-400"
+                                                title={`Episode ${episodeNumber} of ${anime.totalEpisodes || anime.episodes_count} released`}
+                                            >
+                                                Ep {episodeNumber} / {anime.totalEpisodes || anime.episodes_count}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
-                            )}
-                        </div>
-                    ))}
+                                {anime.rating && (
+                                    <div className="flex items-center gap-1.5 text-lg font-bold text-[rgb(var(--color-warning))]">
+                                        <StarIcon className="w-5 h-5"/>
+                                        <span>{anime.rating.toFixed(2)}</span>
+                                    </div>
+                                )}
+                            </div>
+                        )
+                    })}
                 </div>
             )}
         </div>

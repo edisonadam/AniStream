@@ -6,6 +6,7 @@ import { SearchIcon } from './icons/Icons';
 import ClubsPage from './ClubsPage';
 import CreateClubModal from './CreateClubModal';
 import RecentCommentsCarousel from './RecentComments';
+import { useProfileData } from '../hooks/useProfileData';
 
 const USER_DIRECTORY_KEY = 'anistream-user-directory';
 const COMMUNITY_POSTS_KEY = 'anistream-community-posts';
@@ -19,6 +20,7 @@ interface CommunityPageProps {
 
 const CommunityPage: React.FC<CommunityPageProps> = ({ onLoginClick, onClubSelect, onUserSelect, onAnimeSelect }) => {
     const { user, isLoggedIn } = useAuth();
+    const { isUserBlocked } = useProfileData();
     const [posts, setPosts] = useState<CommunityPost[]>([]);
     const [users, setUsers] = useState<CommunityUser[]>([]);
     const [postText, setPostText] = useState('');
@@ -90,7 +92,7 @@ const CommunityPage: React.FC<CommunityPageProps> = ({ onLoginClick, onClubSelec
                         <textarea value={postText} onChange={e => setPostText(e.target.value)} placeholder="What's on your mind?" className="w-full bg-[rgb(var(--surface-input))/0.2] border border-white/10 rounded-xl p-3 text-[rgb(var(--text-primary))] focus:ring-2 focus:ring-[rgb(var(--border-focus))]" rows={3} />
                         <div className="text-right mt-2"><button onClick={handlePost} className="px-5 py-2 bg-[rgb(var(--color-primary))] text-white rounded-full font-semibold hover:bg-[rgb(var(--color-primary-hover))]">Post</button></div>
                     </div>
-                    {posts.map(post => (
+                    {posts.filter(post => !isUserBlocked(post.user.uid)).map(post => (
                         <div key={post.id} className="bg-[rgb(var(--surface-2))/0.6] p-4 rounded-2xl flex items-start gap-4">
                             <button onClick={() => onUserSelect(post.user as User)} className="flex-shrink-0 transition-transform hover:scale-110"><img loading="lazy" src={post.user.avatar} alt={post.user.username} className="w-12 h-12 rounded-full" /></button>
                             <div className="flex-1">

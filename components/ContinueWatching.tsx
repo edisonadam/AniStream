@@ -9,19 +9,20 @@ interface ContinueWatchingProps {
     onShowHistory: () => void;
     onSelectAnime: (anime: Anime) => void;
     allAnime: Anime[];
-    isNew: (animeId: number) => { isNew: boolean; episodeNumber: number | null };
+    getEpisodeStatus: (animeId: number) => { isNew: boolean; episodeNumber: number | null };
 }
 
 interface ContinueWatchingCardProps {
     anime: Anime;
     progressInfo: WatchProgressInfo;
     onSelect: () => void;
-    isNew: boolean;
+    episodeStatus: { isNew: boolean; episodeNumber: number | null };
 }
 
-const ContinueWatchingCard: React.FC<ContinueWatchingCardProps> = ({ anime, progressInfo, onSelect, isNew }) => {
+const ContinueWatchingCard: React.FC<ContinueWatchingCardProps> = ({ anime, progressInfo, onSelect, episodeStatus }) => {
     const { settings } = useSettings();
     const displayTitle = getDisplayTitle(anime, settings);
+    const { isNew, episodeNumber } = episodeStatus;
 
     return (
         <div onClick={onSelect} className="continue-watching-card-touch-target group relative flex-shrink-0 w-40 sm:w-48 cursor-pointer transform transition-transform duration-300 hover:-translate-y-1">
@@ -30,6 +31,14 @@ const ContinueWatchingCard: React.FC<ContinueWatchingCardProps> = ({ anime, prog
             </div>
              <div className="absolute top-2 right-2 flex flex-col items-end gap-1.5 z-10">
                 {isNew && <span className="order-first px-2 py-1 text-xs font-bold rounded-full bg-red-600 text-white animate-pulse">NEW EP</span>}
+                {anime.status === 'Ongoing' && episodeNumber && (anime.totalEpisodes || anime.episodes_count) && (
+                    <span
+                        className="order-first inline-flex items-center rounded-full bg-cyan-500/20 px-2 py-0.5 text-xs font-semibold text-cyan-400 backdrop-blur-sm"
+                        title={`Episode ${episodeNumber} of ${anime.totalEpisodes || anime.episodes_count} released`}
+                    >
+                        Ep {episodeNumber} / {anime.totalEpisodes || anime.episodes_count}
+                    </span>
+                )}
                 {anime.releaseYear && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/50 text-white backdrop-blur-md">{anime.releaseYear}</span>}
                 {(anime.hasSub || anime.hasDub) && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/50 text-white backdrop-blur-md">{anime.hasSub && anime.hasDub ? 'SUB/DUB' : anime.hasSub ? 'SUB' : 'DUB'}</span>}
                 {anime.isAdult && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/50 text-white backdrop-blur-md">+18</span>}
@@ -46,7 +55,7 @@ const ContinueWatchingCard: React.FC<ContinueWatchingCardProps> = ({ anime, prog
     );
 }
 
-const ContinueWatching: React.FC<ContinueWatchingProps> = ({ onShowHistory, onSelectAnime, allAnime, isNew }) => {
+const ContinueWatching: React.FC<ContinueWatchingProps> = ({ onShowHistory, onSelectAnime, allAnime, getEpisodeStatus }) => {
     const { isLoggedIn } = useAuth();
     const { watchProgressList } = useWatchProgress();
 
@@ -90,7 +99,7 @@ const ContinueWatching: React.FC<ContinueWatchingProps> = ({ onShowHistory, onSe
                         anime={anime} 
                         progressInfo={progressInfo}
                         onSelect={() => onSelectAnime(anime)}
-                        isNew={isNew(anime.id).isNew}
+                        episodeStatus={getEpisodeStatus(anime.id)}
                     />
                 ))}
             </div>

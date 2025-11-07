@@ -87,7 +87,7 @@ const NewsPage: React.FC<NewsPageProps> = ({ onAnimeSelect }) => {
       return <p className="col-span-full text-center text-red-500">{error}</p>;
     }
     return promos.map(promo => {
-        const youtubeId = promo.title.includes('YouTube') ? extractYouTubeId(promo.entry.url) : null;
+        const youtubeId = promo.trailer?.youtube_id;
         return (
             <div key={promo.entry.mal_id + promo.title} className="group bg-[rgb(var(--surface-2))] rounded-2xl shadow-lg overflow-hidden transform transition-transform duration-300 hover:-translate-y-1">
                 <div className="aspect-video w-full relative">

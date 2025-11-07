@@ -2,6 +2,8 @@ import React from 'react';
 import { CloseIcon, VerifiedIcon } from './icons/Icons';
 import type { User } from '../types';
 import { LEVEL_DATA, MAX_LEVEL_TOKENS } from '../constants';
+import { useProfileData } from '../hooks/useProfileData';
+import { useAuth } from '../hooks/useAuth';
 
 interface UserDetailModalProps {
   user: User;
@@ -9,6 +11,10 @@ interface UserDetailModalProps {
 }
 
 const UserDetailModal: React.FC<UserDetailModalProps> = ({ user, onClose }) => {
+  const { user: currentUser } = useAuth();
+  const { blockUser, unblockUser, isUserBlocked } = useProfileData();
+  const isBlocked = isUserBlocked(user.uid);
+
   // Mock data for demonstration as we can't fetch other users' private data
   const commentCount = Math.floor(Math.random() * 500);
   const totalAniTokens = commentCount * 600;
@@ -22,6 +28,16 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ user, onClose }) => {
   const progressToNextLevel = totalAniTokens - tokensForCurrentLevel;
   const rangeForNextLevel = tokensForNextLevel - tokensForCurrentLevel;
   const percentToNext = rangeForNextLevel > 0 ? (progressToNextLevel / rangeForNextLevel) * 100 : 100;
+
+  const handleBlockToggle = () => {
+    if (isBlocked) {
+        unblockUser(user.uid);
+    } else {
+        if (window.confirm(`Are you sure you want to block ${user.username}? You will no longer see their comments, posts, or receive notifications from them.`)) {
+            blockUser(user);
+        }
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center animate-cinematic-fade-in" onClick={onClose}>
@@ -59,6 +75,14 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ user, onClose }) => {
                     <p className="text-xs text-[rgb(var(--text-muted))]">Total AniTokens</p>
                 </div>
             </div>
+
+            {currentUser && currentUser.uid !== user.uid && (
+                <div className="pt-4 border-t border-white/10">
+                    <button onClick={handleBlockToggle} className={`w-full py-2 rounded-lg font-semibold transition-colors ${isBlocked ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30' : 'bg-red-500/20 text-red-400 hover:bg-red-500/30'}`}>
+                        {isBlocked ? 'Unblock User' : 'Block User'}
+                    </button>
+                </div>
+            )}
         </div>
 
       </div>

@@ -7,6 +7,7 @@ interface ProfileDataContextType {
   friends: User[];
   notifications: Notification[];
   aniTokens: number;
+  blockedUsers: string[];
   rateAnime: (animeId: number, rating: number) => void;
   getRating: (animeId: number) => number | null;
   addFriend: (friend: User) => boolean;
@@ -18,6 +19,9 @@ interface ProfileDataContextType {
   clearAllNotifications: () => void;
   addAniTokens: (amount: number) => void;
   spendAniTokens: (amount: number) => boolean;
+  blockUser: (userToBlock: User) => void;
+  unblockUser: (userId: string) => void;
+  isUserBlocked: (userId: string) => boolean;
 }
 
 
@@ -32,7 +36,12 @@ export const ProfileDataProvider: React.FC<ProfileDataProviderProps> = ({ childr
   const [friends, setFriends] = useState<User[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [aniTokens, setAniTokens] = useState<number>(0);
+  const [blockedUsers, setBlockedUsers] = useState<string[]>([]);
   const { user } = useAuth();
+
+  const isUserBlocked = useCallback((userId: string) => {
+    return blockedUsers.includes(userId);
+  }, [blockedUsers]);
 
   const persistNotifications = useCallback((list: Notification[], userId: string) => {
       localStorage.setItem(`notifications-${userId}`, JSON.stringify(list));
@@ -46,6 +55,9 @@ export const ProfileDataProvider: React.FC<ProfileDataProviderProps> = ({ childr
         
         const storedFriends = localStorage.getItem(`friends-${user.uid}`);
         setFriends(storedFriends ? JSON.parse(storedFriends) : []);
+
+        const storedBlockedUsers = localStorage.getItem(`blocked-users-${user.uid}`);
+        setBlockedUsers(storedBlockedUsers ? JSON.parse(storedBlockedUsers) : []);
 
         const storedNotifications = localStorage.getItem(`notifications-${user.uid}`);
         if (storedNotifications) {
@@ -72,6 +84,7 @@ export const ProfileDataProvider: React.FC<ProfileDataProviderProps> = ({ childr
         setFriends([]);
         setNotifications([]);
         setAniTokens(0);
+        setBlockedUsers([]);
       }
     } else {
       // Clear data on logout
@@ -79,6 +92,7 @@ export const ProfileDataProvider: React.FC<ProfileDataProviderProps> = ({ childr
       setFriends([]);
       setNotifications([]);
       setAniTokens(0);
+      setBlockedUsers([]);
     }
   }, [user, persistNotifications]);
 
@@ -92,6 +106,10 @@ export const ProfileDataProvider: React.FC<ProfileDataProviderProps> = ({ childr
   
   const persistTokens = useCallback((tokens: number) => {
       if (user) localStorage.setItem(`aniTokens-${user.uid}`, tokens.toString());
+  }, [user]);
+
+  const persistBlockedUsers = useCallback((list: string[]) => {
+    if (user) localStorage.setItem(`blocked-users-${user.uid}`, JSON.stringify(list));
   }, [user]);
 
   const addAniTokens = useCallback((amount: number) => {
@@ -158,6 +176,11 @@ export const ProfileDataProvider: React.FC<ProfileDataProviderProps> = ({ childr
   }, [friends]);
   
   const addNotification = useCallback((notificationData: Omit<Notification, 'id' | 'timestamp' | 'read'>, targetUsername?: string) => {
+    const sourceUserId = notificationData.relatedUser?.uid;
+    if (sourceUserId && isUserBlocked(sourceUserId)) {
+        return; // Don't add notification from a user you've blocked.
+    }
+
     const targetUser = friends.find(f => f.username === targetUsername) || user;
     if (!targetUser) return;
 
@@ -194,7 +217,7 @@ export const ProfileDataProvider: React.FC<ProfileDataProviderProps> = ({ childr
             console.error("Could not add notification for other user", e);
         }
     }
-  }, [user, friends, persistNotifications]);
+  }, [user, friends, persistNotifications, isUserBlocked]);
   
   const markNotificationsAsRead = useCallback(() => {
     if (!user) return;
@@ -220,15 +243,35 @@ export const ProfileDataProvider: React.FC<ProfileDataProviderProps> = ({ childr
     persistNotifications([], user.uid);
   }, [user, persistNotifications]);
 
+  const blockUser = useCallback((userToBlock: User) => {
+    setBlockedUsers(prev => {
+        if (prev.includes(userToBlock.uid)) return prev;
+        const newList = [...prev, userToBlock.uid];
+        persistBlockedUsers(newList);
+        return newList;
+    });
+  }, [persistBlockedUsers]);
+
+  const unblockUser = useCallback((userId: string) => {
+    setBlockedUsers(prev => {
+        const newList = prev.filter(id => id !== userId);
+        persistBlockedUsers(newList);
+        return newList;
+    });
+  }, [persistBlockedUsers]);
+
+
+  const value = { 
+    ratings, friends, notifications, aniTokens, blockedUsers,
+    rateAnime, getRating,
+    addFriend, removeFriend, isFriend, 
+    addNotification, markNotificationsAsRead, markSingleNotificationAsRead, clearAllNotifications,
+    addAniTokens, spendAniTokens,
+    blockUser, unblockUser, isUserBlocked,
+  };
 
   return (
-    <ProfileDataContext.Provider value={{ 
-        ratings, friends, notifications, aniTokens,
-        rateAnime, getRating,
-        addFriend, removeFriend, isFriend, 
-        addNotification, markNotificationsAsRead, markSingleNotificationAsRead, clearAllNotifications,
-        addAniTokens, spendAniTokens,
-    }}>
+    <ProfileDataContext.Provider value={value}>
       {children}
     </ProfileDataContext.Provider>
   );

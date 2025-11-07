@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ReactDOM from 'react-dom';
-import type { Anime, WatchlistStatus, VideoServer, Settings } from '../types';
+import type { Anime, WatchlistStatus, VideoServer, Settings, DefaultLanguage } from '../types';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { useFavorites } from '../hooks/useFavorites';
 import { useWatchProgress } from '../hooks/useWatchProgress';
@@ -16,9 +16,10 @@ interface PlayerActionsProps {
   settings: Settings;
   updateSettings: (newSettings: Partial<Settings>) => void;
   onSurprise: () => void;
+  onManualServerChange: (server: VideoServer) => void;
 }
 
-const PlayerActions: React.FC<PlayerActionsProps> = ({ anime, onClip, settings, updateSettings, onSurprise }) => {
+const PlayerActions: React.FC<PlayerActionsProps> = ({ anime, onClip, settings, updateSettings, onSurprise, onManualServerChange }) => {
     const { addToWatchlist, removeFromWatchlist, updateWatchlistStatus, getWatchlistStatus } = useWatchlist();
     const { addFavorite, removeFavorite, isFavorite } = useFavorites();
     const { getWatchProgress, updateProgress } = useWatchProgress();
@@ -37,8 +38,30 @@ const PlayerActions: React.FC<PlayerActionsProps> = ({ anime, onClip, settings, 
     const [statusDropdownPosition, setStatusDropdownPosition] = useState<{ top: number; left: number; width: number } | null>(null);
     const [notifyDropdownPosition, setNotifyDropdownPosition] = useState<{ top: number; left: number } | null>(null);
     
-    const notificationPrefs = getPrefsForAnime(anime.id);
+    // State for the new server selection UI
+    const currentServerInfo = useMemo(() => VIDEO_SERVERS.find(s => s.id === settings.videoServer), [settings.videoServer]);
+    const [selectedType, setSelectedType] = useState<DefaultLanguage>(currentServerInfo?.type || settings.defaultLanguage);
+    
+    const availableServers = useMemo(() => {
+        return VIDEO_SERVERS.filter(s => s.type === selectedType);
+    }, [selectedType]);
+    
+    // Sync local type state if global server setting changes from elsewhere
+    useEffect(() => {
+        if (currentServerInfo && currentServerInfo.type !== selectedType) {
+            setSelectedType(currentServerInfo.type);
+        }
+    }, [currentServerInfo, selectedType]);
 
+    const handleTypeChange = (newType: DefaultLanguage) => {
+        setSelectedType(newType);
+        const firstServerInNewType = VIDEO_SERVERS.find(s => s.type === newType);
+        if (firstServerInNewType) {
+            onManualServerChange(firstServerInNewType.id);
+        }
+    };
+
+    const notificationPrefs = getPrefsForAnime(anime.id);
     const currentStatus = getWatchlistStatus(anime.id);
     const isFavorited = isFavorite(anime.id);
     const progressInfo = getWatchProgress(anime.id);
@@ -267,26 +290,39 @@ const PlayerActions: React.FC<PlayerActionsProps> = ({ anime, onClip, settings, 
             )}
             
             <div className="pt-4 border-t border-white/10 flex flex-col sm:flex-row gap-4 items-center justify-between">
-                <div className="flex items-center gap-2">
-                     <label htmlFor="server-select" className="text-sm font-semibold text-[rgb(var(--text-secondary))]">Server:</label>
-                     <select
-                        id="server-select"
-                        value={settings.videoServer}
-                        onChange={(e) => updateSettings({ videoServer: e.target.value as VideoServer })}
-                        className="bg-[rgb(var(--surface-input))/0.5] border border-white/10 rounded-lg px-2 py-1 text-sm"
-                    >
-                        {VIDEO_SERVERS.map(s => <option key={s.id + s.type} value={s.id}>{s.name} ({s.type.toUpperCase()})</option>)}
-                    </select>
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        <label htmlFor="type-select" className="text-sm font-semibold text-[rgb(var(--text-secondary))]">Type:</label>
+                        <select
+                            id="type-select"
+                            value={selectedType}
+                            onChange={(e) => handleTypeChange(e.target.value as DefaultLanguage)}
+                            className="bg-[rgb(var(--surface-input))/0.5] border border-white/10 rounded-lg px-2 py-1 text-sm"
+                        >
+                            <option value="sub">Sub</option>
+                            <option value="dub">Dub</option>
+                            <option value="ssub">S-Sub</option>
+                        </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <label htmlFor="server-select" className="text-sm font-semibold text-[rgb(var(--text-secondary))]">Server:</label>
+                        <select
+                            id="server-select"
+                            value={settings.videoServer}
+                            onChange={(e) => onManualServerChange(e.target.value as VideoServer)}
+                            className="bg-[rgb(var(--surface-input))/0.5] border border-white/10 rounded-lg px-2 py-1 text-sm"
+                        >
+                            {availableServers.map(s => <option key={s.id + s.type} value={s.id}>{s.name}</option>)}
+                        </select>
+                    </div>
                 </div>
                  <div className="flex items-center gap-3">
                     <button
-                        onClick={() => updateSettings({ lightsOffMode: !settings.lightsOffMode })}
+                        onClick={() => addToast("Lights Off feature is coming soon!", "info")}
                         className="p-2.5 rounded-full hover:bg-white/10 transition-colors"
-                        title="Toggle Lights Off Mode"
+                        title="Lights Off Mode (Coming Soon)"
                     >
-                        {settings.lightsOffMode
-                            ? <LightbulbOffIcon className="w-5 h-5 text-gray-300" />
-                            : <LightbulbIcon className="w-5 h-5 text-orange-400" />}
+                        <LightbulbOffIcon className="w-5 h-5 text-gray-300" />
                     </button>
                     <label className="flex items-center gap-2 text-sm text-[rgb(var(--text-secondary))] cursor-pointer">
                         <input type="checkbox" checked={settings.autoSkip} onChange={() => updateSettings({ autoSkip: !settings.autoSkip })} className="h-4 w-4 rounded bg-gray-700 border-gray-600 text-[rgb(var(--color-primary))]" />

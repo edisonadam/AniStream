@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-// Fix: import 'get' from firebase/database to fetch initial room data.
 import { ref, onValue, set, push, serverTimestamp, onDisconnect, remove, get } from 'firebase/database';
 import { db } from '../firebase';
 import { useAuth } from '../hooks/useAuth';
@@ -8,7 +7,6 @@ import { fetchWithRetry, mapJikanToAnime } from '../api';
 import Player from './Player';
 import { formatRelativeTime } from '../utils';
 import { UsersIcon, CloseIcon } from './icons/Icons';
-// FIX: Import useSettings to provide required props to Player component.
 import { useSettings } from '../hooks/useSettings';
 
 interface WatchTogetherPageProps {
@@ -49,7 +47,6 @@ const ChatPane: React.FC<{
                     <UsersIcon className="w-4 h-4"/> In Room ({Object.keys(participants).length})
                 </h3>
                 <div className="flex flex-wrap gap-2">
-                    {/* Fix: Cast participant value to the correct type to resolve properties. */}
                     {Object.entries(participants).map(([uid, participantVal]) => {
                         const participant = participantVal as { avatar: string; username: string };
                         return (
@@ -107,7 +104,6 @@ const WatchTogetherPage: React.FC<WatchTogetherPageProps> = ({ roomId, onExit })
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [artplayer, setArtplayer] = useState<any>(null);
-    // FIX: Get settings to pass to Player component.
     const { settings, updateSettings } = useSettings();
 
     const isHost = user?.uid === roomData?.hostId;
@@ -246,7 +242,6 @@ const WatchTogetherPage: React.FC<WatchTogetherPageProps> = ({ roomId, onExit })
     if (error) return <div className="h-screen w-screen flex flex-col items-center justify-center text-center p-4"><h2 className="text-2xl font-bold text-[rgb(var(--color-danger))]">{error}</h2><button onClick={onExit} className="mt-4 px-4 py-2 bg-white/10 rounded-lg">Go Home</button></div>;
     if (!anime || !roomData) return null;
 
-    // Fix: Cast 'msg' to an object before spreading to avoid type errors.
     const messages = roomData.chat ? Object.entries(roomData.chat).map(([id, msg]) => ({...(msg as object), id}) as ChatMessage).sort((a,b) => a.timestamp - b.timestamp) : [];
 
     return (
@@ -272,9 +267,11 @@ const WatchTogetherPage: React.FC<WatchTogetherPageProps> = ({ roomId, onExit })
                         isHost={isHost}
                         onEpisodeChangeByHost={handleEpisodeChange}
                         onPlayerReady={setArtplayer}
-                        // FIX: Pass settings and updateSettings to the Player component.
                         settings={settings}
                         updateSettings={updateSettings}
+                        isLoggedIn={isLoggedIn}
+                        onLoginRequest={() => {}}
+                        getEpisodeStatus={() => ({isNew: false, episodeNumber: null})}
                     />
                 </div>
             </div>

@@ -161,32 +161,25 @@ const Sidebar: React.FC<SidebarProps> = ({
               <SideButton icon={<HeartIcon />} label="Donation" onClick={() => handleNavigation('donation')} />
             </div>
        
-          {/* FIX: Use block body for arrow function to prevent returning a value for callback ref */}
-          <FilterSection title="Genres" isOpen={openSections.has('Genres')} onToggle={() => toggleSection('Genres')} sectionRef={(el) => { sectionRefs.current['Genres'] = el; } }>
+          <FilterSection title="Genres" isOpen={openSections.has('Genres')} onToggle={() => toggleSection('Genres')} sectionRef={(el) => { sectionRefs.current['Genres'] = el; }}>
             <div className="flex flex-wrap gap-2">{GENRES.map(g => <FilterButton key={g} name={g} isSelected={filters.genres.includes(g)} onClick={() => handleMultiSelect('genres', g)} />)}</div>
           </FilterSection>
-          {/* FIX: Use block body for arrow function to prevent returning a value for callback ref */}
-          <FilterSection title="Type" isOpen={openSections.has('Type')} onToggle={() => toggleSection('Type')} sectionRef={(el) => { sectionRefs.current['Type'] = el; } }>
+          <FilterSection title="Type" isOpen={openSections.has('Type')} onToggle={() => toggleSection('Type')} sectionRef={(el) => { sectionRefs.current['Type'] = el; }}>
             <div className="flex flex-wrap gap-2">{ANIME_TYPES.map(t => <FilterButton key={t} name={t} isSelected={filters.types.includes(t)} onClick={() => handleMultiSelect('types', t)} />)}</div>
           </FilterSection>
-          {/* FIX: Use block body for arrow function to prevent returning a value for callback ref */}
-          <FilterSection title="Status" isOpen={openSections.has('Status')} onToggle={() => toggleSection('Status')} sectionRef={(el) => { sectionRefs.current['Status'] = el; } }>
+          <FilterSection title="Status" isOpen={openSections.has('Status')} onToggle={() => toggleSection('Status')} sectionRef={(el) => { sectionRefs.current['Status'] = el; }}>
             <div className="flex flex-wrap gap-2">{ANIME_STATUSES.map(s => <FilterButton key={s} name={s} isSelected={filters.statuses.includes(s)} onClick={() => handleMultiSelect('statuses', s)} />)}</div>
           </FilterSection>
-          {/* FIX: Use block body for arrow function to prevent returning a value for callback ref */}
-          <FilterSection title="Tags" isOpen={openSections.has('Tags')} onToggle={() => toggleSection('Tags')} sectionRef={(el) => { sectionRefs.current['Tags'] = el; } }>
+          <FilterSection title="Tags" isOpen={openSections.has('Tags')} onToggle={() => toggleSection('Tags')} sectionRef={(el) => { sectionRefs.current['Tags'] = el; }}>
             <div className="flex flex-wrap gap-2">{TAG_OPTIONS.map(t => <FilterButton key={t} name={t} isSelected={filters.tags.includes(t)} onClick={() => handleMultiSelect('tags', t)} />)}</div>
           </FilterSection>
-          {/* FIX: Use block body for arrow function to prevent returning a value for callback ref */}
-          <FilterSection title="Year" isOpen={openSections.has('Year')} onToggle={() => toggleSection('Year')} sectionRef={(el) => { sectionRefs.current['Year'] = el; } }>
+          <FilterSection title="Year" isOpen={openSections.has('Year')} onToggle={() => toggleSection('Year')} sectionRef={(el) => { sectionRefs.current['Year'] = el; }}>
             <div className="flex flex-wrap gap-2">{YEAR_OPTIONS.map(y => <FilterButton key={y} name={y} isSelected={filters.years.includes(y)} onClick={() => handleMultiSelect('years', y)} />)}</div>
           </FilterSection>
-          {/* FIX: Use block body for arrow function to prevent returning a value for callback ref */}
-          <FilterSection title="Language" isOpen={openSections.has('Language')} onToggle={() => toggleSection('Language')} sectionRef={(el) => { sectionRefs.current['Language'] = el; } }>
+          <FilterSection title="Language" isOpen={openSections.has('Language')} onToggle={() => toggleSection('Language')} sectionRef={(el) => { sectionRefs.current['Language'] = el; }}>
             <div className="flex flex-wrap gap-2">{LANGUAGE_OPTIONS.map(l => <FilterButton key={l} name={l} isSelected={filters.languages.includes(l)} onClick={() => handleMultiSelect('languages', l)} />)}</div>
           </FilterSection>
-          {/* FIX: Use block body for arrow function to prevent returning a value for callback ref */}
-          <FilterSection title="Studio" isOpen={openSections.has('Studio')} onToggle={() => toggleSection('Studio')} sectionRef={(el) => { sectionRefs.current['Studio'] = el; } }>
+          <FilterSection title="Studio" isOpen={openSections.has('Studio')} onToggle={() => toggleSection('Studio')} sectionRef={(el) => { sectionRefs.current['Studio'] = el; }}>
             <div className="flex flex-wrap gap-2">{STUDIO_OPTIONS.map(s => <FilterButton key={s} name={s} isSelected={filters.studios.includes(s)} onClick={() => handleMultiSelect('studios', s)} />)}</div>
           </FilterSection>
         </div>

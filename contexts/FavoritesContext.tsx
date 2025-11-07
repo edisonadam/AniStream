@@ -1,10 +1,11 @@
 import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { useToast } from '../hooks/useToast';
 
 interface FavoritesContextType {
   favorites: number[];
-  addFavorite: (animeId: number) => void;
-  removeFavorite: (animeId: number) => void;
+  addFavorite: (animeId: number, animeTitle: string) => void;
+  removeFavorite: (animeId: number, animeTitle: string) => void;
   isFavorite: (animeId: number) => boolean;
   overwriteFavorites: (animeIds: number[]) => void;
 }
@@ -14,6 +15,7 @@ export const FavoritesContext = createContext<FavoritesContextType | undefined>(
 export const FavoritesProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [favorites, setFavorites] = useState<number[]>([]);
   const { user } = useAuth();
+  const { addToast } = useToast();
 
   useEffect(() => {
     if (user) {
@@ -39,22 +41,24 @@ export const FavoritesProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
   }, [user]);
 
-  const addFavorite = useCallback((animeId: number) => {
+  const addFavorite = useCallback((animeId: number, animeTitle: string) => {
     setFavorites(prev => {
       if (prev.includes(animeId)) return prev;
       const newFavs = [...prev, animeId];
       persistFavorites(newFavs);
+      addToast(`Added "${animeTitle}" to Favorites`, 'favorite');
       return newFavs;
     });
-  }, [persistFavorites]);
+  }, [persistFavorites, addToast]);
 
-  const removeFavorite = useCallback((animeId: number) => {
+  const removeFavorite = useCallback((animeId: number, animeTitle: string) => {
     setFavorites(prev => {
       const newFavs = prev.filter(id => id !== animeId);
       persistFavorites(newFavs);
+      addToast(`Removed "${animeTitle}" from Favorites`, 'unfavorite');
       return newFavs;
     });
-  }, [persistFavorites]);
+  }, [persistFavorites, addToast]);
 
   const isFavorite = useCallback((animeId: number) => {
     return favorites.includes(animeId);

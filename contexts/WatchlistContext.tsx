@@ -1,13 +1,14 @@
 import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import type { Anime, WatchlistStatus } from '../types';
 import { useAuth } from '../hooks/useAuth';
+import { useToast } from '../hooks/useToast';
 
 interface WatchlistContextType {
   watchlist: Anime[];
   watchlistStatuses: Record<number, WatchlistStatus>;
   addToWatchlist: (anime: Anime, status?: WatchlistStatus) => void;
-  removeFromWatchlist: (animeId: number) => void;
-  updateWatchlistStatus: (animeId: number, status: WatchlistStatus) => void;
+  removeFromWatchlist: (animeId: number, animeTitle: string) => void;
+  updateWatchlistStatus: (animeId: number, status: WatchlistStatus, animeTitle: string) => void;
   isInWatchlist: (animeId: number) => boolean;
   getWatchlistStatus: (animeId: number) => WatchlistStatus | null;
   overwriteWatchlist: (animeList: Anime[]) => void;
@@ -23,6 +24,7 @@ export const WatchlistProvider: React.FC<WatchlistProviderProps> = ({ children }
   const [watchlist, setWatchlist] = useState<Anime[]>([]);
   const [watchlistStatuses, setWatchlistStatuses] = useState<Record<number, WatchlistStatus>>({});
   const { user } = useAuth();
+  const { addToast } = useToast();
 
   useEffect(() => {
     if (user) {
@@ -54,20 +56,22 @@ export const WatchlistProvider: React.FC<WatchlistProviderProps> = ({ children }
     setWatchlist(prevList => {
       if (prevList.some(item => item.id === anime.id)) {
         // If it's already in the list, just update the status
-        updateWatchlistStatus(anime.id, status);
+        updateWatchlistStatus(anime.id, status, anime.title);
         return prevList;
       }
       const newList = [...prevList, anime];
       persistList(newList);
-      updateWatchlistStatus(anime.id, status);
+      updateWatchlistStatus(anime.id, status, anime.title);
+      addToast(`Added "${anime.title}" to watchlist`, 'success');
       return newList;
     });
   };
 
-  const removeFromWatchlist = (animeId: number) => {
+  const removeFromWatchlist = (animeId: number, animeTitle: string) => {
     setWatchlist(prevList => {
       const newList = prevList.filter(item => item.id !== animeId);
       persistList(newList);
+      addToast(`Removed "${animeTitle}" from watchlist`, 'info');
       return newList;
     });
     setWatchlistStatuses(prevStatuses => {
@@ -78,10 +82,11 @@ export const WatchlistProvider: React.FC<WatchlistProviderProps> = ({ children }
     });
   };
   
-  const updateWatchlistStatus = (animeId: number, status: WatchlistStatus) => {
+  const updateWatchlistStatus = (animeId: number, status: WatchlistStatus, animeTitle: string) => {
       setWatchlistStatuses(prevStatuses => {
           const newStatuses = { ...prevStatuses, [animeId]: status };
           persistStatuses(newStatuses);
+          addToast(`"${animeTitle}" status set to '${status}'`, 'success');
           return newStatuses;
       });
   };

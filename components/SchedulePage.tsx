@@ -6,7 +6,7 @@ import { useSettings } from '../hooks/useSettings';
 
 interface SchedulePageProps {
   onAnimeSelect: (anime: Anime) => void;
-  isNew: (animeId: number) => { isNew: boolean; episodeNumber: number | null };
+  getEpisodeStatus: (animeId: number) => { isNew: boolean; episodeNumber: number | null };
 }
 
 const getCurrentSeason = (): { year: number; season: string } => {
@@ -23,7 +23,7 @@ const getCurrentSeason = (): { year: number; season: string } => {
 
 const SEASONS_ORDER = ['winter', 'spring', 'summer', 'fall'];
 
-const SchedulePage: React.FC<SchedulePageProps> = ({ onAnimeSelect, isNew }) => {
+const SchedulePage: React.FC<SchedulePageProps> = ({ onAnimeSelect, getEpisodeStatus }) => {
     const [seasonsList, setSeasonsList] = useState<{ year: number }[]>([]);
     const [selectedYear, setSelectedYear] = useState<number>(getCurrentSeason().year);
     const [selectedSeason, setSelectedSeason] = useState<string>(getCurrentSeason().season);
@@ -171,7 +171,7 @@ const SchedulePage: React.FC<SchedulePageProps> = ({ onAnimeSelect, isNew }) => 
                     loadMoreMode={settings.loadMoreMode}
                     currentPage={currentPage}
                     totalPages={totalPages}
-                    isNew={isNew}
+                    getEpisodeStatus={getEpisodeStatus}
                 />
             )}
         </div>

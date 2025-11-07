@@ -127,9 +127,12 @@ const App: React.FC = () => {
     const { hidePlayer } = useFloatingPlayer();
     const { getPrefsForAnime } = useNotificationPrefs();
     const { addNotification } = useProfileData();
+    const { watchlist } = useWatchlist();
+    const { favorites } = useFavorites();
     const welcomeToastShown = useRef(false);
     const notifiedEpisodesRef = useRef(new Set<string>());
-    const { watchProgressList, getWatchProgress } = useWatchProgress();
+    const notifiedDubsRef = useRef(new Set<string>());
+    const { getWatchProgress } = useWatchProgress();
     const appRef = useRef<HTMLDivElement>(null);
     const scrollPositionRef = useRef<number | null>(null);
     const homePageScrollPosition = useRef(0);
@@ -676,13 +679,8 @@ const App: React.FC = () => {
         [...featuredAnime, ...gridAnime, ...trendingAnime, ...topAnimeList].forEach(anime => {
             if (anime) animeMap.set(anime.id, anime);
         });
-        watchProgressList.forEach(item => {
-            if (!animeMap.has(item.animeId)) {
-                 animeMap.set(item.animeId, { id: item.animeId, title: 'Loading...' } as Anime);
-            }
-        });
         return Array.from(animeMap.values());
-    }, [featuredAnime, gridAnime, trendingAnime, watchProgressList, topAnimeList]);
+    }, [featuredAnime, gridAnime, trendingAnime, topAnimeList]);
 
     // New Episode Logic
     useEffect(() => {
@@ -765,33 +763,72 @@ const App: React.FC = () => {
                 return; // Already notified for this session
             }
 
+            const isInWatchlist = watchlist.some(item => item.id === anime.id);
+            const isFavorited = favorites.includes(anime.id);
             const prefs = getPrefsForAnime(anime.id);
-            if (prefs.newEpisode) {
+
+            if ((isInWatchlist || isFavorited) && prefs.newEpisode) {
+                const notifText = `Episode ${anime.episodeNumber} of "${getDisplayTitle(anime, settings)}" is now available.`;
                 addNotification({
                     type: 'new_episode',
-                    text: `Episode ${anime.episodeNumber} of "${getDisplayTitle(anime, settings)}" is now available.`,
+                    text: notifText,
                     animeId: anime.id,
                     animeTitle: getDisplayTitle(anime, settings),
                 });
+                addToast(notifText, 'info');
                 notifiedEpisodesRef.current.add(notificationId);
             }
         });
-    }, [newEpisodeAnime, isLoggedIn, settings.showNewEpisodeBadges, addNotification, settings, getPrefsForAnime]);
+    }, [newEpisodeAnime, isLoggedIn, settings, addNotification, getPrefsForAnime, watchlist, favorites, addToast]);
 
-    const isNew = useCallback((animeId: number): { isNew: boolean, episodeNumber: number | null } => {
+    // New Dub Notifications Logic
+    useEffect(() => {
+        if (!isLoggedIn) return;
+
+        const allUserAnime = [
+            ...watchlist,
+            ...allAnime.filter(a => favorites.includes(a.id))
+        ];
+        const uniqueUserAnime = Array.from(new Map(allUserAnime.map(a => [a.id, a])).values());
+
+        uniqueUserAnime.forEach(anime => {
+            if (anime.hasDub) {
+                const notificationId = `${anime.id}-dub`;
+                if (notifiedDubsRef.current.has(notificationId)) return;
+
+                const prefs = getPrefsForAnime(anime.id);
+                if (prefs.newDub) {
+                    const notifText = `A dub is now available for "${getDisplayTitle(anime, settings)}".`;
+                    addNotification({
+                        type: 'general', // no specific dub type
+                        text: notifText,
+                        animeId: anime.id,
+                        animeTitle: getDisplayTitle(anime, settings)
+                    });
+                    addToast(notifText, 'info');
+                    notifiedDubsRef.current.add(notificationId);
+                }
+            }
+        });
+    }, [isLoggedIn, watchlist, favorites, allAnime, getPrefsForAnime, addNotification, addToast, settings]);
+    
+    const newEpisodeAnimeRef = useRef(newEpisodeAnime);
+    newEpisodeAnimeRef.current = newEpisodeAnime;
+
+    const getEpisodeStatus = useCallback((animeId: number): { isNew: boolean, episodeNumber: number | null } => {
         if (!settings.showNewEpisodeBadges) {
             return { isNew: false, episodeNumber: null };
         }
-        const found = newEpisodeAnime.find(a => a.id === animeId);
+        const found = newEpisodeAnimeRef.current.find(a => a.id === animeId);
         if (found) {
             const progress = getWatchProgress(animeId);
-            if (progress && progress.currentEpisode >= found.episodeNumber) {
-                return { isNew: false, episodeNumber: null };
-            }
-            return { isNew: true, episodeNumber: found.episodeNumber };
+            // The episode is "new" if the user hasn't watched it yet.
+            const isNewFlag = !progress || progress.currentEpisode < found.episodeNumber;
+            return { isNew: isNewFlag, episodeNumber: found.episodeNumber };
         }
+        // If not in the new episodes list, there's no current episode number to display for the badge.
         return { isNew: false, episodeNumber: null };
-    }, [newEpisodeAnime, settings.showNewEpisodeBadges, getWatchProgress]);
+    }, [settings.showNewEpisodeBadges, getWatchProgress]);
 
 
     // Close sidebar on main content scroll
@@ -1031,27 +1068,27 @@ const App: React.FC = () => {
     
     const pageContent = useMemo(() => {
         switch(page) {
-            case 'player': return selectedAnime && <Player anime={selectedAnime} onGoBack={goBackFromPlayer} onSelectRelated={handleAnimeSelect} allAnime={allAnime} onGenreSelect={handleGenreSelect} onStudioSelect={handleStudioSelect} onUserSelect={handleUserSelect} onEnterRoom={handleEnterRoom} breadcrumbsData={pageBeforePlayerRef.current} settings={settings} updateSettings={updateSettings} />;
+            case 'player': return null; // Handled separately to preserve state
             case 'watch-together': return watchTogetherRoomId && <WatchTogetherPage roomId={watchTogetherRoomId} onExit={goHome} />;
-            case 'profile': return <ProfilePage onGoBack={goHome} allAnime={allAnime} onSelectAnime={handleAnimeSelect} isNew={isNew} />;
-            case 'club-detail': return selectedClub && <ClubDetailPage club={selectedClub} onGoBack={() => navigateTo('community')} onSelectAnime={handleAnimeSelect} isNew={isNew} />;
+            case 'profile': return <ProfilePage onGoBack={goHome} allAnime={allAnime} onSelectAnime={handleAnimeSelect} getEpisodeStatus={getEpisodeStatus} />;
+            case 'club-detail': return selectedClub && <ClubDetailPage club={selectedClub} onGoBack={() => navigateTo('community')} onSelectAnime={handleAnimeSelect} getEpisodeStatus={getEpisodeStatus} />;
             case 'magazines': return <MagazinesPage onGoBack={goHome} />;
-            case 'trending': return <TrendingPage onAnimeSelect={(anime) => handleAnimeSelect(anime, 'Trending')} isNew={isNew} />;
-            case 'schedule': return <SchedulePage onAnimeSelect={handleAnimeSelect} isNew={isNew} />;
+            case 'trending': return <TrendingPage onAnimeSelect={(anime) => handleAnimeSelect(anime, 'Trending')} getEpisodeStatus={getEpisodeStatus} />;
+            case 'schedule': return <SchedulePage onAnimeSelect={handleAnimeSelect} getEpisodeStatus={getEpisodeStatus} />;
             case 'history': return <HistoryPage onAnimeSelect={handleAnimeSelect} allAnime={allAnime} />;
             case 'news': return <NewsPage onAnimeSelect={handleAnimeSelect} />;
             case 'videos': return <VideosPage onGoBack={goHome} onAnimeSelect={handleAnimeSelect} />;
             case 'manga': return <MangaPage onGoBack={goHome} />;
             case 'community': return <CommunityPage onLoginClick={() => handleLoginRequest()} onClubSelect={handleClubSelect} onUserSelect={handleUserSelect} onAnimeSelect={handleAnimeSelect} />;
             case 'comment-meter': return <CommentMeterPage onGoBack={goHome} onLoginClick={() => handleLoginRequest()} />;
-            case 'beginners': return <BeginnerAnimePage onGoBack={goHome} onAnimeSelect={(anime) => handleAnimeSelect(anime, 'For Beginners')} isNew={isNew} />;
+            case 'beginners': return <BeginnerAnimePage onGoBack={goHome} onAnimeSelect={(anime) => handleAnimeSelect(anime, 'For Beginners')} getEpisodeStatus={getEpisodeStatus} />;
             case 'currency': return <CurrencyPage onGoBack={goHome} />;
             case 'about': return <AboutPage onGoBack={goHome} />;
             case 'rules': return <RulesPage onGoBack={goHome} />;
             case 'donation': return <DonationPage onGoBack={goHome} />;
             case 'how-to-use': return <HowToUsePage onGoBack={goHome} />;
             case 'og-image-generator': return <OGImageGenerator onGoBack={goHome} />;
-            case 'top-100': return <Top100Page onGoBack={goHome} onSelectAnime={(anime) => handleAnimeSelect(anime, 'Top 100')} topAnimeList={topAnimeList} isLoading={isTopAnimeLoading} />;
+            case 'top-100': return <Top100Page onGoBack={goHome} onSelectAnime={(anime) => handleAnimeSelect(anime, 'Top 100')} topAnimeList={topAnimeList} isLoading={isTopAnimeLoading} getEpisodeStatus={getEpisodeStatus} />;
             case 'notifications': return <NotificationsPage onGoBack={goHome} onSelectAnime={handleAnimeSelect} />;
             case 'search':
                 return (
@@ -1069,7 +1106,7 @@ const App: React.FC = () => {
                         loadMoreMode={settings.loadMoreMode}
                         currentPage={currentPage}
                         totalPages={totalPages}
-                        isNew={isNew}
+                        getEpisodeStatus={getEpisodeStatus}
                         onCollapse={handleCollapseGrid}
                     />
                 );
@@ -1079,14 +1116,14 @@ const App: React.FC = () => {
                 const gridTitle = filters.letter ? `Titles starting with "${filters.letter.toUpperCase()}"` : (isDefaultHome ? "Discover Anime" : "Filtered Results");
                 return (
                     <>
-                        {isDefaultHome && <FeaturedCarousel animeList={featuredAnime} onAnimeSelect={(anime) => handleAnimeSelect(anime, 'Home')} isLoading={isCarouselLoading} />}
-                        {isDefaultHome && settings.showNewEpisodeBadges && <NewEpisodesSection newEpisodeAnime={newEpisodeAnime} onAnimeSelect={(anime) => handleAnimeSelect(anime, 'New Episodes')} isNew={isNew} isLoading={isNewEpisodesLoading} />}
-                        {isDefaultHome && <TopAnime animeList={topAnimeList.slice(0, 10)} isLoading={isTopAnimeLoading} onAnimeSelect={(anime) => handleAnimeSelect(anime, 'Top 10')} onShowTop100={() => navigateTo('top-100')} isNew={isNew} />}
+                        {isDefaultHome && <FeaturedCarousel animeList={featuredAnime} onAnimeSelect={(anime) => handleAnimeSelect(anime, 'Home')} isLoading={isCarouselLoading} getEpisodeStatus={getEpisodeStatus} />}
+                        {isDefaultHome && settings.showNewEpisodeBadges && <NewEpisodesSection newEpisodeAnime={newEpisodeAnime} onAnimeSelect={(anime) => handleAnimeSelect(anime, 'New Episodes')} getEpisodeStatus={getEpisodeStatus} isLoading={isNewEpisodesLoading} />}
+                        {isDefaultHome && <TopAnime animeList={topAnimeList.slice(0, 10)} isLoading={isTopAnimeLoading} onAnimeSelect={(anime) => handleAnimeSelect(anime, 'Top 10')} onShowTop100={() => navigateTo('top-100')} getEpisodeStatus={getEpisodeStatus} />}
                         {isDefaultHome && settings.showWatchHistoryOnHome && (
-                            <ContinueWatching onSelectAnime={(anime) => handleAnimeSelect(anime, 'Continue Watching')} onShowHistory={() => navigateTo('history')} allAnime={allAnime} isNew={isNew} />
+                            <ContinueWatching onSelectAnime={(anime) => handleAnimeSelect(anime, 'Continue Watching')} onShowHistory={() => navigateTo('history')} allAnime={allAnime} getEpisodeStatus={getEpisodeStatus} />
                         )}
-                        {isDefaultHome && <ThisSeasonAnime onAnimeSelect={(anime) => handleAnimeSelect(anime, 'Best This Season')} onShowSchedule={() => navigateTo('schedule')} isNew={isNew} />}
-                        {isDefaultHome && <BeginnerAnime onAnimeSelect={(anime) => handleAnimeSelect(anime, 'For Beginners')} isNew={isNew} />}
+                        {isDefaultHome && <ThisSeasonAnime onAnimeSelect={(anime) => handleAnimeSelect(anime, 'Best This Season')} onShowSchedule={() => navigateTo('schedule')} getEpisodeStatus={getEpisodeStatus} />}
+                        {isDefaultHome && <BeginnerAnime onAnimeSelect={(anime) => handleAnimeSelect(anime, 'For Beginners')} getEpisodeStatus={getEpisodeStatus} />}
                         <AnimeGrid
                             title={gridTitle}
                             animeList={gridAnime}
@@ -1101,7 +1138,7 @@ const App: React.FC = () => {
                             loadMoreMode={settings.loadMoreMode}
                             currentPage={currentPage}
                             totalPages={totalPages}
-                            isNew={isNew}
+                            getEpisodeStatus={getEpisodeStatus}
                             onCollapse={handleCollapseGrid}
                         />
                         {isDefaultHome && <AlphabeticalBrowse onLetterSelect={handleLetterSelect} selectedLetter={filters.letter} />}
@@ -1109,7 +1146,7 @@ const App: React.FC = () => {
                 );
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [page, watchTogetherRoomId, hasActiveFilters, isCarouselLoading, isGridLoading, isLoadingMore, hasMore, featuredAnime, gridAnime, allAnime, filters, settings, selectedAnime, selectedClub, topAnimeList, isTopAnimeLoading, isNew, newEpisodeAnime, isNewEpisodesLoading, currentPage, totalPages, updateSettings]);
+    }, [page, watchTogetherRoomId, hasActiveFilters, isCarouselLoading, isGridLoading, isLoadingMore, hasMore, featuredAnime, gridAnime, allAnime, filters, settings, selectedAnime, selectedClub, topAnimeList, isTopAnimeLoading, getEpisodeStatus, newEpisodeAnime, isNewEpisodesLoading, currentPage, totalPages, updateSettings, isLoggedIn]);
 
     if (isEmbedMode) {
         if (isEmbedLoading || !embedAnime) {
@@ -1119,7 +1156,7 @@ const App: React.FC = () => {
                 </div>
             );
         }
-        return <Player anime={embedAnime} onGoBack={() => {}} onSelectRelated={() => {}} allAnime={[]} onGenreSelect={() => {}} onStudioSelect={() => {}} onUserSelect={() => {}} isEmbed={true} onEnterRoom={() => {}} settings={settings} updateSettings={updateSettings} />;
+        return <Player anime={embedAnime} onGoBack={() => {}} onSelectRelated={() => {}} allAnime={[]} onGenreSelect={() => {}} onStudioSelect={() => {}} onUserSelect={() => {}} isEmbed={true} onEnterRoom={() => {}} settings={settings} updateSettings={updateSettings} isLoggedIn={isLoggedIn} onLoginRequest={handleLoginRequest} getEpisodeStatus={getEpisodeStatus} />;
     }
     
     const showHeaderAndSidebar = page !== 'watch-together';
@@ -1198,7 +1235,32 @@ const App: React.FC = () => {
                 <div className={`transition-[padding-left] duration-300 ease-in-out ${isSidebarOpen ? "lg:pl-80" : ""}`}>
                     <main>
                         {showLoginPrompt && <LoginPrompt onLoginClick={() => handleLoginRequest()} />}
-                        {pageContent}
+                        
+                        {/* Player is kept in the DOM but hidden to preserve its state and avoid re-mounting */}
+                        <div style={{ display: page === 'player' ? 'block' : 'none' }}>
+                            {selectedAnime && (
+                                <Player
+                                    key={selectedAnime.id}
+                                    anime={selectedAnime}
+                                    onGoBack={goBackFromPlayer}
+                                    onSelectRelated={handleAnimeSelect}
+                                    allAnime={allAnime}
+                                    onGenreSelect={handleGenreSelect}
+                                    onStudioSelect={handleStudioSelect}
+                                    onUserSelect={handleUserSelect}
+                                    onEnterRoom={handleEnterRoom}
+                                    breadcrumbsData={pageBeforePlayerRef.current}
+                                    settings={settings}
+                                    updateSettings={updateSettings}
+                                    isLoggedIn={isLoggedIn}
+                                    onLoginRequest={handleLoginRequest}
+                                    getEpisodeStatus={getEpisodeStatus}
+                                />
+                            )}
+                        </div>
+
+                        {/* Render other pages conditionally */}
+                        {page !== 'player' && pageContent}
                     </main>
                     
                     {showHeaderAndSidebar && <Footer onNavigate={navigateTo} />}

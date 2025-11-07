@@ -4,7 +4,7 @@ import type { Settings, Theme, ColorPreset } from '../types';
 const defaultSettings: Settings = {
   theme: 'dark',
   colorPreset: 'abyssal-blue',
-  videoServer: 'gogoanime',
+  videoServer: 'vidembed',
   blurEpisodeThumbnails: true,
   restrictAdultContent: true,
   displayTitleLanguage: 'english',

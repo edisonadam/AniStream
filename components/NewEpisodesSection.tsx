@@ -6,11 +6,11 @@ import AnimeCard from './AnimeCard';
 interface NewEpisodesSectionProps {
   onAnimeSelect: (anime: Anime) => void;
   newEpisodeAnime: (Anime & { episodeNumber: number })[];
-  isNew: (animeId: number) => { isNew: boolean; episodeNumber: number | null };
+  getEpisodeStatus: (animeId: number) => { isNew: boolean; episodeNumber: number | null };
   isLoading: boolean;
 }
 
-const NewEpisodesSection: React.FC<NewEpisodesSectionProps> = ({ onAnimeSelect, newEpisodeAnime, isNew, isLoading }) => {
+const NewEpisodesSection: React.FC<NewEpisodesSectionProps> = ({ onAnimeSelect, newEpisodeAnime, getEpisodeStatus, isLoading }) => {
     const { settings } = useSettings();
 
     if (!settings.showNewEpisodeBadges) return null;
@@ -43,7 +43,7 @@ const NewEpisodesSection: React.FC<NewEpisodesSectionProps> = ({ onAnimeSelect, 
                         <AnimeCard 
                             anime={anime} 
                             onSelect={onAnimeSelect} 
-                            isNew={isNew(anime.id).isNew} 
+                            episodeStatus={getEpisodeStatus(anime.id)} 
                         />
                     </div>
                 ))}

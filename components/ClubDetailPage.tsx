@@ -29,10 +29,10 @@ interface ClubDetailPageProps {
   club: Club;
   onGoBack: () => void;
   onSelectAnime: (anime: Anime) => void;
-  isNew: (animeId: number) => { isNew: boolean; episodeNumber: number | null };
+  getEpisodeStatus: (animeId: number) => { isNew: boolean; episodeNumber: number | null };
 }
 
-const ClubDetailPage: React.FC<ClubDetailPageProps> = ({ club, onGoBack, onSelectAnime, isNew }) => {
+const ClubDetailPage: React.FC<ClubDetailPageProps> = ({ club, onGoBack, onSelectAnime, getEpisodeStatus }) => {
     const [pictures, setPictures] = useState<ClubPicture[]>([]);
     const [members, setMembers] = useState<ClubMember[]>([]);
     const [staff, setStaff] = useState<ClubStaff[]>([]);
@@ -128,7 +128,7 @@ const ClubDetailPage: React.FC<ClubDetailPageProps> = ({ club, onGoBack, onSelec
                             <div>
                                 <h3 className="text-xl font-semibold mb-4 text-[rgb(var(--text-primary))]">Related Anime</h3>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
-                                    {relations.anime.map(item => <AnimeCard key={item.mal_id} anime={mapPartialToFullAnime({ id: item.mal_id, title: item.name, thumbnail: item.images?.jpg.image_url || '' })} onSelect={onSelectAnime} isNew={isNew(item.mal_id).isNew} />)}
+                                    {relations.anime.map(item => <AnimeCard key={item.mal_id} anime={mapPartialToFullAnime({ id: item.mal_id, title: item.name, thumbnail: item.images?.jpg.image_url || '' })} onSelect={onSelectAnime} episodeStatus={getEpisodeStatus(item.mal_id)} />)}
                                 </div>
                             </div>
                         )}

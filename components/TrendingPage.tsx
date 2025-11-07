@@ -7,10 +7,10 @@ import { useSettings } from '../hooks/useSettings';
 
 interface TrendingPageProps {
   onAnimeSelect: (anime: Anime) => void;
-  isNew: (animeId: number) => { isNew: boolean; episodeNumber: number | null };
+  getEpisodeStatus: (animeId: number) => { isNew: boolean; episodeNumber: number | null };
 }
 
-const TrendingPage: React.FC<TrendingPageProps> = ({ onAnimeSelect, isNew }) => {
+const TrendingPage: React.FC<TrendingPageProps> = ({ onAnimeSelect, getEpisodeStatus }) => {
     const [trending, setTrending] = useState<Anime[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -54,7 +54,7 @@ const TrendingPage: React.FC<TrendingPageProps> = ({ onAnimeSelect, isNew }) => 
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
                     {trending.map((anime, index) => (
                         <div key={anime.id} className="animate-subtle-fade-in-up" style={{ animationDelay: `${index * 30}ms` }}>
-                            <AnimeCard anime={anime} onSelect={onAnimeSelect} isNew={isNew(anime.id).isNew} />
+                            <AnimeCard anime={anime} onSelect={onAnimeSelect} episodeStatus={getEpisodeStatus(anime.id)} />
                         </div>
                     ))}
                 </div>

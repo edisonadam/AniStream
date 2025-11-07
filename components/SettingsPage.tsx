@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSettings } from '../hooks/useSettings';
 import { useWatchProgress } from '../hooks/useWatchProgress';
 import { useWatchlist } from '../hooks/useWatchlist';
@@ -7,6 +7,7 @@ import { COLOR_PRESETS, VIDEO_SERVERS } from '../constants';
 import { fetchMalUserAnimeList, fetchAnilistUserAnimeList } from '../api';
 import type { Anime } from '../types';
 import ShortcutSettings from './ShortcutSettings'; // Import the new component
+import { useProfileData } from '../hooks/useProfileData';
 
 const SettingsSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
     <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 p-6 rounded-2xl">
@@ -59,10 +60,27 @@ const SettingsPage: React.FC = () => {
     const { clearProgress } = useWatchProgress();
     const { watchlist, overwriteWatchlist } = useWatchlist();
     const { addToast } = useToast();
+    const { blockedUsers, unblockUser } = useProfileData();
+    const [userDirectory, setUserDirectory] = useState<Record<string, { username: string; avatar: string }>>({});
+
     const [isImporting, setIsImporting] = useState<'' | 'mal' | 'anilist'>('');
     const [importStatus, setImportStatus] = useState('');
     const [deleteBeforeImporting, setDeleteBeforeImporting] = useState(false);
     const [notificationPermission, setNotificationPermission] = useState(Notification.permission);
+
+    useEffect(() => {
+        const storedUsersRaw = localStorage.getItem('anistream-user-directory');
+        if (storedUsersRaw) {
+            try {
+                const users: { uid: string; username: string; avatar: string }[] = JSON.parse(storedUsersRaw);
+                const directory = users.reduce((acc, u) => {
+                    acc[u.uid] = { username: u.username, avatar: u.avatar };
+                    return acc;
+                }, {} as Record<string, { username: string; avatar: string }>);
+                setUserDirectory(directory);
+            } catch (e) { console.error("Failed to parse user directory", e); }
+        }
+    }, []);
 
     const handleNotificationToggle = () => {
         if (Notification.permission === 'default') {
@@ -247,9 +265,33 @@ const SettingsPage: React.FC = () => {
                 <Toggle label="MAL/AniList Sync Alerts" checked={settings.malSyncAlerts} onChange={() => updateSettings({ malSyncAlerts: !settings.malSyncAlerts })} tooltip="Show toast alerts for sync status." />
                 <Toggle label="Auto-Mark as Read" checked={settings.autoMarkAsRead} onChange={() => updateSettings({ autoMarkAsRead: !settings.autoMarkAsRead })} tooltip="Automatically mark notifications as read after opening the dropdown." />
             </SettingsSection>
+            
+            <SettingsSection title="Privacy & Safety">
+                <Toggle label="Restrict Adult Content" checked={settings.restrictAdultContent} onChange={() => updateSettings({ restrictAdultContent: !settings.restrictAdultContent })} tooltip="Hides explicit content (e.g., Hentai, Erotica). Requires login to disable." />
+                <div className="pt-4 border-t border-white/10">
+                    <h4 className="font-semibold text-[rgb(var(--text-secondary))]">Blocked Users</h4>
+                    <p className="text-sm text-[rgb(var(--text-muted))] mt-1">You won't see content or get notifications from these users.</p>
+                    {blockedUsers.length > 0 ? (
+                        <div className="mt-3 space-y-2 max-h-60 overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin' }}>
+                            {blockedUsers.map(uid => (
+                                <div key={uid} className="flex items-center justify-between bg-[rgb(var(--surface-3))] p-2 rounded-lg">
+                                    <div className="flex items-center gap-3">
+                                        <img src={userDirectory[uid]?.avatar || `https://api.dicebear.com/8.x/bottts-neutral/svg?seed=${uid}`} alt="" className="w-8 h-8 rounded-full" />
+                                        <span className="font-medium text-[rgb(var(--text-primary))]">{userDirectory[uid]?.username || 'Unknown User'}</span>
+                                    </div>
+                                    <button onClick={() => unblockUser(uid)} className="px-3 py-1 text-xs font-semibold bg-yellow-500/20 text-yellow-300 rounded-md hover:bg-yellow-500/30">
+                                        Unblock
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-sm text-[rgb(var(--text-muted))] mt-3">You haven't blocked any users.</p>
+                    )}
+                </div>
+            </SettingsSection>
 
             <SettingsSection title="Content">
-                <Toggle label="Restrict Adult Content" checked={settings.restrictAdultContent} onChange={() => updateSettings({ restrictAdultContent: !settings.restrictAdultContent })} tooltip="Hides explicit content (e.g., Hentai, Erotica). Requires login to disable." />
                  <Toggle label="Show Comments Section" checked={settings.showComments} onChange={() => updateSettings({ showComments: !settings.showComments })} tooltip="Show or hide the comments section on the player page." />
                  <Toggle label="Blur Episode Thumbnails" checked={settings.blurEpisodeThumbnails} onChange={() => updateSettings({ blurEpisodeThumbnails: !settings.blurEpisodeThumbnails })} tooltip="Blur thumbnails in the episode list to avoid spoilers." />
                  <Toggle label="Hide Filler Episodes" checked={settings.hideFillerEpisodes} onChange={() => updateSettings({ hideFillerEpisodes: !settings.hideFillerEpisodes })} tooltip="Automatically hide episodes marked as filler in the player." />

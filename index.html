@@ -167,8 +167,8 @@
         position: fixed;
         top: 0;
         left: 0;
-        width: 100vw;
-        height: 100vh;
+        width: 100%;
+        height: 100%;
         background: radial-gradient(circle at 10% 20%, rgba(var(--color-primary), 0.15) 0%, transparent 30%),
                     radial-gradient(circle at 80% 90%, rgba(var(--color-secondary-accent), 0.1) 0%, transparent 40%);
         will-change: transform;
@@ -436,16 +436,33 @@
         object-fit: contain;
       }
 
-      /* Lights Off Mode */
-      body.lights-off-active::after {
-        content: '';
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.92);
-        z-index: 60; /* Below player, above everything else */
-        animation: cinematic-fade-in 0.3s ease forwards;
+      /* Lights Off / Theater Mode */
+      body.lights-off-active {
+        background: #000;
       }
-      
+      body.lights-off-active .player-wrapper-container {
+        max-width: 100%;
+        padding-left: 0;
+        padding-right: 0;
+      }
+      body.lights-off-active .player-content-container {
+        max-width: 1280px; /* lg breakpoint */
+        margin: 0 auto;
+      }
+      body.lights-off-active .player-content-grid {
+        display: block; /* Stack items vertically */
+      }
+      body.lights-off-active .player-sidebar-content {
+        margin-top: 2rem;
+      }
+      body.lights-off-active .player-wrapper-container .artplayer-app {
+        border-radius: 0;
+        max-height: 100vh;
+      }
+      body.lights-off-active::after {
+        content: none;
+      }
+
       /* Skip Intro/Outro markers */
       .skip-marker {
         position: absolute;

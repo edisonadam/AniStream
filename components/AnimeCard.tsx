@@ -13,7 +13,7 @@ import { useToast } from '../hooks/useToast';
 interface AnimeCardProps {
   anime: Anime;
   onSelect: (anime: Anime) => void;
-  isNew: boolean;
+  episodeStatus: { isNew: boolean; episodeNumber: number | null };
 }
 
 const formatDuration = (minutes: number | null): string => {
@@ -31,7 +31,7 @@ const formatDuration = (minutes: number | null): string => {
   return `${hours}h ${remainingMinutes}m`;
 };
 
-const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect, isNew }) => {
+const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect, episodeStatus }) => {
   const { addToWatchlist, removeFromWatchlist, isInWatchlist, updateWatchlistStatus, getWatchlistStatus } = useWatchlist();
   const { isLoggedIn } = useAuth();
   const { settings } = useSettings();
@@ -45,6 +45,7 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect, isNew }) => {
   const [isOverflowing, setIsOverflowing] = useState(false);
 
   const displayTitle = getDisplayTitle(anime, settings);
+  const { isNew, episodeNumber } = episodeStatus;
 
   useLayoutEffect(() => {
     const checkOverflow = () => {
@@ -75,11 +76,9 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect, isNew }) => {
   const handleWatchlistClick = (e: React.MouseEvent, status: WatchlistStatus) => {
     e.stopPropagation();
     if(inWatchlist) {
-      updateWatchlistStatus(anime.id, status);
-      addToast(`Updated status to '${status}'`, 'success');
+      updateWatchlistStatus(anime.id, status, displayTitle);
     } else {
       addToWatchlist(anime, status);
-      addToast(`Added to watchlist as '${status}'`, 'success');
     }
     setIsMenuOpen(false);
 
@@ -100,13 +99,16 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect, isNew }) => {
 
   const handleRemoveFromWatchlist = (e: React.MouseEvent) => {
     e.stopPropagation();
-    removeFromWatchlist(anime.id);
-    addToast('Removed from watchlist', 'info');
+    removeFromWatchlist(anime.id, displayTitle);
     setIsMenuOpen(false);
   };
   
   const handleMenuToggle = (e: React.MouseEvent) => {
       e.stopPropagation();
+      if (!isLoggedIn) {
+        addToast('Login required to manage watchlist', 'info');
+        return;
+      }
       setIsMenuOpen(prev => !prev);
   }
  
@@ -165,10 +167,7 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect, isNew }) => {
       ) : null}
       
       {/* Bottom-Right Badge Container (Episode Info) */}
-      <div className="absolute bottom-14 right-2 z-20 flex items-center gap-1.5">
-          {anime.avgEpisodeDuration && (
-            <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/60 text-white backdrop-blur-sm">~{anime.avgEpisodeDuration}m</span>
-          )}
+      <div className="absolute bottom-14 right-2 z-20 flex flex-row-reverse items-center gap-1.5">
           {hasBadgeInfo && (
               <div
                 className="inline-flex items-center rounded-full bg-black/60 px-2 py-0.5 text-xs font-semibold text-white backdrop-blur-sm"
@@ -180,15 +179,26 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect, isNew }) => {
                 {badgeText}
               </div>
           )}
+          {anime.avgEpisodeDuration && (
+            <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/60 text-white backdrop-blur-sm">~{anime.avgEpisodeDuration}m</span>
+          )}
+          {anime.status === 'Ongoing' && episodeNumber && (anime.totalEpisodes || anime.episodes_count) ? (
+            <div
+                className="inline-flex items-center rounded-full bg-cyan-500/20 px-2 py-0.5 text-xs font-semibold text-cyan-400 backdrop-blur-sm"
+                title={`Episode ${episodeNumber} of ${anime.totalEpisodes || anime.episodes_count} released`}
+            >
+                Ep {episodeNumber} / {anime.totalEpisodes || anime.episodes_count}
+            </div>
+          ) : null}
       </div>
 
 
-      {isLoggedIn && (
+      
         <div className="watchlist-menu absolute top-2 right-2 z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" onMouseLeave={() => setIsMenuOpen(false)}>
             <button onClick={handleMenuToggle} className="p-1.5 bg-black/50 rounded-full text-white hover:bg-[rgb(var(--color-primary))/0.8] transition-colors">
                 <DotsVerticalIcon />
             </button>
-            {isMenuOpen && (
+            {isLoggedIn && isMenuOpen && (
                 <div className="absolute top-full right-0 mt-1 bg-[rgb(var(--surface-2))] rounded-lg shadow-lg p-1 z-10 w-44">
                     {WATCHLIST_STATUSES.map(status => (
                         <button key={status} onClick={(e) => handleWatchlistClick(e, status)} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] rounded-md">
@@ -208,7 +218,7 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect, isNew }) => {
                 </div>
             )}
         </div>
-      )}
+      
 
       <div className="absolute bottom-0 left-0 right-0 p-3">
         <div className="w-full overflow-hidden">

@@ -8,7 +8,7 @@ import { getDisplayTitle } from '../utils';
 interface ThisSeasonAnimeProps {
   onAnimeSelect: (anime: Anime) => void;
   onShowSchedule: () => void;
-  isNew: (animeId: number) => { isNew: boolean; episodeNumber: number | null };
+  getEpisodeStatus: (animeId: number) => { isNew: boolean; episodeNumber: number | null };
 }
 
 const ThisSeasonCardSkeleton: React.FC = () => (
@@ -31,7 +31,7 @@ const getCurrentSeasonInfo = (): { year: number; season: string } => {
     return { year, season };
 };
 
-const ThisSeasonAnime: React.FC<ThisSeasonAnimeProps> = ({ onAnimeSelect, onShowSchedule, isNew }) => {
+const ThisSeasonAnime: React.FC<ThisSeasonAnimeProps> = ({ onAnimeSelect, onShowSchedule, getEpisodeStatus }) => {
   const [seasonalAnime, setSeasonalAnime] = useState<Anime[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { settings } = useSettings();
@@ -87,7 +87,7 @@ const ThisSeasonAnime: React.FC<ThisSeasonAnimeProps> = ({ onAnimeSelect, onShow
       <div className="flex gap-6 overflow-x-auto pb-4 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8" style={{ scrollbarWidth: 'thin' }}>
         {seasonalAnime.slice(0, 10).map((anime, index) => {
           const subDubLabel = anime.hasSub && anime.hasDub ? 'SUB / DUB' : anime.hasSub ? 'SUB' : anime.hasDub ? 'DUB' : null;
-          const hasNewEpisode = isNew(anime.id).isNew;
+          const { isNew, episodeNumber } = getEpisodeStatus(anime.id);
           return (
             <div key={anime.id} className="relative flex-shrink-0 w-40 group flex flex-col items-center text-center">
               <span 
@@ -102,7 +102,15 @@ const ThisSeasonAnime: React.FC<ThisSeasonAnimeProps> = ({ onAnimeSelect, onShow
               >
                   <img loading="lazy" src={anime.thumbnail} alt={getDisplayTitle(anime, settings)} className="w-full h-full object-cover" />
                    <div className="absolute top-2 left-2 z-20 flex flex-col items-start gap-1.5">
-                      {hasNewEpisode && <span className="order-first px-2 py-1 text-xs font-bold rounded-full bg-red-600 text-white animate-pulse">NEW EP</span>}
+                      {isNew && <span className="order-first px-2 py-1 text-xs font-bold rounded-full bg-red-600 text-white animate-pulse">NEW EP</span>}
+                      {anime.status === 'Ongoing' && episodeNumber && (anime.totalEpisodes || anime.episodes_count) && (
+                          <span
+                              className="order-first inline-flex items-center rounded-full bg-cyan-500/20 px-2 py-0.5 text-[10px] font-semibold text-cyan-400 backdrop-blur-md"
+                              title={`Episode ${episodeNumber} of ${anime.totalEpisodes || anime.episodes_count} released`}
+                          >
+                              Ep {episodeNumber} / {anime.totalEpisodes || anime.episodes_count}
+                          </span>
+                      )}
                       {anime.type && (
                         <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-black/60 text-white backdrop-blur-md">{anime.type.toUpperCase()}</span>
                       )}

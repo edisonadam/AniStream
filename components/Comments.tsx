@@ -56,7 +56,7 @@ const CommentForm: React.FC<{
 
 const Comments: React.FC<CommentsProps> = ({ anime, currentSeason, currentEpisode, onUserSelect }) => {
   const { isLoggedIn, user } = useAuth();
-  const { addFriend, isFriend, addNotification, addAniTokens } = useProfileData();
+  const { addFriend, isFriend, addNotification, addAniTokens, isUserBlocked } = useProfileData();
   const [comments, setComments] = useState<CommentType[]>([]);
   const [replyingTo, setReplyingTo] = useState<string | null>(null); // Store parent comment ID
   const [commentScope, setCommentScope] = useState<'episode' | 'all'>('episode');
@@ -100,9 +100,10 @@ const Comments: React.FC<CommentsProps> = ({ anime, currentSeason, currentEpisod
   };
   
   const filteredComments = useMemo(() => {
-    let filtered = [...comments];
+    let filtered = comments.filter(c => !isUserBlocked(c.user.uid));
+
     if (commentScope === 'episode') {
-        filtered = comments.filter(c => c.episodeIdentifier === currentEpisodeIdentifier || !c.episodeIdentifier); // Also show comments not tied to an episode
+        filtered = filtered.filter(c => c.episodeIdentifier === currentEpisodeIdentifier || !c.episodeIdentifier); // Also show comments not tied to an episode
     }
     
     if (sortOrder === 'newest') {
@@ -114,7 +115,7 @@ const Comments: React.FC<CommentsProps> = ({ anime, currentSeason, currentEpisod
     }
 
     return filtered;
-  }, [comments, commentScope, currentEpisodeIdentifier, sortOrder]);
+  }, [comments, commentScope, currentEpisodeIdentifier, sortOrder, isUserBlocked]);
   
   const handleLike = (commentId: string) => {
     const updatedComments = comments.map(c => 

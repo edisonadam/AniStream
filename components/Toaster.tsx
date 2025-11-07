@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useToast } from '../hooks/useToast';
-// FIX: Import `ToastType` from `../types` where it is defined, instead of from `../contexts/ToastContext` which does not export it.
 import type { Toast as ToastProps } from '../contexts/ToastContext';
 import type { ToastType } from '../types';
 import { CheckIcon, ExclamationTriangleIcon, InfoIcon, CloseIcon, HeartIcon, HeartIconSolid } from './icons/Icons';

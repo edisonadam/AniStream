@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, { createContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import type { WatchProgressInfo } from '../types';
 import { useAuth } from '../hooks/useAuth';
 
@@ -24,6 +24,12 @@ export const WatchProgressProvider: React.FC<WatchProgressProviderProps> = ({ ch
   const [watchProgressList, setWatchProgressList] = useState<WatchProgressInfo[]>([]);
   const { user } = useAuth();
 
+  // Use a ref to hold the latest watchProgressList. This allows getWatchProgress
+  // to be stable and not cause re-renders in consumers like the Player component.
+  const watchProgressListRef = useRef(watchProgressList);
+  watchProgressListRef.current = watchProgressList;
+
+
   useEffect(() => {
     if (user) {
       try {
@@ -48,8 +54,9 @@ export const WatchProgressProvider: React.FC<WatchProgressProviderProps> = ({ ch
   }, [user]);
   
   const getWatchProgress = useCallback((animeId: number) => {
-    return watchProgressList.find(item => item.animeId === animeId);
-  }, [watchProgressList]);
+    // Read from the ref to get the latest list without depending on the state variable itself.
+    return watchProgressListRef.current.find(item => item.animeId === animeId);
+  }, []); // Empty dependency array ensures the function reference is stable
 
   const updateProgress = useCallback((
     animeId: number, 
