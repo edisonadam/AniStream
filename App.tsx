@@ -140,17 +140,19 @@ const App: React.FC = () => {
     const prevPageRef = useRef<Page | undefined>(undefined);
 
 
-    // CRITICAL FIX: Preloader removal logic.
     useEffect(() => {
-        const preloader = document.getElementById('preloader');
-        if (preloader) {
-            preloader.style.transition = 'opacity 0.5s ease';
-            preloader.style.opacity = '0';
-            setTimeout(() => {
-                preloader.style.display = 'none';
-            }, 500); // Must match transition duration
+        // Wait until the initial carousel data fetch is complete before removing preloader.
+        if (!isCarouselLoading) {
+            const preloader = document.getElementById('preloader');
+            if (preloader && preloader.style.display !== 'none') {
+                preloader.style.transition = 'opacity 0.5s ease';
+                preloader.style.opacity = '0';
+                setTimeout(() => {
+                    preloader.style.display = 'none';
+                }, 500); // Must match transition duration
+            }
         }
-    }, []);
+    }, [isCarouselLoading]);
 
     // Welcome toast on login
     useEffect(() => {
@@ -582,7 +584,7 @@ const App: React.FC = () => {
             try {
                 const sfwQuery = settings.restrictAdultContent ? '&sfw' : '';
                 
-                // Fetch sequentially to be safer with rate limits
+                // Fetch for carousel
                 const topRes = await fetchWithRetry(`https://api.jikan.moe/v4/top/anime?limit=15${sfwQuery}`);
 
                 if (topRes.ok) {
@@ -595,6 +597,11 @@ const App: React.FC = () => {
                 } else {
                     console.error("Failed to fetch top anime:", await topRes.text());
                 }
+                
+                // Carousel data fetch is now complete, so we can set loading to false for it.
+                // This allows the preloader to hide and the carousel to render while other data loads.
+                setIsCarouselLoading(false);
+
 
                 // Wait before next request
                 await new Promise(resolve => setTimeout(resolve, 500));
@@ -651,8 +658,8 @@ const App: React.FC = () => {
 
             } catch (error) {
                 console.error("An unexpected error occurred during initial data fetch", error);
-            } finally {
                 setIsCarouselLoading(false);
+                setIsTopAnimeLoading(false);
             }
         };
         fetchInitialData();
