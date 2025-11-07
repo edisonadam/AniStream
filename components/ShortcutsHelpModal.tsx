@@ -34,7 +34,6 @@ const ShortcutsHelpModal: React.FC<ShortcutsHelpModalProps> = ({ onClose }) => {
                         <React.Fragment key={action}>
                             <div className="text-right font-semibold text-[rgb(var(--text-secondary))] capitalize">{action.replace(/([A-Z])/g, " $1")}</div>
                             <div className="flex gap-2">
-                                {/* FIX: Cast `keys` to string[] to resolve `map` method error. */}
                                 {(keys as string[]).map(key => (
                                     <kbd key={key} className="px-2 py-0.5 text-sm font-mono font-semibold text-[rgb(var(--color-primary-accent))] bg-[rgb(var(--surface-3))] border border-[rgb(var(--border-color))] rounded-md">{key}</kbd>
                                 ))}

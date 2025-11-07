@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import ReactDOM from 'react-dom';
-// FIX: Add 'Settings' to the import from '../types'
 import type { Anime, Season, Episode, VideoServer, EpisodeViewStyle, User, Character, DefaultLanguage, Page, Filter, Settings } from '../types';
-// FIX: Import 'PlayIcon' to fix 'Cannot find name' error.
 import { ChevronLeftIcon, StarIcon, ChevronRightIcon, ViewGridIcon, ViewListIcon, ViewCarouselIcon, EyeIcon, EyeOffIcon, RewindIcon, FastForwardIcon, RefreshCwIcon, ShareIcon, CloseIcon, DownloadIcon, AnnouncementIcon, ExternalLinkIcon, CodeIcon, SearchIcon, PlayIcon, PauseIcon, VolumeUpIcon, VolumeOffIcon, SettingsIcon, FullscreenEnterIcon, FullscreenExitIcon, ExclamationTriangleIcon, ScissorsIcon, UsersIcon, UserPlusIcon, PictureInPictureIcon, FilmIcon, ArrowTopRightOnSquareIcon, LightbulbOffIcon, LightbulbIcon } from './icons/Icons';
 import AnimeCard from './AnimeCard';
 import Comments from './Comments';
@@ -935,8 +933,6 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
     setSurpriseError(null);
   };
 
-  // FIX: The Artplayer types seem to be incorrect/outdated.
-  // 'el' is a valid property, and 'fullscreen' is a boolean, not an object with 'toggle'.
   const handleFocusToggle = useCallback(() => {
       const playerEl = (artplayerInstance.current as any)?.el;
       if (!playerEl) return;
@@ -1007,7 +1003,6 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
   const skipTimesRef = useRef(skipTimes);
   skipTimesRef.current = skipTimes;
 
-  // FIX: Moved handleNextEpisode and handlePrevEpisode up to be defined before they are used.
   const handleNextEpisode = useCallback(() => {
     if (mediaIds.mediaType !== 'tv' || !playerAnime) return;
     isNavigatingWithArrows.current = true;
@@ -1071,7 +1066,6 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
             idle: 'metadata'
         };
 
-        // FIX: Cast options to 'any' to bypass incorrect type definitions for properties like 'title'.
         const art = new Artplayer({
             container: artplayerRef.current,
             url: '', // Start with an empty URL
@@ -1129,7 +1123,6 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
         }
         
         const handleOrientation = () => {
-            // FIX: Cast 'art' to 'any' to access 'isMobile' which may be missing from types.
             if ((art as any).isMobile) {
                 if (art.fullscreen || art.fullscreenWeb) {
                     (screen.orientation as any).lock('landscape').catch(() => {});
@@ -1221,7 +1214,6 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
         return () => {
             art.off('pip:enter', () => setIsInPiPMode(true));
             art.off('pip:exit', () => setIsInPiPMode(false));
-            // FIX: Cast 'art' to 'any' to access 'isMobile' which may be missing from types.
             if ((art as any).isMobile) {
                 try {
                     (screen.orientation as any).unlock();
@@ -1298,7 +1290,6 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
         seekForward: () => art.forward = art.currentTime + 10,
         volumeUp: () => art.volume += 0.1,
         volumeDown: () => art.volume -= 0.1,
-        // FIX: The correct way to toggle fullscreen is by setting the boolean property.
         fullscreen: () => art.fullscreen = !art.fullscreen,
         mute: () => art.muted = !art.muted,
         skip: () => art.forward = art.currentTime + 85, // Skip 85s for openings

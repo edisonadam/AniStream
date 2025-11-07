@@ -57,7 +57,6 @@ import NewEpisodesSection from './components/NewEpisodesSection';
 import { useWatchlist } from './hooks/useWatchlist';
 import { useFavorites } from './hooks/useFavorites';
 import { useProfileData } from './hooks/useProfileData';
-// FIX: Add missing import for FeaturedCarousel component.
 import FeaturedCarousel from './components/AnimeCarousel';
 import { useNotificationPrefs } from './hooks/useNotificationPrefs';
 import VideosPage from './components/VideosPage';
