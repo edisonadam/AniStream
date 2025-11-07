@@ -1152,10 +1152,10 @@ const App: React.FC = () => {
                 return (
                     <>
                         {isDefaultHome && <FeaturedCarousel animeList={featuredAnime} onAnimeSelect={(anime) => handleAnimeSelect(anime, 'Home')} isLoading={isCarouselLoading} getEpisodeStatus={getEpisodeStatus} />}
+                        {isDefaultHome && settings.showNewEpisodeBadges && <NewEpisodesSection newEpisodeAnime={newEpisodeAnime} onAnimeSelect={(anime) => handleAnimeSelect(anime, 'New Episodes')} getEpisodeStatus={getEpisodeStatus} isLoading={isNewEpisodesLoading} />}
                         {isDefaultHome && settings.showWatchHistoryOnHome && (
                             <ContinueWatching onSelectAnime={(anime) => handleAnimeSelect(anime, 'Continue Watching')} onShowHistory={() => navigateTo('history')} allAnime={allAnime} getEpisodeStatus={getEpisodeStatus} />
                         )}
-                        {isDefaultHome && settings.showNewEpisodeBadges && <NewEpisodesSection newEpisodeAnime={newEpisodeAnime} onAnimeSelect={(anime) => handleAnimeSelect(anime, 'New Episodes')} getEpisodeStatus={getEpisodeStatus} isLoading={isNewEpisodesLoading} />}
                         {isDefaultHome && <TopAnime animeList={topAnimeList.slice(0, 10)} isLoading={isTopAnimeLoading} onAnimeSelect={(anime) => handleAnimeSelect(anime, 'Top 10')} onShowTop100={() => navigateTo('top-100')} getEpisodeStatus={getEpisodeStatus} />}
                         {isDefaultHome && <ThisSeasonAnime onAnimeSelect={(anime) => handleAnimeSelect(anime, 'Best This Season')} onShowSchedule={() => navigateTo('schedule')} getEpisodeStatus={getEpisodeStatus} />}
                         {isDefaultHome && <BeginnerAnime onAnimeSelect={(anime) => handleAnimeSelect(anime, 'For Beginners')} getEpisodeStatus={getEpisodeStatus} />}
