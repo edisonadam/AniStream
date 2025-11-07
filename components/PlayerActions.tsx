@@ -7,7 +7,7 @@ import { useWatchProgress } from '../hooks/useWatchProgress';
 import { useToast } from '../hooks/useToast';
 import { updateMalEntry } from '../api';
 import { VIDEO_SERVERS, WATCHLIST_STATUSES } from '../constants';
-import { HeartIcon, HeartIconSolid, CheckIcon, ChevronDownIcon, PlusCircleIcon, ScissorsIcon, FlagIcon, BellIcon, LightbulbIcon, LightbulbOffIcon, AnnouncementIcon, CaptionsIcon } from './icons/Icons';
+import { HeartIcon, HeartIconSolid, CheckIcon, ChevronDownIcon, PlusCircleIcon, ScissorsIcon, FlagIcon, BellIcon, LightbulbIcon, LightbulbOffIcon, AnnouncementIcon, CaptionsIcon, SparklesIcon } from './icons/Icons';
 import { useNotificationPrefs } from '../hooks/useNotificationPrefs';
 
 interface PlayerActionsProps {
@@ -17,9 +17,11 @@ interface PlayerActionsProps {
   updateSettings: (newSettings: Partial<Settings>) => void;
   onSurprise: () => void;
   onManualServerChange: (server: VideoServer) => void;
+  selectedLanguage: DefaultLanguage;
+  onSubmitSubtitles: () => void;
 }
 
-const PlayerActions: React.FC<PlayerActionsProps> = ({ anime, onClip, settings, updateSettings, onSurprise, onManualServerChange }) => {
+const PlayerActions: React.FC<PlayerActionsProps> = ({ anime, onClip, settings, updateSettings, onSurprise, onManualServerChange, selectedLanguage, onSubmitSubtitles }) => {
     const { addToWatchlist, removeFromWatchlist, updateWatchlistStatus, getWatchlistStatus } = useWatchlist();
     const { addFavorite, removeFavorite, isFavorite } = useFavorites();
     const { getWatchProgress, updateProgress } = useWatchProgress();
@@ -38,28 +40,9 @@ const PlayerActions: React.FC<PlayerActionsProps> = ({ anime, onClip, settings, 
     const [statusDropdownPosition, setStatusDropdownPosition] = useState<{ top: number; left: number; width: number } | null>(null);
     const [notifyDropdownPosition, setNotifyDropdownPosition] = useState<{ top: number; left: number } | null>(null);
     
-    // State for the new server selection UI
-    const currentServerInfo = useMemo(() => VIDEO_SERVERS.find(s => s.id === settings.videoServer), [settings.videoServer]);
-    const [selectedType, setSelectedType] = useState<DefaultLanguage>(currentServerInfo?.type || settings.defaultLanguage);
-    
     const availableServers = useMemo(() => {
-        return VIDEO_SERVERS.filter(s => s.type === selectedType);
-    }, [selectedType]);
-    
-    // Sync local type state if global server setting changes from elsewhere
-    useEffect(() => {
-        if (currentServerInfo && currentServerInfo.type !== selectedType) {
-            setSelectedType(currentServerInfo.type);
-        }
-    }, [currentServerInfo, selectedType]);
-
-    const handleTypeChange = (newType: DefaultLanguage) => {
-        setSelectedType(newType);
-        const firstServerInNewType = VIDEO_SERVERS.find(s => s.type === newType);
-        if (firstServerInNewType) {
-            onManualServerChange(firstServerInNewType.id);
-        }
-    };
+        return VIDEO_SERVERS.filter(s => s.type === selectedLanguage);
+    }, [selectedLanguage]);
 
     const notificationPrefs = getPrefsForAnime(anime.id);
     const currentStatus = getWatchlistStatus(anime.id);
@@ -99,7 +82,7 @@ const PlayerActions: React.FC<PlayerActionsProps> = ({ anime, onClip, settings, 
 
     const handleStatusChange = (status: WatchlistStatus) => {
         if (currentStatus) {
-            updateWatchlistStatus(anime.id, status);
+            updateWatchlistStatus(anime.id, status, anime.title);
         } else {
             addToWatchlist(anime, status);
         }
@@ -113,7 +96,7 @@ const PlayerActions: React.FC<PlayerActionsProps> = ({ anime, onClip, settings, 
     };
 
     const handleRemoveFromList = () => {
-        removeFromWatchlist(anime.id);
+        removeFromWatchlist(anime.id, anime.title);
         addToast('Removed from watchlist.', 'info');
         setIsStatusMenuOpen(false);
         if (settings.autoSyncMal && settings.malUsername) {
@@ -123,11 +106,9 @@ const PlayerActions: React.FC<PlayerActionsProps> = ({ anime, onClip, settings, 
 
     const handleFavoriteToggle = () => {
         if (isFavorited) {
-            removeFavorite(anime.id);
-            addToast('Removed from Favorites', 'unfavorite');
+            removeFavorite(anime.id, anime.title);
         } else {
-            addFavorite(anime.id);
-            addToast('Added to Favorites', 'favorite');
+            addFavorite(anime.id, anime.title);
         }
          if (settings.autoSyncMal && settings.malUsername) {
             updateMalEntry(anime.id, settings.malUsername, { isFavorite: !isFavorited });
@@ -251,9 +232,9 @@ const PlayerActions: React.FC<PlayerActionsProps> = ({ anime, onClip, settings, 
                         <ScissorsIcon className="w-6 h-6"/>
                         <span className="hidden sm:inline">Clip</span>
                     </button>
-                    <button onClick={handleSubtitleEditor} className="flex items-center justify-center gap-2 px-4 py-3 bg-white/10 text-white rounded-xl hover:bg-white/20 font-bold" aria-label="Open Subtitle Editor">
+                    <button onClick={onSubmitSubtitles} className="flex items-center justify-center gap-2 px-4 py-3 bg-white/10 text-white rounded-xl hover:bg-white/20 font-bold" aria-label="Submit Subtitles">
                         <CaptionsIcon className="w-6 h-6"/>
-                        <span className="hidden sm:inline">Editor</span>
+                        <span className="hidden sm:inline">Subtitles</span>
                     </button>
                     <button onClick={onSurprise} className="flex items-center justify-center gap-2 px-4 py-3 bg-white/10 text-white rounded-xl hover:bg-white/20 font-bold" aria-label="Get a surprise fact">
                         <AnnouncementIcon className="w-6 h-6"/>
@@ -290,31 +271,16 @@ const PlayerActions: React.FC<PlayerActionsProps> = ({ anime, onClip, settings, 
             )}
             
             <div className="pt-4 border-t border-white/10 flex flex-col sm:flex-row gap-4 items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                        <label htmlFor="type-select" className="text-sm font-semibold text-[rgb(var(--text-secondary))]">Type:</label>
-                        <select
-                            id="type-select"
-                            value={selectedType}
-                            onChange={(e) => handleTypeChange(e.target.value as DefaultLanguage)}
-                            className="bg-[rgb(var(--surface-input))/0.5] border border-white/10 rounded-lg px-2 py-1 text-sm"
-                        >
-                            <option value="sub">Sub</option>
-                            <option value="dub">Dub</option>
-                            <option value="ssub">S-Sub</option>
-                        </select>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <label htmlFor="server-select" className="text-sm font-semibold text-[rgb(var(--text-secondary))]">Server:</label>
-                        <select
-                            id="server-select"
-                            value={settings.videoServer}
-                            onChange={(e) => onManualServerChange(e.target.value as VideoServer)}
-                            className="bg-[rgb(var(--surface-input))/0.5] border border-white/10 rounded-lg px-2 py-1 text-sm"
-                        >
-                            {availableServers.map(s => <option key={s.id + s.type} value={s.id}>{s.name}</option>)}
-                        </select>
-                    </div>
+                <div className="flex items-center gap-2">
+                    <label htmlFor="server-select" className="text-sm font-semibold text-[rgb(var(--text-secondary))]">Server:</label>
+                    <select
+                        id="server-select"
+                        value={settings.videoServer}
+                        onChange={(e) => onManualServerChange(e.target.value as VideoServer)}
+                        className="bg-[rgb(var(--surface-input))/0.5] border border-white/10 rounded-lg px-2 py-1 text-sm"
+                    >
+                        {availableServers.map(s => <option key={s.id + s.type} value={s.id}>{s.name}</option>)}
+                    </select>
                 </div>
                  <div className="flex items-center gap-3">
                     <button

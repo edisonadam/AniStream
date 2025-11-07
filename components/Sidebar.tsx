@@ -156,7 +156,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             </SidebarSection>
             
             <SidebarSection title="Explore">
-              <SideButton icon={<BookOpenIcon />} label="Manga" onClick={() => handleNavigation('manga')} />
+              <SideButton icon={<BookOpenIcon />} label="Manga & Mags" onClick={() => handleNavigation('manga')} />
               <SideButton icon={<AnnouncementIcon />} label="New Episodes" onClick={() => handleNavigation('new-episodes')} />
               <SideButton icon={<MessageCircleIcon />} label="Community Hub" onClick={() => handleNavigation('community')} />
               <button disabled className="w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-lg text-left text-[rgb(var(--text-muted))] opacity-60 cursor-not-allowed">
@@ -166,11 +166,12 @@ const Sidebar: React.FC<SidebarProps> = ({
                   </div>
                   <span className="text-xs font-bold">Coming Soon</span>
               </button>
-              <SideButton icon={<NewspaperIcon />} label="Magazines" onClick={() => handleNavigation('magazines')} />
+              <SideButton icon={<LevelUpIcon />} label="Leaderboards" onClick={() => handleNavigation('leaderboards')} />
             </SidebarSection>
             
             <SidebarSection title="Tools & Info">
                 <SideButton icon={<HistoryIcon />} label="History" onClick={() => handleNavigation('history')} />
+                <SideButton icon={<DownloadIcon />} label="Downloads" onClick={() => handleNavigation('downloads')} />
                 <SideButton icon={<AcademicCapIcon />} label="For Beginners" onClick={() => handleNavigation('beginners')} />
                 <SideButton icon={<GiftIcon />} label="Surprise Me!" onClick={handleSurprise} />
                 <SideButton icon={<InfoIcon />} label="Updates & Logs" onClick={() => handleNavigation('news')} />

@@ -211,6 +211,8 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect, episodeStatus })
 
       {/* Top-Right Badge Container */}
       <div className="absolute top-2 right-2 z-20 flex flex-col items-end gap-1.5">
+          {anime.status === 'Ongoing' && <div title="Ongoing" className="w-3 h-3 bg-blue-500 rounded-full ring-2 ring-black"></div>}
+          {anime.status === 'Completed' && <div title="Completed" className="w-3 h-3 bg-green-500 rounded-full ring-2 ring-black"></div>}
           {anime.rating && anime.rating > 0 && (
               <div className="flex items-center gap-1 px-2 py-0.5 text-xs font-bold rounded-full bg-black/60 text-yellow-400 backdrop-blur-md">
                   <StarIcon className="w-3 h-3" />

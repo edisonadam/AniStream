@@ -242,7 +242,8 @@ const WatchTogetherPage: React.FC<WatchTogetherPageProps> = ({ roomId, onExit })
     if (error) return <div className="h-screen w-screen flex flex-col items-center justify-center text-center p-4"><h2 className="text-2xl font-bold text-[rgb(var(--color-danger))]">{error}</h2><button onClick={onExit} className="mt-4 px-4 py-2 bg-white/10 rounded-lg">Go Home</button></div>;
     if (!anime || !roomData) return null;
 
-    const messages = roomData.chat ? Object.entries(roomData.chat).map(([id, msg]) => ({...(msg as object), id}) as ChatMessage).sort((a,b) => a.timestamp - b.timestamp) : [];
+    // FIX: Add a type guard to ensure roomData.chat is an object before calling Object.entries.
+    const messages = (roomData?.chat && typeof roomData.chat === 'object') ? Object.entries(roomData.chat).map(([id, msg]) => ({...(msg as object), id}) as ChatMessage).sort((a,b) => a.timestamp - b.timestamp) : [];
 
     return (
         <div className="flex flex-col lg:flex-row h-screen bg-[rgb(var(--bg-gradient-start))] text-[rgb(var(--text-primary))] p-4 gap-4">
@@ -278,7 +279,8 @@ const WatchTogetherPage: React.FC<WatchTogetherPageProps> = ({ roomId, onExit })
             <div className="w-full lg:w-96 flex-shrink-0 h-[50vh] lg:h-auto">
                 <ChatPane 
                     messages={messages}
-                    participants={roomData.participants || {}}
+                    // FIX: Add optional chaining to `roomData.participants` to prevent potential null access error.
+                    participants={roomData?.participants || {}}
                     isHost={isHost}
                     onSendMessage={handleSendMessage}
                     onKickUser={handleKickUser}

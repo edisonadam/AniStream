@@ -150,3 +150,13 @@ export const mapPartialToFullAnime = (partial: Partial<Anime> & { id: number; ti
         ...partial,
     };
 };
+
+// FIX: Add formatDuration function to be used globally.
+export const formatDuration = (minutes: number | null): string => {
+  if (minutes === null || minutes <= 0) return 'N/A';
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  if (remainingMinutes === 0) return `${hours}h`;
+  return `${hours}h ${remainingMinutes}m`;
+};

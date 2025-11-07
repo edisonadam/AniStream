@@ -18,7 +18,7 @@ import ContinueWatching from './components/ContinueWatching';
 import WatchlistOverlay from './components/WatchlistOverlay';
 import AdBanner from './components/AdBanner';
 import ClubDetailPage from './components/ClubDetailPage';
-import MagazinesPage from './components/MagazinesPage';
+// FIX: Removed non-existent MagazinesPage import. MangaPage will handle this route.
 import TrendingPage from './components/TrendingPage';
 import SchedulePage from './components/SchedulePage';
 import HistoryPage from './components/HistoryPage';
@@ -46,7 +46,8 @@ import FloatingPlayer from './components/FloatingPlayer';
 import { useFloatingPlayer } from './hooks/useFloatingPlayer';
 import TopAnime from './components/TopAnime';
 import Top100Page from './components/Top100Page';
-import AnimeDetailModal from './components/AnimeDetailModal';
+// FIX: Replaced non-existent AnimeDetailModal with existing AnimeDetailPage.
+import AnimeDetailPage from './components/AnimeDetailPage';
 import { Toaster } from './components/Toaster';
 import { useToast } from './hooks/useToast';
 import NotificationsPage from './components/NotificationsPage';
@@ -1114,10 +1115,10 @@ const App: React.FC = () => {
             case 'watch-together': return watchTogetherRoomId && <WatchTogetherPage roomId={watchTogetherRoomId} onExit={goHome} />;
             case 'profile': return <ProfilePage onGoBack={goHome} allAnime={allAnime} onSelectAnime={handleAnimeSelect} getEpisodeStatus={getEpisodeStatus} />;
             case 'club-detail': return selectedClub && <ClubDetailPage club={selectedClub} onGoBack={() => navigateTo('community')} onSelectAnime={handleAnimeSelect} getEpisodeStatus={getEpisodeStatus} />;
-            case 'magazines': return <MagazinesPage onGoBack={goHome} />;
+            case 'magazines': return <MangaPage onGoBack={goHome} initialTab="magazines" />;
             case 'trending': return <TrendingPage onAnimeSelect={(anime) => handleAnimeSelect(anime, 'Trending')} getEpisodeStatus={getEpisodeStatus} />;
             case 'schedule': return <SchedulePage onAnimeSelect={handleAnimeSelect} getEpisodeStatus={getEpisodeStatus} />;
-            case 'history': return <HistoryPage onAnimeSelect={handleAnimeSelect} allAnime={allAnime} />;
+            case 'history': return <HistoryPage onGoBack={goHome} onAnimeSelect={handleAnimeSelect} allAnime={allAnime} />;
             case 'news': return <NewsPage onAnimeSelect={handleAnimeSelect} />;
             case 'videos': return <VideosPage onGoBack={goHome} onAnimeSelect={handleAnimeSelect} />;
             case 'manga': return <MangaPage onGoBack={goHome} />;
@@ -1179,7 +1180,7 @@ const App: React.FC = () => {
                         {isDefaultHome && <FeaturedCarousel animeList={featuredAnime} onAnimeSelect={(anime) => handleAnimeSelect(anime, 'Home')} isLoading={isCarouselLoading} getEpisodeStatus={getEpisodeStatus} />}
                         {isDefaultHome && settings.showNewEpisodeBadges && <NewEpisodesSection newEpisodeAnime={newEpisodeAnime} onAnimeSelect={(anime) => handleAnimeSelect(anime, 'New Episodes')} getEpisodeStatus={getEpisodeStatus} isLoading={isNewEpisodesLoading} onViewAll={() => navigateTo('new-episodes')} />}
                         {isDefaultHome && settings.showWatchHistoryOnHome && (
-                            <ContinueWatching onSelectAnime={(anime) => handleAnimeSelect(anime, 'Continue Watching')} onShowHistory={() => navigateTo('history')} allAnime={allAnime} getEpisodeStatus={getEpisodeStatus} />
+                            <ContinueWatching onSelectAnime={(anime) => handleAnimeSelect(anime, 'Watch History')} onShowWatchHistory={() => navigateTo('history')} allAnime={allAnime} getEpisodeStatus={getEpisodeStatus} />
                         )}
                         {isDefaultHome && <TopAnime animeList={topAnimeList.slice(0, 10)} isLoading={isTopAnimeLoading} onAnimeSelect={(anime) => handleAnimeSelect(anime, 'Top 10')} onShowTop100={() => navigateTo('top-100')} getEpisodeStatus={getEpisodeStatus} />}
                         {isDefaultHome && <ThisSeasonAnime onAnimeSelect={(anime) => handleAnimeSelect(anime, 'Best This Season')} onShowSchedule={() => navigateTo('schedule')} getEpisodeStatus={getEpisodeStatus} />}
@@ -1278,11 +1279,12 @@ const App: React.FC = () => {
                 modalRoot
             )}
             {isDetailModalOpen && selectedAnimeForModal && detailModalRoot && ReactDOM.createPortal(
-                <AnimeDetailModal 
+                <AnimeDetailPage 
                     anime={selectedAnimeForModal} 
-                    onClose={handleCloseDetailModal} 
+                    onGoBack={handleCloseDetailModal} 
                     onWatchNow={() => handleWatchNowFromModal(selectedAnimeForModal)}
                     onGenreSelect={handleGenreSelect}
+                    onStudioSelect={handleStudioSelect}
                 />,
                 detailModalRoot
             )}

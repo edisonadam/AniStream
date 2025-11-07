@@ -34,6 +34,8 @@ export interface Anime {
     episode: number;
   }
   rank?: number;
+  views?: number;
+  likes?: number;
 }
 
 export interface Manga {
@@ -114,13 +116,15 @@ export interface Comment {
   animeTitle: string; // For recent comments section
   animeThumbnail: string; // For recent comments section
   animeBanner: string; // For recent comments section
+  isSpoiler?: boolean;
 }
 
 export type Theme = 'light' | 'dark';
 export type ColorPreset = 'abyssal-blue' | 'violet-fusion' | 'cyber-cyan' | 'sunset-orange' | 'rainbow-shift';
 export type EpisodeViewStyle = 'compact' | 'grid' | 'horizontal';
 export type DefaultLanguage = 'sub' | 'dub' | 'ssub';
-export type Page = 'home' | 'player' | 'profile' | 'club-detail' | 'magazines' | 'trending' | 'schedule' | 'history' | 'news' | 'manga' | 'beginners' | 'search' | 'community' | 'comment-meter' | 'currency' | 'about' | 'rules' | 'donation' | 'watch-together' | 'og-image-generator' | 'top-100' | 'notifications' | 'how-to-use' | 'videos' | 'new-episodes';
+// FIX: Add 'magazines' to Page type
+export type Page = 'home' | 'player' | 'profile' | 'club-detail' | 'trending' | 'schedule' | 'history' | 'news' | 'manga' | 'beginners' | 'search' | 'community' | 'comment-meter' | 'currency' | 'about' | 'rules' | 'donation' | 'watch-together' | 'og-image-generator' | 'top-100' | 'notifications' | 'how-to-use' | 'videos' | 'new-episodes' | 'details' | 'leaderboards' | 'shop' | 'downloads' | 'magazines';
 export type ToastType = 'success' | 'warning' | 'error' | 'info' | 'favorite' | 'unfavorite';
 
 export type WatchlistStatus = 'Watching' | 'Completed' | 'On-Hold' | 'Dropped' | 'Plan to Watch';
@@ -158,7 +162,6 @@ export interface Settings {
   inAppToastAlerts: boolean;
   malSyncAlerts: boolean;
   autoMarkAsRead: boolean;
-  // New & updated settings
   homepageTrailer: boolean;
   autoPlay: boolean;
   autoSkip: boolean;
@@ -166,6 +169,25 @@ export interface Settings {
   videoLoadStrategy: 'idle' | 'visible' | 'eager';
   showNewEpisodeBadges: boolean;
   lightsOffMode: boolean;
+  // New settings for Profile Page
+  privateProfile: boolean;
+  allowMessages: boolean;
+  showOnlineStatus: boolean;
+  autoPlayVideos: boolean;
+  anilistSyncThreshold: number;
+  enableBrowserNotifications: boolean;
+  ads: {
+    home: boolean;
+    player: boolean;
+    search: boolean;
+    info: boolean;
+    watch: boolean;
+    interstitials: boolean;
+    icon: boolean;
+    widget: boolean;
+    inPage: boolean;
+    popunder: boolean;
+  };
 }
 
 export interface WatchProgressInfo {

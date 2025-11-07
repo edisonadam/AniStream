@@ -8,6 +8,8 @@ interface ProfileDataContextType {
   notifications: Notification[];
   aniTokens: number;
   blockedUsers: string[];
+  likedAnime: number[];
+  dislikedAnime: number[];
   rateAnime: (animeId: number, rating: number) => void;
   getRating: (animeId: number) => number | null;
   addFriend: (friend: User) => boolean;
@@ -22,6 +24,10 @@ interface ProfileDataContextType {
   blockUser: (userToBlock: User) => void;
   unblockUser: (userId: string) => void;
   isUserBlocked: (userId: string) => boolean;
+  likeAnime: (animeId: number) => void;
+  dislikeAnime: (animeId: number) => void;
+  isLiked: (animeId: number) => boolean;
+  isDisliked: (animeId: number) => boolean;
 }
 
 
@@ -37,6 +43,8 @@ export const ProfileDataProvider: React.FC<ProfileDataProviderProps> = ({ childr
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [aniTokens, setAniTokens] = useState<number>(0);
   const [blockedUsers, setBlockedUsers] = useState<string[]>([]);
+  const [likedAnime, setLikedAnime] = useState<number[]>([]);
+  const [dislikedAnime, setDislikedAnime] = useState<number[]>([]);
   const { user } = useAuth();
 
   const isUserBlocked = useCallback((userId: string) => {
@@ -58,6 +66,12 @@ export const ProfileDataProvider: React.FC<ProfileDataProviderProps> = ({ childr
 
         const storedBlockedUsers = localStorage.getItem(`blocked-users-${user.uid}`);
         setBlockedUsers(storedBlockedUsers ? JSON.parse(storedBlockedUsers) : []);
+        
+        const storedLiked = localStorage.getItem(`liked-anime-${user.uid}`);
+        setLikedAnime(storedLiked ? JSON.parse(storedLiked) : []);
+
+        const storedDisliked = localStorage.getItem(`disliked-anime-${user.uid}`);
+        setDislikedAnime(storedDisliked ? JSON.parse(storedDisliked) : []);
 
         const storedNotifications = localStorage.getItem(`notifications-${user.uid}`);
         if (storedNotifications) {
@@ -85,6 +99,8 @@ export const ProfileDataProvider: React.FC<ProfileDataProviderProps> = ({ childr
         setNotifications([]);
         setAniTokens(0);
         setBlockedUsers([]);
+        setLikedAnime([]);
+        setDislikedAnime([]);
       }
     } else {
       // Clear data on logout
@@ -93,6 +109,8 @@ export const ProfileDataProvider: React.FC<ProfileDataProviderProps> = ({ childr
       setNotifications([]);
       setAniTokens(0);
       setBlockedUsers([]);
+      setLikedAnime([]);
+      setDislikedAnime([]);
     }
   }, [user, persistNotifications]);
 
@@ -110,6 +128,14 @@ export const ProfileDataProvider: React.FC<ProfileDataProviderProps> = ({ childr
 
   const persistBlockedUsers = useCallback((list: string[]) => {
     if (user) localStorage.setItem(`blocked-users-${user.uid}`, JSON.stringify(list));
+  }, [user]);
+  
+  const persistLiked = useCallback((list: number[]) => {
+    if (user) localStorage.setItem(`liked-anime-${user.uid}`, JSON.stringify(list));
+  }, [user]);
+  
+  const persistDisliked = useCallback((list: number[]) => {
+    if (user) localStorage.setItem(`disliked-anime-${user.uid}`, JSON.stringify(list));
   }, [user]);
 
   const addAniTokens = useCallback((amount: number) => {
@@ -259,15 +285,51 @@ export const ProfileDataProvider: React.FC<ProfileDataProviderProps> = ({ childr
         return newList;
     });
   }, [persistBlockedUsers]);
+  
+  const likeAnime = useCallback((animeId: number) => {
+    setLikedAnime(prev => {
+        const newList = prev.includes(animeId) ? prev.filter(id => id !== animeId) : [...prev, animeId];
+        persistLiked(newList);
+        return newList;
+    });
+    setDislikedAnime(prev => {
+        if (prev.includes(animeId)) {
+            const newList = prev.filter(id => id !== animeId);
+            persistDisliked(newList);
+            return newList;
+        }
+        return prev;
+    });
+  }, [persistLiked, persistDisliked]);
+
+  const dislikeAnime = useCallback((animeId: number) => {
+    setDislikedAnime(prev => {
+        const newList = prev.includes(animeId) ? prev.filter(id => id !== animeId) : [...prev, animeId];
+        persistDisliked(newList);
+        return newList;
+    });
+    setLikedAnime(prev => {
+        if (prev.includes(animeId)) {
+            const newList = prev.filter(id => id !== animeId);
+            persistLiked(newList);
+            return newList;
+        }
+        return prev;
+    });
+  }, [persistDisliked, persistLiked]);
+
+  const isLiked = useCallback((animeId: number) => likedAnime.includes(animeId), [likedAnime]);
+  const isDisliked = useCallback((animeId: number) => dislikedAnime.includes(animeId), [dislikedAnime]);
 
 
   const value = { 
-    ratings, friends, notifications, aniTokens, blockedUsers,
+    ratings, friends, notifications, aniTokens, blockedUsers, likedAnime, dislikedAnime,
     rateAnime, getRating,
     addFriend, removeFriend, isFriend, 
     addNotification, markNotificationsAsRead, markSingleNotificationAsRead, clearAllNotifications,
     addAniTokens, spendAniTokens,
     blockUser, unblockUser, isUserBlocked,
+    likeAnime, dislikeAnime, isLiked, isDisliked,
   };
 
   return (

@@ -27,7 +27,6 @@ const defaultSettings: Settings = {
   inAppToastAlerts: true,
   malSyncAlerts: true,
   autoMarkAsRead: false,
-  // New & updated settings
   homepageTrailer: true,
   autoPlay: true,
   autoSkip: false,
@@ -35,6 +34,25 @@ const defaultSettings: Settings = {
   videoLoadStrategy: 'idle',
   showNewEpisodeBadges: true,
   lightsOffMode: false,
+  // New settings for Profile Page
+  privateProfile: false,
+  allowMessages: true,
+  showOnlineStatus: true,
+  autoPlayVideos: true,
+  anilistSyncThreshold: 80,
+  enableBrowserNotifications: false,
+  ads: {
+    home: true,
+    player: true,
+    search: true,
+    info: true,
+    watch: true,
+    interstitials: false,
+    icon: false,
+    widget: false,
+    inPage: false,
+    popunder: true,
+  },
 };
 
 interface SettingsContextType {

@@ -1,14 +1,16 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, ChangeEvent } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useSettings } from '../hooks/useSettings';
 import { useProfileData } from '../hooks/useProfileData';
 import { useWatchProgress } from '../hooks/useWatchProgress';
 import { useWatchlist } from '../hooks/useWatchlist';
-import { ChevronLeftIcon, CloseIcon, VerifiedIcon } from './icons/Icons';
-import type { Anime, WatchProgressInfo, Rating, User } from '../types';
-import AnimeCard from './AnimeCard';
-import SettingsPage from './SettingsPage'; // Import the new settings page component
-import { getDisplayTitle } from '../utils';
+import { useToast } from '../hooks/useToast';
+// FIX: Replaced non-existent ClockIcon with HistoryIcon, which is the correct icon component.
+import { ChevronLeftIcon, VerifiedIcon, UserIcon, ShieldCheckIcon, HistoryIcon, CogIcon, RefreshCwIcon, LockClosedIcon, EyeIcon } from './icons/Icons';
+import type { Anime, Settings } from '../types';
+import { COLOR_PRESETS, VIDEO_SERVERS } from '../constants';
+import { fetchAnilistUserAnimeList, fetchMalUserAnimeList } from '../api';
+import ShortcutSettings from './ShortcutSettings';
 
 interface ProfilePageProps {
     onGoBack: () => void;
@@ -17,225 +19,381 @@ interface ProfilePageProps {
     getEpisodeStatus: (animeId: number) => { isNew: boolean; episodeNumber: number | null };
 }
 
-type Tab = 'profile-settings' | 'friends';
+type MainTab = 'general' | 'security' | 'sessions' | 'preferences' | 'sync' | 'privacy';
+type GeneralSubTab = 'profile' | 'privacy' | 'statistics' | 'activity';
 
-const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectAnime, getEpisodeStatus }) => {
-    const { user, updateUser, logout } = useAuth();
-    const { settings } = useSettings();
-    const { ratings, friends, removeFriend } = useProfileData();
-    const { watchProgressList } = useWatchProgress();
-    const { watchlist } = useWatchlist();
+const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack }) => {
+    const { user } = useAuth();
+    const [activeMainTab, setActiveMainTab] = useState<MainTab>('general');
+    const [activeGeneralSubTab, setActiveGeneralSubTab] = useState<GeneralSubTab>('profile');
 
-    const [activeTab, setActiveTab] = useState<Tab>('profile-settings');
-    const [isEditingProfile, setIsEditingProfile] = useState(false);
-    const [editUsername, setEditUsername] = useState(user?.username || '');
-    const [editAvatar, setEditAvatar] = useState(user?.avatar || '');
-    
-    const animeMap = useMemo(() => {
-        const map = new Map<number, Anime>();
-        allAnime.forEach(anime => map.set(anime.id, anime));
-        // Add anime from lists that might not be in the initial `allAnime` prop
-        watchProgressList.forEach(item => { if (!map.has(item.animeId)) map.set(item.animeId, { id: item.animeId, title: 'Loading...' } as Anime); });
-        watchlist.forEach(item => { if (!map.has(item.id)) map.set(item.id, item); });
-        return map;
-    }, [allAnime, watchProgressList, watchlist]);
-
-    const userStats = useMemo(() => {
-        const totalAnime = watchProgressList.length;
-        
-        // A more accurate calculation would need total episodes per anime, but this is a good estimation.
-        const totalMinutesWatched = watchProgressList.reduce((acc, progress) => {
-            const anime = animeMap.get(progress.animeId);
-            const avgDuration = anime?.avgEpisodeDuration || 24;
-            const episodeCount = (progress.progress / 100) * (anime?.totalEpisodes || 1);
-            return acc + (episodeCount * avgDuration);
-        }, 0);
-
-        const daysWatched = totalMinutesWatched / 60 / 24;
-
-        const averageScore = ratings.length > 0
-            ? ratings.reduce((acc, r) => acc + r.rating, 0) / ratings.length
-            : 0;
-
-        return {
-            totalAnime,
-            daysWatched: daysWatched.toFixed(1),
-            averageScore: averageScore.toFixed(2),
-        };
-    }, [watchProgressList, ratings, animeMap]);
-
-
-    const handleProfileSave = (e: React.FormEvent) => {
-        e.preventDefault();
-        updateUser({ username: editUsername, avatar: editAvatar });
-        setIsEditingProfile(false);
+    const renderContent = () => {
+        switch (activeMainTab) {
+            case 'general':
+                return <GeneralSection activeSubTab={activeGeneralSubTab} setActiveSubTab={setActiveGeneralSubTab} />;
+            case 'security':
+                return <SecuritySection />;
+            case 'sessions':
+                return <SessionsSection />;
+            case 'preferences':
+                return <PreferencesSection />;
+            case 'sync':
+                return <SyncSection />;
+            case 'privacy':
+                return <PrivacySection isSubSection={false} />;
+            default:
+                return <GeneralSection activeSubTab={activeGeneralSubTab} setActiveSubTab={setActiveGeneralSubTab} />;
+        }
     };
 
-    const ProfileTabContent = () => (
-      <div className="space-y-12">
-        {/* Profile Header */}
-        <div className="text-center">
-            {isEditingProfile ? (
-                <form onSubmit={handleProfileSave} className="max-w-sm mx-auto space-y-4 bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl p-6 rounded-2xl border border-white/10">
-                    <h3 className="text-lg font-bold">Edit Profile</h3>
-                    <div>
-                        <label className="block text-sm text-left font-medium text-[rgb(var(--text-secondary))] mb-1">Username</label>
-                        <input type="text" value={editUsername} onChange={e => setEditUsername(e.target.value)} className="w-full bg-[rgb(var(--surface-input))/0.2] border border-white/10 rounded-xl px-3 py-2 text-[rgb(var(--text-primary))] focus:ring-2 focus:ring-[rgb(var(--border-focus))] focus:border-[rgb(var(--border-focus))] transition-all" />
-                    </div>
-                     <div>
-                        <label className="block text-sm text-left font-medium text-[rgb(var(--text-secondary))] mb-1">Avatar URL</label>
-                        <input type="text" value={editAvatar} onChange={e => setEditAvatar(e.target.value)} className="w-full bg-[rgb(var(--surface-input))/0.2] border border-white/10 rounded-xl px-3 py-2 text-[rgb(var(--text-primary))] focus:ring-2 focus:ring-[rgb(var(--border-focus))] focus:border-[rgb(var(--border-focus))] transition-all" />
-                    </div>
-                    <div className="flex gap-2 justify-center">
-                        <button type="button" onClick={() => setIsEditingProfile(false)} className="px-4 py-2 bg-white/10 rounded-full font-semibold hover:bg-white/20">Cancel</button>
-                        <button type="submit" className="px-4 py-2 bg-[rgb(var(--color-primary))] rounded-full font-semibold hover:bg-[rgb(var(--color-primary-hover))]">Save</button>
-                    </div>
-                </form>
-            ) : (
-                <>
-                    <img loading="lazy" src={user?.avatar} alt={user?.username} className="w-24 h-24 rounded-full mx-auto mb-4 ring-4 ring-[rgb(var(--color-primary))]/50" />
-                    <h2 className="text-3xl font-bold">{user?.username}</h2>
-                    <p className="text-sm text-[rgb(var(--text-muted))]">Joined: {new Date(user?.joinedDate || Date.now()).toLocaleDateString()}</p>
-                    <div className="mt-6 flex justify-center gap-4 text-center">
-                        <div><p className="text-2xl font-bold">{userStats.totalAnime}</p><p className="text-xs text-[rgb(var(--text-muted))]">Total Anime</p></div>
-                        <div><p className="text-2xl font-bold">{userStats.daysWatched}</p><p className="text-xs text-[rgb(var(--text-muted))]">Days Watched</p></div>
-                        <div><p className="text-2xl font-bold">{userStats.averageScore}</p><p className="text-xs text-[rgb(var(--text-muted))]">Mean Score</p></div>
-                    </div>
-                    <div className="mt-6 flex gap-2 justify-center">
-                        <button onClick={() => setIsEditingProfile(true)} className="px-4 py-2 bg-white/10 rounded-full font-semibold hover:bg-white/20">Edit Profile</button>
-                        <button onClick={logout} className="px-4 py-2 bg-[rgb(var(--color-danger))]/20 text-[rgb(var(--color-danger))] rounded-full font-semibold hover:bg-[rgb(var(--color-danger))]/40">Logout</button>
-                    </div>
-                </>
-            )}
-        </div>
-        
-        <DataSection title="My Watchlist" data={watchlist.slice(0, 6)} renderItem={(item: Anime) => <AnimeCard anime={item} onSelect={onSelectAnime} episodeStatus={getEpisodeStatus(item.id)} />} />
-        
-        <div>
-            <h3 className="text-2xl font-bold mb-4">Viewing History</h3>
-            {watchProgressList.length > 0 ? (
-                <div className="space-y-3 max-h-[28rem] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin' }}>
-                    {watchProgressList.map(({ animeId, ...progressInfo }) => {
-                        const anime = animeMap.get(animeId);
-                        if (!anime) return null;
-                        return (
-                            <div 
-                                key={anime.id}
-                                onClick={() => onSelectAnime(anime)}
-                                className="group flex items-center gap-4 bg-[rgb(var(--surface-2))/0.5] p-3 rounded-xl hover:bg-[rgb(var(--surface-2))] transition-colors cursor-pointer"
-                            >
-                                <img src={anime.thumbnail} alt={getDisplayTitle(anime, settings)} className="w-16 h-24 object-cover rounded-md flex-shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                    <h3 className="font-bold text-[rgb(var(--text-primary))] truncate group-hover:text-[rgb(var(--color-primary-accent))] transition-colors">{getDisplayTitle(anime, settings)}</h3>
-                                    <p className="text-sm text-[rgb(var(--text-muted))]">
-                                        Last Watched: S{progressInfo.currentSeason} E{progressInfo.currentEpisode}
-                                    </p>
-                                    <div className="mt-2">
-                                        <div className="w-full bg-[rgb(var(--surface-3))] rounded-full h-2">
-                                            <div className="bg-[rgb(var(--color-primary))] h-2 rounded-full" style={{width: `${progressInfo.progress}%`}}></div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="flex-shrink-0 text-sm text-right text-[rgb(var(--text-muted))]">
-                                    <p>{new Date(progressInfo.timestamp).toLocaleDateString()}</p>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            ) : (
-                <p className="text-[rgb(var(--text-muted))]">Nothing here yet!</p>
-            )}
-        </div>
-        
-        <DataSection title="My Ratings" data={ratings.slice(0, 6)} renderItem={(item: Rating) => animeMap.get(item.animeId) && <AnimeCard anime={animeMap.get(item.animeId)!} onSelect={onSelectAnime} episodeStatus={getEpisodeStatus(item.animeId)} />} />
-      </div>
-    );
-    
-    const FriendsTabContent = () => (
-        <div className="max-w-2xl mx-auto">
-            <h2 className="text-2xl font-bold mb-6">My Friends ({friends.length})</h2>
-            {friends.length > 0 ? (
-                <div className="space-y-3">
-                    {friends.map(friend => (
-                        <div key={friend.username} className="flex items-center justify-between bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl p-3 rounded-2xl border border-white/10">
-                            <div className="flex items-center gap-4">
-                                <img loading="lazy" src={friend.avatar} alt={friend.username} className="w-12 h-12 rounded-full" />
-                                <span className="font-bold text-[rgb(var(--text-primary))]">{friend.username}</span>
-                            </div>
-                            <button onClick={() => removeFriend(friend.username)} className="p-2 rounded-full bg-white/10 text-[rgb(var(--text-muted))] hover:bg-[rgb(var(--color-danger))]/80 hover:text-white transition-colors">
-                                <CloseIcon/>
-                            </button>
-                        </div>
-                    ))}
-                </div>
-            ) : (
-                <div className="text-center p-12 bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl rounded-2xl border border-white/10">
-                    <p className="text-lg text-[rgb(var(--text-muted))]">You haven't added any friends yet.</p>
-                    <p className="text-sm text-[rgb(var(--text-muted))] mt-2">You can add friends from the comments section on any anime!</p>
-                </div>
-            )}
-        </div>
-    );
-    
-    const renderActiveTab = () => {
-        switch(activeTab) {
-            case 'profile-settings': return (
-                <>
-                    <ProfileTabContent />
-                    <div className="my-12 border-t border-white/10"></div>
-                    <SettingsPage />
-                </>
-            );
-            case 'friends': return <FriendsTabContent />;
-            default: return (
-                <>
-                    <ProfileTabContent />
-                    <div className="my-12 border-t border-white/10"></div>
-                    <SettingsPage />
-                </>
-            );
-        }
+    if (!user) {
+        return (
+            <div className="container mx-auto py-12 text-center">
+                <p>You must be logged in to view this page.</p>
+            </div>
+        );
     }
 
     return (
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-subtle-fade-in-up">
             <button onClick={onGoBack} className="flex items-center space-x-2 text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] transition-colors group mb-8">
                 <ChevronLeftIcon className="w-6 h-6 transform group-hover:-translate-x-1 transition-transform" />
-                <span>Back to Browse</span>
+                <span>Back</span>
             </button>
-            
-            <div className="flex justify-center border-b border-white/10 mb-8">
-                <button onClick={() => setActiveTab('profile-settings')} className={`px-6 py-3 text-lg font-semibold transition-colors ${activeTab === 'profile-settings' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>{`Profile & Settings`}</button>
-                <button onClick={() => setActiveTab('friends')} className={`px-6 py-3 text-lg font-semibold transition-colors ${activeTab === 'friends' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>{`Friends`}</button>
+            <div className="text-center md:text-left mb-8">
+                <h1 className="text-4xl font-bold">Settings</h1>
+                <p className="text-lg text-[rgb(var(--text-muted))]">Manage your account and preferences</p>
             </div>
-
-            {renderActiveTab()}
+            <div className="flex flex-col md:flex-row gap-8 lg:gap-12">
+                <aside className="md:w-1/4 lg:w-1/5 flex-shrink-0">
+                    <nav className="space-y-2">
+                        <SideNavItem icon={<UserIcon />} label="General" isActive={activeMainTab === 'general'} onClick={() => setActiveMainTab('general')} />
+                        <SideNavItem icon={<ShieldCheckIcon />} label="Security" isActive={activeMainTab === 'security'} onClick={() => setActiveMainTab('security')} />
+                        {/* FIX: Replaced non-existent ClockIcon with HistoryIcon. */}
+                        <SideNavItem icon={<HistoryIcon />} label="Sessions" isActive={activeMainTab === 'sessions'} onClick={() => setActiveMainTab('sessions')} />
+                        <SideNavItem icon={<CogIcon />} label="Preferences" isActive={activeMainTab === 'preferences'} onClick={() => setActiveMainTab('preferences')} />
+                        <SideNavItem icon={<RefreshCwIcon />} label="Sync" isActive={activeMainTab === 'sync'} onClick={() => setActiveMainTab('sync')} />
+                        <SideNavItem icon={<EyeIcon />} label="Privacy" isActive={activeMainTab === 'privacy'} onClick={() => setActiveMainTab('privacy')} />
+                    </nav>
+                </aside>
+                <main className="flex-1 min-w-0">
+                    {renderContent()}
+                </main>
+            </div>
         </div>
     );
 };
 
-interface DataSectionProps<T> {
-    title: string;
-    data: T[];
-    renderItem: (item: T) => React.ReactNode;
-}
+const SideNavItem: React.FC<{ icon: React.ReactNode, label: string, isActive: boolean, onClick: () => void }> = ({ icon, label, isActive, onClick }) => (
+    <button onClick={onClick} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left transition-colors ${isActive ? 'bg-[rgb(var(--surface-3))] text-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))]'}`}>
+        {icon}
+        <span className="font-semibold">{label}</span>
+    </button>
+);
 
-const DataSection = <T extends { animeId: number } | { id: number }>({ title, data, renderItem }: DataSectionProps<T>) => {
-    if (data.length === 0) return null;
+const Section: React.FC<{ title: string, subtitle?: string, children: React.ReactNode, noPadding?: boolean }> = ({ title, subtitle, children, noPadding = false }) => (
+    <div className={`bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 rounded-2xl ${noPadding ? '' : 'p-6'}`}>
+        {(title || subtitle) && (
+            <div className={`${noPadding ? 'p-6' : ''}`}>
+                <h3 className="text-xl font-bold text-[rgb(var(--color-primary-accent))]">{title}</h3>
+                {subtitle && <p className="text-sm text-[rgb(var(--text-muted))] mt-1 mb-4">{subtitle}</p>}
+            </div>
+        )}
+        <div className={`space-y-4 ${noPadding ? '' : 'pt-4 border-t border-white/10'}`}>{children}</div>
+    </div>
+);
+
+
+const GeneralSection: React.FC<{ activeSubTab: GeneralSubTab, setActiveSubTab: (tab: GeneralSubTab) => void }> = ({ activeSubTab, setActiveSubTab }) => (
+    <div className="space-y-8">
+        <div className="flex flex-wrap border-b border-white/10">
+            <SubTabButton label="Profile" isActive={activeSubTab === 'profile'} onClick={() => setActiveSubTab('profile')} />
+            <SubTabButton label="Privacy" isActive={activeSubTab === 'privacy'} onClick={() => setActiveSubTab('privacy')} />
+            <SubTabButton label="Statistics" isActive={activeSubTab === 'statistics'} onClick={() => setActiveSubTab('statistics')} />
+            <SubTabButton label="Activity" isActive={activeSubTab === 'activity'} onClick={() => setActiveSubTab('activity')} />
+        </div>
+        {activeSubTab === 'profile' && <ProfileSubSection />}
+        {activeSubTab === 'privacy' && <PrivacySection isSubSection />}
+        {activeSubTab === 'statistics' && <StatisticsSubSection />}
+        {activeSubTab === 'activity' && <ActivitySubSection />}
+    </div>
+);
+
+const SubTabButton: React.FC<{ label: string, isActive: boolean, onClick: () => void }> = ({ label, isActive, onClick }) => (
+    <button onClick={onClick} className={`px-4 py-2 text-sm font-semibold transition-colors ${isActive ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>{label}</button>
+);
+
+const ProfileSubSection: React.FC = () => {
+    const { user, updateUser } = useAuth();
+    const [displayName, setDisplayName] = useState(user?.username || '');
+    const [language, setLanguage] = useState('English');
+    const [bio, setBio] = useState('');
+    const [location, setLocation] = useState('');
+    const [website, setWebsite] = useState('');
+    const [timezone, setTimezone] = useState('UTC');
+    const { addToast } = useToast();
+
+    const handleSave = () => {
+        if (!user) return;
+        updateUser({ username: displayName, avatar: user.avatar });
+        addToast("Profile saved successfully!", "success");
+    };
+
     return (
-        <div>
-            <h3 className="text-2xl font-bold mb-4">{title}</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
-                {data.map((item, index) => (
-                    <div key={('animeId' in item ? item.animeId : item.id) + '-' + index}>
-                        {renderItem(item)}
+        <div className="space-y-6">
+            <Section title="Profile Overview" noPadding>
+                <div className="p-6">
+                    <div className="flex flex-col sm:flex-row items-center gap-4">
+                        <img src={user?.avatar} alt="avatar" className="w-20 h-20 rounded-full" />
+                        <div className="flex-1 text-center sm:text-left">
+                            <div className="flex items-center gap-2 justify-center sm:justify-start">
+                                <p className="font-bold text-lg">{user?.username}</p>
+                                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-500/20 text-red-400">Private</span>
+                            </div>
+                            <p className="text-sm text-[rgb(var(--text-muted))]">{user?.email}</p>
+                            <p className="text-xs text-[rgb(var(--text-muted))]">Member since {new Date(user?.joinedDate || 0).toLocaleDateString()}</p>
+                        </div>
+                        <button className="px-3 py-1.5 text-sm bg-white/10 rounded-lg hover:bg-white/20">Verify Email</button>
                     </div>
-                ))}
-            </div>
-            {data.length === 0 && <p className="text-[rgb(var(--text-muted))]">Nothing here yet!</p>}
+                </div>
+            </Section>
+            <Section title="Profile Information">
+                <TextInput label="Display Name" value={displayName} onChange={setDisplayName} />
+                <Dropdown label="Language" selected={language} onChange={setLanguage} options={[{ value: 'English', label: 'English' }]} />
+                <div>
+                    <label className="font-semibold text-[rgb(var(--text-secondary))] mb-2 block">Bio (Optional)</label>
+                    <textarea value={bio} onChange={e => setBio(e.target.value.slice(0, 500))} maxLength={500} placeholder="Tell us about yourself..." className="w-full bg-[rgb(var(--surface-input))] rounded-lg p-2" rows={3}></textarea>
+                    <p className="text-xs text-right text-[rgb(var(--text-muted))]">{bio.length}/500</p>
+                </div>
+                <TextInput label="Location (Optional)" value={location} onChange={setLocation} placeholder="Select a country"/>
+                <TextInput label="Website (Optional)" value={website} onChange={setWebsite} placeholder="https://example.com" />
+                <Dropdown label="Timezone" selected={timezone} onChange={setTimezone} options={[{ value: 'UTC', label: 'UTC' }]} />
+                <div className="flex justify-end pt-4">
+                    <button onClick={handleSave} className="px-5 py-2.5 bg-[rgb(var(--color-primary))] rounded-lg font-semibold hover:bg-[rgb(var(--color-primary-hover))]">Save Changes</button>
+                </div>
+            </Section>
         </div>
     );
 };
+
+const PrivacySection: React.FC<{ isSubSection?: boolean }> = ({ isSubSection = false }) => {
+    const { settings, updateSettings } = useSettings();
+    const { addToast } = useToast();
+    const handleSave = () => addToast("Privacy settings saved!", "success");
+
+    const content = (
+        <div className="p-6 space-y-4">
+            <Toggle label="Private Profile" checked={settings.privateProfile} onChange={() => updateSettings({ privateProfile: !settings.privateProfile })} tooltip="Only approved followers can see your profile" />
+            <Toggle label="Allow Messages" checked={settings.allowMessages} onChange={() => updateSettings({ allowMessages: !settings.allowMessages })} tooltip="Let other users send you direct messages" />
+            <Toggle label="Show Online Status" checked={settings.showOnlineStatus} onChange={() => updateSettings({ showOnlineStatus: !settings.showOnlineStatus })} tooltip="Display when you're online to other users" />
+            <div className="flex justify-end pt-4 border-t border-white/10">
+                <button onClick={handleSave} className="px-5 py-2.5 bg-[rgb(var(--color-primary))] rounded-lg font-semibold hover:bg-[rgb(var(--color-primary-hover))]">Save Changes</button>
+            </div>
+        </div>
+    );
+
+    return <Section title="Privacy Settings" subtitle={!isSubSection ? "Control who can see your profile and interact with you" : ""} noPadding>{content}</Section>
+};
+
+const StatisticsSubSection: React.FC = () => {
+    const { ratings } = useProfileData();
+    const { watchProgressList } = useWatchProgress();
+    const { watchlist } = useWatchlist();
+
+    const stats = useMemo(() => {
+        const totalMinutes = watchProgressList.reduce((acc, p) => acc + (p.progress / 100 * 24 * (p.currentEpisode || 1)), 0);
+        const completionRate = watchlist.length > 0 ? (watchlist.filter(a => a.status === 'Completed').length / watchlist.length) * 100 : 0;
+        const genreCounts: Record<string, number> = {};
+        watchlist.forEach(anime => { (anime.genres || []).forEach(genre => { genreCounts[genre] = (genreCounts[genre] || 0) + 1; }); });
+        const favoriteGenres = Object.entries(genreCounts).sort((a, b) => b[1] - a[1]).slice(0, 3).map(g => g[0]);
+
+        return {
+            animeWatched: watchlist.length,
+            episodesWatched: watchProgressList.reduce((acc, p) => acc + p.currentEpisode, 0),
+            comments: 0,
+            daysWatched: (totalMinutes / 60 / 24).toFixed(1),
+            watchingStreak: 6,
+            averageRating: ratings.length > 0 ? (ratings.reduce((acc, r) => acc + r.rating, 0) / ratings.length).toFixed(2) : '0.00',
+            completionRate: completionRate.toFixed(0) + '%',
+            favoriteGenres: favoriteGenres,
+        };
+    }, [watchProgressList, watchlist, ratings]);
+
+    return (
+        <div className="space-y-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-6 bg-[rgb(var(--surface-2))/0.6] rounded-2xl border border-white/10">
+                <StatCard label="Anime Watched" value={stats.animeWatched} />
+                <StatCard label="Episodes" value={stats.episodesWatched} />
+                <StatCard label="Comments" value={stats.comments} />
+                <StatCard label="Days Watched" value={stats.daysWatched} />
+            </div>
+            <Section title="Detailed Statistics" noPadding>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-6">
+                    <StatCard label="Watching Streak" value={`${stats.watchingStreak} days`} />
+                    <StatCard label="Average Rating" value={stats.averageRating + '/10'} />
+                    <StatCard label="Completion Rate" value={stats.completionRate} />
+                    <StatCard label="Favorite Genres" value={stats.favoriteGenres.join(', ')} isSmallText />
+                </div>
+            </Section>
+        </div>
+    );
+};
+
+const ActivitySubSection: React.FC = () => (
+    <Section title="Recent Activity"><p className="text-center text-[rgb(var(--text-muted))] py-8">No recent activity</p></Section>
+);
+
+const SecuritySection: React.FC = () => (
+    <div className="space-y-8">
+        <Section title="Two-Factor Authentication" subtitle="Add an extra layer of security to your account">
+            <p>Two-factor authentication adds an extra layer of security by requiring a code from your phone in addition to your password.</p>
+            <div className="flex justify-start"><button className="px-5 py-2.5 bg-[rgb(var(--color-primary))] rounded-lg font-semibold hover:bg-[rgb(var(--color-primary-hover))]">Enable Two-Factor Authentication</button></div>
+        </Section>
+        <Section title="Change Password" subtitle="Update your account password">
+            <TextInput label="Current Password" type="password" value="" onChange={() => {}} />
+            <TextInput label="New Password" type="password" value="" onChange={() => {}} />
+            <TextInput label="Confirm New Password" type="password" value="" onChange={() => {}} />
+            <div className="flex justify-end"><button className="px-5 py-2.5 bg-[rgb(var(--color-primary))] rounded-lg font-semibold hover:bg-[rgb(var(--color-primary-hover))]">Change Password</button></div>
+        </Section>
+        <Section title="Security Tips" subtitle="Best practices to keep your account secure">
+            <ul className="list-disc list-inside space-y-2 text-[rgb(var(--text-secondary))]">
+                <li><strong>Strong Passwords:</strong> Use a unique, strong password with at least 12 characters including numbers and symbols.</li>
+                <li><strong>Regular Updates:</strong> Keep your authenticator app and browser updated.</li>
+                <li><strong>Backup Codes:</strong> Store your backup codes in a secure location.</li>
+                <li><strong>Session Management:</strong> Regularly review and terminate unused sessions from the Sessions page.</li>
+            </ul>
+        </Section>
+    </div>
+);
+
+const SessionsSection: React.FC = () => (
+    <Section title="Active Sessions" subtitle="Manage your active sessions across all devices">
+        <div className="bg-[rgb(var(--surface-3))] p-4 rounded-lg flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="text-center sm:text-left">
+                <p className="font-bold">Android <span className="text-green-400">(Current Session)</span></p>
+                <p className="text-sm text-[rgb(var(--text-muted))]">Chrome Mobile &bull; Last active: 11 minutes ago</p>
+            </div>
+            <button className="px-4 py-2 text-sm bg-white/10 rounded-lg hover:bg-white/20">Sign Out</button>
+        </div>
+        <StatCard label="Active Sessions" value={1} />
+    </Section>
+);
+
+const PreferencesSection: React.FC = () => {
+    const { settings, updateSettings, restoreDefaults } = useSettings();
+    const { clearProgress } = useWatchProgress();
+    const { addToast } = useToast();
+
+    const handleAdChange = (key: keyof Settings['ads'], value: boolean) => updateSettings({ ads: { ...settings.ads, [key]: value } });
+    const handleRestore = () => {
+        if (window.confirm("Are you sure you want to restore all settings to their defaults? This cannot be undone.")) {
+            restoreDefaults(); addToast("Settings restored to default.", "success");
+        }
+    };
+    const handleClearHistory = () => {
+        if (window.confirm("Are you sure you want to clear your entire watch history? This cannot be undone.")) {
+            clearProgress(); addToast("Watch history cleared.", "success");
+        }
+    };
+
+    return (
+        <div className="space-y-8">
+            <Section title="Language & Comments">
+                <Dropdown label="Default Language" selected={settings.defaultLanguage} onChange={v => updateSettings({ defaultLanguage: v })} options={[{ value: 'sub', label: 'Japanese (Original)' }, { value: 'dub', label: 'English (Dub)' }]} />
+                <Toggle label="Show Comments by Default" checked={settings.showComments} onChange={() => updateSettings({ showComments: !settings.showComments })} />
+            </Section>
+            <Section title="Playback Settings">
+                <Toggle label="Auto Play Videos" checked={settings.autoPlayVideos} onChange={() => updateSettings({ autoPlayVideos: !settings.autoPlayVideos })} tooltip="Start playing videos automatically." />
+                <div>
+                    <label className="font-semibold text-[rgb(var(--text-secondary))] mb-1 block">AniList Sync Threshold</label>
+                    <p className="text-sm text-[rgb(var(--text-muted))] mb-2">Mark episode as watched after reaching this percentage.</p>
+                    <div className="flex items-center gap-4"><input type="range" min="1" max="100" value={settings.anilistSyncThreshold} onChange={e => updateSettings({ anilistSyncThreshold: parseInt(e.target.value, 10)})} className="w-full" /><span className="font-bold w-12 text-center">{settings.anilistSyncThreshold}%</span></div>
+                </div>
+                <Toggle label="Auto Play Next Episode" checked={settings.autoPlay} onChange={() => updateSettings({ autoPlay: !settings.autoPlay })} tooltip="Continue to next episode automatically" />
+                <Toggle label="Skip Intro" checked={settings.autoSkip} onChange={() => updateSettings({ autoSkip: !settings.autoSkip })} tooltip="Skip opening sequences" />
+                <Toggle label="Skip Outro" checked={false} onChange={() => {}} tooltip="Skip ending sequences" />
+            </Section>
+            <Section title="Notification Settings">
+                <p>Browser Permission: <span className="font-semibold capitalize text-[rgb(var(--text-secondary))]">{Notification.permission}</span></p>
+                <Toggle label="Enable Notifications" checked={settings.enableBrowserNotifications} onChange={() => { if (Notification.permission === 'default') { Notification.requestPermission().then(p => updateSettings({ enableBrowserNotifications: p === 'granted'})); } else { updateSettings({ enableBrowserNotifications: !settings.enableBrowserNotifications }); }}} tooltip="Get notified about new episodes and updates" />
+            </Section>
+            <Section title="Advertisement Settings">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                    <div><h4 className="font-semibold mb-2">Ad Locations</h4><Checkbox label="Home Page" checked={settings.ads.home} onChange={v => handleAdChange('home', v)} /><Checkbox label="Video Player" checked={settings.ads.player} onChange={v => handleAdChange('player', v)} /><Checkbox label="Search Results" checked={settings.ads.search} onChange={v => handleAdChange('search', v)} /><Checkbox label="Info Pages" checked={settings.ads.info} onChange={v => handleAdChange('info', v)} /><Checkbox label="Watch Pages" checked={settings.ads.watch} onChange={v => handleAdChange('watch', v)} /></div>
+                    <div><h4 className="font-semibold mb-2">Ad Types</h4><Checkbox label="Interstitials (Soon)" checked={settings.ads.interstitials} onChange={v => handleAdChange('interstitials', v)} disabled /><Checkbox label="Icon Notification (Soon)" checked={settings.ads.icon} onChange={v => handleAdChange('icon', v)} disabled /><Checkbox label="Custom Widget (Soon)" checked={settings.ads.widget} onChange={v => handleAdChange('widget', v)} disabled /><Checkbox label="In-Page Push (Soon)" checked={settings.ads.inPage} onChange={v => handleAdChange('inPage', v)} disabled /><Checkbox label="Popunder" checked={settings.ads.popunder} onChange={v => handleAdChange('popunder', v)} /></div>
+                </div>
+            </Section>
+            <div className="pt-6 flex flex-wrap gap-4">
+                <button onClick={handleRestore} className="px-4 py-2 bg-yellow-500/10 text-yellow-300 rounded-lg font-semibold hover:bg-yellow-500/20">Restore Defaults</button>
+                <button onClick={handleClearHistory} className="px-4 py-2 bg-red-500/10 text-red-300 rounded-lg font-semibold hover:bg-red-500/20">Clear Watch History</button>
+            </div>
+        </div>
+    );
+};
+
+const SyncSection: React.FC = () => {
+    const { addToast } = useToast();
+    const handleExport = (format: 'json' | 'xml' | 'text') => addToast(`Exporting as ${format.toUpperCase()}...`, 'success');
+    return (
+        <div className="space-y-8">
+            <Section title="AniList Integration" subtitle="Connect your AniList account for automatic syncing">
+                <p>Connection Status: <span className="font-semibold text-red-400">Disconnected</span></p>
+                <div className="flex justify-start"><button className="px-5 py-2.5 bg-[rgb(var(--color-primary))] rounded-lg font-semibold">Connect to AniList</button></div>
+            </Section>
+            <Section title="Export Watchlist" subtitle="Download your watchlist for backup or import" noPadding>
+                <div className="p-6 space-y-4">
+                    <ExportOption label="JSON (AniList Import)" description="Compatible with AniList import format" onDownload={() => handleExport('json')} />
+                    <ExportOption label="XML (MAL Import)" description="Compatible with MyAnimeList import format" onDownload={() => handleExport('xml')} />
+                    <ExportOption label="Text (Human Readable)" description="Readable text format" onDownload={() => handleExport('text')} />
+                </div>
+            </Section>
+            <Section title="Import Watchlist" subtitle="Upload watchlist files from other services" noPadding>
+                <div className="p-6 space-y-4">
+                    <ImportOption label="JSON (From AniList)" description="Import AniList export files" />
+                    <ImportOption label="XML (From MAL)" description="Import MyAnimeList export files" />
+                    <ImportOption label="Text (From Kuudere)" description="Import Kuudere text export files" />
+                </div>
+            </Section>
+        </div>
+    );
+};
+
+// --- Helper Components ---
+const ExportOption: React.FC<{ label: string, description: string, onDownload: () => void }> = ({ label, description, onDownload }) => (
+    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center"><div className="flex-1">
+        <p className="font-semibold">{label}</p><p className="text-sm text-[rgb(var(--text-muted))]">{description}</p></div>
+        <button onClick={onDownload} className="mt-2 sm:mt-0 px-4 py-2 text-sm bg-white/10 rounded-lg hover:bg-white/20">Download</button>
+    </div>
+);
+const ImportOption: React.FC<{ label: string, description: string }> = ({ label, description }) => (
+    <div><p className="font-semibold">{label}</p><p className="text-sm text-[rgb(var(--text-muted))] mb-2">{description}</p>
+        <input type="file" className="text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:font-semibold file:bg-[rgb(var(--color-primary))] file:text-white hover:file:bg-[rgb(var(--color-primary-hover))]" />
+    </div>
+);
+const StatCard: React.FC<{ label: string, value: string | number, isSmallText?: boolean }> = ({ label, value, isSmallText = false }) => (
+    <div className="bg-[rgb(var(--surface-3))/0.5] p-3 rounded-lg text-center">
+        <p className={`font-bold ${isSmallText ? 'text-sm' : 'text-2xl'}`}>{value}</p><p className="text-xs text-[rgb(var(--text-muted))]">{label}</p>
+    </div>
+);
+const Toggle: React.FC<{ label: string; tooltip?: string; checked: boolean; onChange: () => void; }> = ({ label, tooltip, checked, onChange }) => (
+    <div><div className="flex justify-between items-center"><label className="font-semibold text-[rgb(var(--text-secondary))]">{label}</label>
+        <button onClick={onChange} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${checked ? 'bg-[rgb(var(--color-primary))]' : 'bg-[rgb(var(--surface-4))]'}`}><span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`} /></button>
+    </div>{tooltip && <p className="text-sm text-[rgb(var(--text-muted))] mt-1">{tooltip}</p>}</div>
+);
+const Dropdown: React.FC<{label: string, options: {value: string, label: string}[], selected: string, onChange: (value: any) => void}> = ({ label, options, selected, onChange }) => (
+    <div className="flex flex-col sm:flex-row justify-between items-center"><label className="font-semibold text-[rgb(var(--text-secondary))] mb-2 sm:mb-0">{label}</label>
+        <select value={selected} onChange={(e) => onChange(e.target.value)} className="w-full sm:w-auto bg-[rgb(var(--surface-input))] rounded-lg px-3 py-2 text-[rgb(var(--text-primary))]">{options.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select>
+    </div>
+);
+const TextInput: React.FC<{ label: string, type?: string, value: string, onChange: (value: string) => void, placeholder?: string }> = ({ label, type = 'text', value, onChange, placeholder }) => (
+    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center"><label className="font-semibold text-[rgb(var(--text-secondary))] mb-2 sm:mb-0">{label}</label>
+        <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} className="w-full sm:w-60 bg-[rgb(var(--surface-input))] rounded-lg px-3 py-2 text-[rgb(var(--text-primary))]" />
+    </div>
+);
+const Checkbox: React.FC<{ label: string, checked: boolean, onChange: (checked: boolean) => void, disabled?: boolean }> = ({ label, checked, onChange, disabled }) => (
+    <label className={`flex items-center gap-2 text-sm ${disabled ? 'text-[rgb(var(--text-muted))]' : 'text-[rgb(var(--text-secondary))] cursor-pointer'}`}>
+        <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} disabled={disabled} className="h-4 w-4 rounded bg-gray-700 border-gray-600 text-[rgb(var(--color-primary))]" />{label}
+    </label>
+);
 
 export default ProfilePage;

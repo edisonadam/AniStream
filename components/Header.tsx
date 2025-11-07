@@ -43,7 +43,7 @@ const NotificationIcon: React.FC<{ type: NotificationType }> = ({ type }) => {
 
 const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClick, onShowWatchlist, onNavigate, onGoHome, onNotificationClick, trendingAnime = [], onTrendingAnimeClick = (_) => {} }) => {
   const { isLoggedIn, user, logout } = useAuth();
-  const { notifications, markNotificationsAsRead, aniTokens } = useProfileData();
+  const { notifications, markNotificationsAsRead, clearAllNotifications, aniTokens } = useProfileData();
   const { settings } = useSettings();
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -130,16 +130,21 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
                     <BellIcon />
                     {unreadCount > 0 && <span className="absolute top-1 right-1 block h-2.5 w-2.5 rounded-full bg-[rgb(var(--color-primary))] ring-2 ring-[rgb(var(--surface-1))] animate-throb"></span>}
                   </button>
-                  <div className={`origin-top-right absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl shadow-lg shadow-[rgb(var(--shadow-color))/0.3] bg-[rgb(var(--surface-2))/0.8] backdrop-blur-xl border border-white/10 transition-all duration-300 ease-out transform ${isNotificationOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'}`}>
+                  <div className={`origin-top-right absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl shadow-lg shadow-[rgb(var(--shadow-color))/0.3] bg-[rgb(var(--surface-3))] border border-white/10 transition-all duration-300 ease-out transform ${isNotificationOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'}`}>
                       <div className="p-3 flex justify-between items-center font-semibold text-[rgb(var(--text-primary))] border-b border-white/10">
                         <span>Notifications</span>
-                        <button onClick={() => { onNavigate('notifications'); setIsNotificationOpen(false); }} className="text-xs font-semibold text-[rgb(var(--color-primary-accent))] hover:underline">
-                            View All →
-                        </button>
+                        <div className="flex items-center gap-2">
+                           <button onClick={() => { onNavigate('notifications'); setIsNotificationOpen(false); }} className="text-xs font-semibold text-[rgb(var(--color-primary-accent))] hover:underline">
+                                View All
+                            </button>
+                            <button onClick={() => { if(window.confirm('Are you sure you want to clear all notifications?')) clearAllNotifications() }} className="text-xs font-semibold text-red-400/80 hover:underline">
+                                Clear All
+                            </button>
+                        </div>
                       </div>
                       <div className="py-1 max-h-96 overflow-y-auto">
                         {notifications.length > 0 ? notifications.slice(0, 5).map(n => (
-                          <button key={n.id} onClick={() => handleNotificationItemClick(n)} className={`block w-full text-left px-4 py-3 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] transition-colors ${!n.read ? 'bg-[rgb(var(--color-primary))/0.1]' : ''}`}>
+                          <button key={n.id} onClick={() => handleNotificationItemClick(n)} className={`block w-full text-left px-4 py-3 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-4))] transition-colors ${!n.read ? 'bg-[rgb(var(--color-primary))/0.1]' : ''}`}>
                             <div className="flex items-start gap-3">
                                 <div className="flex-shrink-0 pt-0.5"><NotificationIcon type={n.type} /></div>
                                 <div className="flex-1">
@@ -155,7 +160,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
                             <p className="text-center p-8 text-sm text-[rgb(var(--text-muted))]">No notifications to display.</p>
                         )}
                       </div>
-                      {notifications.length > 0 && (
+                      {unreadCount > 0 && (
                         <div className="p-2 border-t border-white/10">
                             <button onClick={() => { markNotificationsAsRead(); }} className="w-full text-center text-xs font-semibold text-[rgb(var(--color-primary-accent))] hover:underline p-2 rounded-lg hover:bg-white/5 transition-colors">
                                 Mark all as read

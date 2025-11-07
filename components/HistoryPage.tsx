@@ -3,13 +3,15 @@ import type { Anime, WatchProgressInfo } from '../types';
 import { useWatchProgress } from '../hooks/useWatchProgress';
 import { useSettings } from '../hooks/useSettings';
 import { getDisplayTitle } from '../utils';
+import { ChevronLeftIcon } from './icons/Icons';
 
 interface HistoryPageProps {
+  onGoBack: () => void;
   onAnimeSelect: (anime: Anime) => void;
   allAnime: Anime[];
 }
 
-const HistoryPage: React.FC<HistoryPageProps> = ({ onAnimeSelect, allAnime }) => {
+const HistoryPage: React.FC<HistoryPageProps> = ({ onGoBack, onAnimeSelect, allAnime }) => {
     const { watchProgressList, clearProgress } = useWatchProgress();
     const { settings } = useSettings();
     
@@ -25,6 +27,10 @@ const HistoryPage: React.FC<HistoryPageProps> = ({ onAnimeSelect, allAnime }) =>
 
     return (
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-subtle-fade-in-up">
+            <button onClick={onGoBack} className="flex items-center space-x-2 text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] transition-colors group mb-8">
+                <ChevronLeftIcon className="w-6 h-6 transform group-hover:-translate-x-1 transition-transform" />
+                <span>Back</span>
+            </button>
             <div className="flex justify-between items-center mb-8">
                 <h1 className="text-3xl font-bold text-[rgb(var(--text-primary))]" style={{ textShadow: `0 0 8px rgb(var(--shadow-color) / 0.5)` }}>
                     Viewing History

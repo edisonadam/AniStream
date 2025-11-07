@@ -59,8 +59,18 @@ const NotificationsPage: React.FC<NotificationsPageProps> = ({ onGoBack, onSelec
             </button>
 
             <div className="mb-8">
-                <h1 className="text-3xl font-bold text-[rgb(var(--text-primary))]">Your Notifications</h1>
-                <p className="text-[rgb(var(--text-muted))]">{notifications.length} Total, {unreadCount} Unread</p>
+                <div className="flex justify-between items-center">
+                    <div>
+                        <h1 className="text-3xl font-bold text-[rgb(var(--text-primary))]">Your Notifications</h1>
+                        <p className="text-[rgb(var(--text-muted))]">{notifications.length} Total, {unreadCount} Unread</p>
+                    </div>
+                     <button 
+                        onClick={() => { if(window.confirm('Are you sure you want to clear all notifications?')) clearAllNotifications() }}
+                        className="px-4 py-2 bg-red-500/10 text-red-400 rounded-lg text-sm font-semibold hover:bg-red-500/20 transition-colors"
+                    >
+                        Clear All
+                    </button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
@@ -93,7 +103,6 @@ const NotificationsPage: React.FC<NotificationsPageProps> = ({ onGoBack, onSelec
                     </div>
                      <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl p-4 rounded-2xl border border-white/10 space-y-2">
                         <button onClick={markNotificationsAsRead} className="w-full px-4 py-2 bg-white/5 rounded-lg text-sm font-semibold hover:bg-white/10 transition-colors">Mark All as Read</button>
-                        <button onClick={() => { if(window.confirm('Are you sure you want to clear all notifications?')) clearAllNotifications() }} className="w-full px-4 py-2 bg-red-500/10 text-red-400 rounded-lg text-sm font-semibold hover:bg-red-500/20 transition-colors">Clear All</button>
                     </div>
                 </aside>
 

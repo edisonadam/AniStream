@@ -6,7 +6,7 @@ import { useSettings } from '../hooks/useSettings';
 import { getDisplayTitle } from '../utils';
 
 interface ContinueWatchingProps {
-    onShowHistory: () => void;
+    onShowWatchHistory: () => void;
     onSelectAnime: (anime: Anime) => void;
     allAnime: Anime[];
     getEpisodeStatus: (animeId: number) => { isNew: boolean; episodeNumber: number | null };
@@ -55,7 +55,7 @@ const ContinueWatchingCard: React.FC<ContinueWatchingCardProps> = ({ anime, prog
     );
 }
 
-const ContinueWatching: React.FC<ContinueWatchingProps> = ({ onShowHistory, onSelectAnime, allAnime, getEpisodeStatus }) => {
+const ContinueWatching: React.FC<ContinueWatchingProps> = ({ onShowWatchHistory, onSelectAnime, allAnime, getEpisodeStatus }) => {
     const { isLoggedIn } = useAuth();
     const { watchProgressList } = useWatchProgress();
 
@@ -86,10 +86,10 @@ const ContinueWatching: React.FC<ContinueWatchingProps> = ({ onShowHistory, onSe
         <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="flex justify-between items-center mb-6">
                  <h2 className="text-2xl sm:text-3xl font-bold text-[rgb(var(--text-primary))]" style={{ textShadow: `0 0 8px rgb(var(--shadow-color) / 0.5)` }}>
-                    Continue Watching
+                    Watch History
                 </h2>
-                <button onClick={onShowHistory} className="px-4 py-2 bg-[rgb(var(--surface-2))/0.7] rounded-lg text-sm font-semibold text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] hover:bg-[rgb(var(--surface-3))] transition-colors">
-                    View Full History
+                <button onClick={onShowWatchHistory} className="px-4 py-2 bg-[rgb(var(--surface-2))/0.7] rounded-lg text-sm font-semibold text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] hover:bg-[rgb(var(--surface-3))] transition-colors">
+                    View Watch History
                 </button>
             </div>
             <div className="flex gap-4 md:gap-6 overflow-x-auto pb-4 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8" style={{ scrollbarWidth: 'thin' }}>

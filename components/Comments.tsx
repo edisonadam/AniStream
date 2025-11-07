@@ -16,20 +16,33 @@ interface CommentsProps {
 
 type SortOrder = 'newest' | 'oldest' | 'top';
 
+const Spoiler: React.FC<{ content: string }> = ({ content }) => {
+    const [isRevealed, setIsRevealed] = useState(false);
+    return isRevealed ? (
+        <p className="text-[rgb(var(--text-secondary))] whitespace-pre-wrap mt-1">{content}</p>
+    ) : (
+        <button onClick={() => setIsRevealed(true)} className="w-full text-left p-3 bg-[rgb(var(--surface-3))] rounded-lg text-[rgb(var(--text-muted))] hover:bg-[rgb(var(--surface-4))] transition-colors">
+            This comment contains spoilers. Click to reveal.
+        </button>
+    );
+};
+
 const CommentForm: React.FC<{
-  onSubmit: (text: string) => void;
+  onSubmit: (text: string, isSpoiler: boolean) => void;
   cta: string;
   placeholder: string;
   onCancel?: () => void;
   autoFocus?: boolean;
 }> = ({ onSubmit, cta, placeholder, onCancel, autoFocus = false }) => {
   const [text, setText] = useState('');
+  const [isSpoiler, setIsSpoiler] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!text.trim()) return;
-    onSubmit(text.trim());
+    onSubmit(text.trim(), isSpoiler);
     setText('');
+    setIsSpoiler(false);
   };
 
   return (
@@ -42,15 +55,21 @@ const CommentForm: React.FC<{
         rows={2}
         autoFocus={autoFocus}
       ></textarea>
-      <div className="flex justify-end items-center gap-2 mt-2">
-        {onCancel && (
-            <button type="button" onClick={onCancel} className="px-4 py-2 bg-white/10 text-[rgb(var(--text-secondary))] rounded-full font-semibold hover:bg-white/20 transition-colors text-sm">
-                Cancel
+      <div className="flex justify-between items-center gap-2 mt-2">
+        <label className="flex items-center gap-2 text-sm text-[rgb(var(--text-muted))] cursor-pointer">
+            <input type="checkbox" checked={isSpoiler} onChange={e => setIsSpoiler(e.target.checked)} className="h-4 w-4 rounded bg-gray-700 border-gray-600 text-[rgb(var(--color-primary))]" />
+            Mark as spoiler
+        </label>
+        <div className="flex items-center gap-2">
+            {onCancel && (
+                <button type="button" onClick={onCancel} className="px-4 py-2 bg-white/10 text-[rgb(var(--text-secondary))] rounded-full font-semibold hover:bg-white/20 transition-colors text-sm">
+                    Cancel
+                </button>
+            )}
+            <button type="submit" className="px-4 py-2 bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))] rounded-full font-semibold hover:bg-[rgb(var(--color-primary-hover))] transition-colors text-sm">
+                {cta}
             </button>
-        )}
-        <button type="submit" className="px-4 py-2 bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))] rounded-full font-semibold hover:bg-[rgb(var(--color-primary-hover))] transition-colors text-sm">
-            {cta}
-        </button>
+        </div>
       </div>
     </form>
   )
@@ -84,7 +103,7 @@ const Comments: React.FC<CommentsProps> = ({ anime, currentSeason, currentEpisod
     return () => unsubscribe();
   }, [anime.id]);
 
-  const handleAddComment = (text: string) => {
+  const handleAddComment = (text: string, isSpoiler: boolean) => {
     if (!user) return;
     const commentsRef = ref(db, `comments/${anime.id}`);
     const newComment: Omit<CommentType, 'id'> = {
@@ -97,6 +116,7 @@ const Comments: React.FC<CommentsProps> = ({ anime, currentSeason, currentEpisod
       animeTitle: anime.title,
       animeThumbnail: anime.thumbnail,
       animeBanner: anime.bannerImage,
+      isSpoiler: isSpoiler,
     };
     push(commentsRef, newComment);
     addAniTokens(600); // Award tokens for commenting
@@ -178,7 +198,11 @@ const Comments: React.FC<CommentsProps> = ({ anime, currentSeason, currentEpisod
                     <span className="font-bold text-[rgb(var(--text-primary))] cursor-pointer" onClick={() => onUserSelect(comment.user)}>{comment.user.username}</span>
                     <span className="text-xs text-[rgb(var(--text-muted))]">{formatRelativeTime(comment.timestamp)}</span>
                   </div>
-                  <p className="text-[rgb(var(--text-secondary))] whitespace-pre-wrap mt-1">{comment.text}</p>
+                  {comment.isSpoiler ? (
+                    <Spoiler content={comment.text} />
+                  ) : (
+                    <p className="text-[rgb(var(--text-secondary))] whitespace-pre-wrap mt-1">{comment.text}</p>
+                  )}
                   <div className="flex items-center gap-4 mt-2">
                      <button onClick={() => handleLike(comment.id)} className="flex items-center gap-1 text-sm text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))]">
                         <ThumbsUpIcon className="w-4 h-4" /> <span>{comment.likes || 0}</span>
@@ -195,7 +219,7 @@ const Comments: React.FC<CommentsProps> = ({ anime, currentSeason, currentEpisod
                    {replyingTo === comment.id && (
                     <div className="mt-4">
                         <CommentForm 
-                            onSubmit={(text) => { /* Reply logic to be implemented */ setReplyingTo(null); }}
+                            onSubmit={(text, isSpoiler) => { /* Reply logic to be implemented */ setReplyingTo(null); }}
                             cta="Post Reply"
                             placeholder={`Replying to ${comment.user.username}...`}
                             onCancel={() => setReplyingTo(null)}
