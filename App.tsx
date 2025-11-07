@@ -1169,6 +1169,7 @@ const App: React.FC = () => {
     const showHeaderAndSidebar = page !== 'watch-together';
     const showLoginPrompt = page === 'home' && !hasActiveFilters && !isLoggedIn;
 
+    const modalRoot = document.getElementById('modal-root');
     const sidebarRoot = document.getElementById('sidebar-root');
     const gotoTopRoot = document.getElementById('goto-top-root');
     const detailModalRoot = document.getElementById('detail-modal-root');
@@ -1191,7 +1192,10 @@ const App: React.FC = () => {
                 <LoadingBar isLoading={isPageLoading || isGridLoading || isCarouselLoading || isTopAnimeLoading || isNewEpisodesLoading} />,
                 loadingBarRoot
             )}
-            {isShortcutsHelpOpen && <ShortcutsHelpModal onClose={() => setIsShortcutsHelpOpen(false)} />}
+            {isShortcutsHelpOpen && modalRoot && ReactDOM.createPortal(
+                <ShortcutsHelpModal onClose={() => setIsShortcutsHelpOpen(false)} />,
+                modalRoot
+            )}
             {showHeaderAndSidebar && <Header
                 onMenuClick={() => setIsSidebarOpen(true)}
                 onLoginClick={() => handleLoginRequest()}
@@ -1204,10 +1208,22 @@ const App: React.FC = () => {
                 onTrendingAnimeClick={handleSearchSubmit}
             />}
             
-            {isSearchOpen && <SearchOverlay onClose={() => setIsSearchOpen(false)} onAnimeSelect={handleAnimeSelect} onSearchSubmit={handleSearchSubmit} />}
-            {isLoginOpen && <AuthModal onClose={() => { setIsLoginOpen(false); setLoginReason(null); }} reason={loginReason} />}
-            {isWatchlistOpen && <WatchlistOverlay onClose={() => setIsWatchlistOpen(false)} onSelectAnime={handleAnimeSelect} newEpisodeAnime={newEpisodeAnime} />}
-            {isUserDetailModalOpen && selectedUser && <UserDetailModal user={selectedUser} onClose={() => setIsUserDetailModalOpen(false)} />}
+            {isSearchOpen && modalRoot && ReactDOM.createPortal(
+                <SearchOverlay onClose={() => setIsSearchOpen(false)} onAnimeSelect={handleAnimeSelect} onSearchSubmit={handleSearchSubmit} />,
+                modalRoot
+            )}
+            {isLoginOpen && modalRoot && ReactDOM.createPortal(
+                <AuthModal onClose={() => { setIsLoginOpen(false); setLoginReason(null); }} reason={loginReason} />,
+                modalRoot
+            )}
+            {isWatchlistOpen && modalRoot && ReactDOM.createPortal(
+                <WatchlistOverlay onClose={() => setIsWatchlistOpen(false)} onSelectAnime={handleAnimeSelect} newEpisodeAnime={newEpisodeAnime} />,
+                modalRoot
+            )}
+            {isUserDetailModalOpen && selectedUser && modalRoot && ReactDOM.createPortal(
+                <UserDetailModal user={selectedUser} onClose={() => setIsUserDetailModalOpen(false)} />,
+                modalRoot
+            )}
             {isDetailModalOpen && selectedAnimeForModal && detailModalRoot && ReactDOM.createPortal(
                 <AnimeDetailModal 
                     anime={selectedAnimeForModal} 
