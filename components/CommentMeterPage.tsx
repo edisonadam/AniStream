@@ -15,8 +15,9 @@ const CommentMeterPage: React.FC<CommentMeterPageProps> = ({ onGoBack, onLoginCl
 
     useEffect(() => {
         if (user) {
-            const count = countUserComments(user.uid);
-            setCommentCount(count);
+            countUserComments(user.uid).then(count => {
+                setCommentCount(count);
+            });
         }
     }, [user]);
 

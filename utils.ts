@@ -1,4 +1,6 @@
 import type { Anime, Settings, Comment } from './types';
+import { db } from './firebase';
+import { ref, get } from 'firebase/database';
 
 /**
  * Gets the appropriate display title for an anime based on user settings.
@@ -47,38 +49,43 @@ export const deduplicateFranchises = (animeList: Anime[]): Anime[] => {
 };
 
 /**
- * Scans localStorage for all comment lists and aggregates them.
- * This is a client-side solution for features needing all comments.
+ * Scans Firebase for all comment lists and aggregates them.
+ * WARNING: This is very inefficient and should not be used in a production environment.
+ * It fetches the entire '/comments' tree. A better solution involves denormalizing comment counts.
  * @returns An array of all Comment objects found.
  */
-export const getAllComments = (): Comment[] => {
+export const getAllComments = async (): Promise<Comment[]> => {
   const allComments: Comment[] = [];
   try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('comments_')) {
-        const storedValue = localStorage.getItem(key);
-        if (storedValue) {
-          const comments: Comment[] = JSON.parse(storedValue);
-          allComments.push(...comments);
+    const commentsRef = ref(db, 'comments');
+    const snapshot = await get(commentsRef);
+    if (snapshot.exists()) {
+        const allAnimeComments = snapshot.val();
+        for (const animeId in allAnimeComments) {
+            const commentsForAnime = allAnimeComments[animeId];
+            for (const commentId in commentsForAnime) {
+                allComments.push({
+                    id: commentId,
+                    ...commentsForAnime[commentId]
+                });
+            }
         }
-      }
     }
     return allComments;
   } catch (error) {
-    console.error("Failed to get all comments from localStorage", error);
+    console.error("Failed to get all comments from Firebase", error);
     return [];
   }
 };
 
 
 /**
- * Counts all comments made by a specific user.
+ * Counts all comments made by a specific user. This is an async operation.
  * @param userId The UID of the user.
  * @returns The total number of comments.
  */
-export const countUserComments = (userId: string): number => {
-    const allComments = getAllComments();
+export const countUserComments = async (userId: string): Promise<number> => {
+    const allComments = await getAllComments();
     return allComments.filter(comment => comment.user.uid === userId).length;
 }
 

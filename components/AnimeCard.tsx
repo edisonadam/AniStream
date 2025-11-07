@@ -1,4 +1,4 @@
-import React, { useState, useLayoutEffect, useRef } from 'react';
+import React, { useState, useLayoutEffect, useRef, useCallback } from 'react';
 import type { Anime, WatchlistStatus } from '../types';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { useAuth } from '../hooks/useAuth';
@@ -6,7 +6,7 @@ import { PlusIcon, CheckIcon, DotsVerticalIcon, StarIcon } from './icons/Icons';
 import { useSettings } from '../hooks/useSettings';
 import { getDisplayTitle } from '../utils';
 import { WATCHLIST_STATUSES } from '../constants';
-import { updateAnilistEntry } from '../api';
+import { updateAnilistEntry, fetchWithRetry } from '../api';
 import { useWatchProgress } from '../hooks/useWatchProgress';
 import { useToast } from '../hooks/useToast';
 
@@ -44,8 +44,49 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect, episodeStatus })
   const titleRef = useRef<HTMLHeadingElement>(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
 
+  const [isHovering, setIsHovering] = useState(false);
+  const [trailerKey, setTrailerKey] = useState<string | null | undefined>(undefined);
+  const [isLoadingTrailer, setIsLoadingTrailer] = useState(false);
+  const hoverTimeoutRef = useRef<number | null>(null);
+
   const displayTitle = getDisplayTitle(anime, settings);
   const { isNew, episodeNumber } = episodeStatus;
+
+  const fetchTrailer = useCallback(async () => {
+    if (trailerKey !== undefined) return;
+    setIsLoadingTrailer(true);
+    try {
+        const res = await fetchWithRetry(`https://api.jikan.moe/v4/anime/${anime.id}/videos`);
+        if (res.ok) {
+            const data = await res.json();
+            const trailer = data.data?.promo?.[0]?.trailer?.youtube_id;
+            setTrailerKey(trailer || null);
+        } else {
+            setTrailerKey(null);
+        }
+    } catch (e) {
+        console.error("Failed to fetch trailer for card:", e);
+        setTrailerKey(null);
+    } finally {
+        setIsLoadingTrailer(false);
+    }
+  }, [anime.id, trailerKey]);
+
+  const handleMouseEnter = () => {
+      hoverTimeoutRef.current = window.setTimeout(() => {
+          setIsHovering(true);
+          fetchTrailer();
+      }, 500);
+  };
+
+  const handleMouseLeave = () => {
+      if (hoverTimeoutRef.current) {
+          clearTimeout(hoverTimeoutRef.current);
+      }
+      setIsHovering(false);
+      setIsLoadingTrailer(false);
+  };
+
 
   useLayoutEffect(() => {
     const checkOverflow = () => {
@@ -128,9 +169,29 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect, episodeStatus })
       role="button"
       tabIndex={0}
       aria-label={`Play ${displayTitle}`}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onTouchEnd={handleMouseLeave}
     >
-      <div className="aspect-[2/3] w-full">
+      <div className="aspect-[2/3] w-full relative bg-black">
         <img loading="lazy" src={anime.thumbnail} alt={displayTitle} className="w-full h-full object-cover" />
+        {isHovering && trailerKey && !isLoadingTrailer && (
+            <div className="absolute inset-0 animate-cinematic-fade-in">
+                 <iframe
+                    className="w-full h-full"
+                    src={`https://www.youtube.com/embed/${trailerKey}?autoplay=1&mute=1&controls=0&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&loop=1&playlist=${trailerKey}`}
+                    title={`${displayTitle} trailer`}
+                    frameBorder="0"
+                    allow="autoplay; encrypted-media; picture-in-picture"
+                    allowFullScreen
+                ></iframe>
+            </div>
+        )}
+        {isHovering && isLoadingTrailer && (
+             <div className="absolute inset-0 flex items-center justify-center bg-black/70">
+                <div className="w-8 h-8 border-2 border-white/50 border-t-white rounded-full animate-spin"></div>
+            </div>
+        )}
       </div>
 
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-100 transition-opacity duration-300"></div>

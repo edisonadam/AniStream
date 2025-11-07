@@ -80,6 +80,33 @@
         --logo-glow-2: #fb923c;
       }
 
+      /* Rainbow Shift Animation */
+      @keyframes rainbowShift {
+        0%, 100% { /* Abyssal Blue */
+          --color-primary: 37 99 235; --color-primary-hover: 29 78 216; --color-primary-accent: 96 165 250;
+          --color-secondary-accent: 34 211 238; --color-tertiary-accent: 45 212 191; --shadow-color: 37 99 235;
+          --logo-glow-1: #2563eb; --logo-glow-2: #60a5fa;
+        }
+        25% { /* Violet Fusion */
+          --color-primary: 139 92 246; --color-primary-hover: 124 58 237; --color-primary-accent: 167 139 250;
+          --color-secondary-accent: 34 197 94; --color-tertiary-accent: 234 179 8; --shadow-color: 139 92 246;
+          --logo-glow-1: #8b5cf6; --logo-glow-2: #a78bfa;
+        }
+        50% { /* Cyber Cyan */
+          --color-primary: 14 165 233; --color-primary-hover: 8 145 178; --color-primary-accent: 56 189 248;
+          --color-secondary-accent: 16 185 129; --color-tertiary-accent: 192 132 252; --shadow-color: 14 165 233;
+          --logo-glow-1: #00ffff; --logo-glow-2: #38bdf8;
+        }
+        75% { /* Sunset Orange */
+          --color-primary: 234 88 12; --color-primary-hover: 217 70 23; --color-primary-accent: 251 146 60;
+          --color-secondary-accent: 220 38 38; --color-tertiary-accent: 217 119 6; --shadow-color: 249 115 22;
+          --logo-glow-1: #f97316; --logo-glow-2: #fb923c;
+        }
+      }
+      html[data-color-preset="rainbow-shift"] {
+        animation: rainbowShift 20s linear infinite;
+      }
+
       /* Dark Mode Palette - Liquid Glass */
       :root[data-theme="dark"] {
         --color-danger: 239 68 68;
@@ -182,6 +209,13 @@
         100% { transform: scale(1) rotate(360deg) translateY(0); }
       }
       
+      /* New global transition for smooth theme changes */
+      *, *::before, *::after {
+        transition-property: color, background-color, border-color, text-shadow, box-shadow, fill, stroke, background;
+        transition-duration: 0.8s;
+        transition-timing-function: ease;
+      }
+
       /* Global Transitions & Animations */
       button, a, input, select {
         transition: all 0.2s ease-out;

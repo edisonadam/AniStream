@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { Anime, NewsPromo } from '../types';
 import { fetchWithRetry } from '../api';
-import { PlayIcon, ChevronLeftIcon, CloseIcon } from './icons/Icons';
+import { PlayIcon, ChevronLeftIcon, CloseIcon, ExclamationTriangleIcon } from './icons/Icons';
 
 interface VideosPageProps {
   onGoBack: () => void;
@@ -261,6 +261,11 @@ const VideosPage: React.FC<VideosPageProps> = ({ onGoBack, onAnimeSelect }) => {
           
           <h1 className="text-3xl font-bold text-[rgb(var(--text-primary))] mb-2" style={{ textShadow: '0 0 8px rgb(var(--shadow-color) / 0.5)' }}>Trailers & Intros/Outros</h1>
           <p className="text-[rgb(var(--text-muted))] mb-6">Discover the latest promotional videos and theme songs.</p>
+          
+          <div className="bg-yellow-500/10 border border-yellow-500/30 text-yellow-300 text-sm rounded-xl p-4 mb-8 flex items-center justify-center gap-3" role="alert">
+            <ExclamationTriangleIcon className="w-5 h-5 flex-shrink-0" />
+            <p><strong className="font-semibold">Beta Feature:</strong> This page is under development. Content may be incomplete.</p>
+          </div>
 
           <div className="flex justify-center border-b border-white/10 mb-8">
               <button onClick={() => handleTabChange('trailers')} className={`px-6 py-3 text-lg font-semibold transition-colors ${activeTab === 'trailers' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>Trailers</button>

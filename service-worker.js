@@ -1,26 +1,26 @@
 
-const CACHE_NAME = 'anistream-cache-v2';
-const urlsToCache = [
+const CACHE_NAME = 'anistream-cache-v3'; // Increment cache version
+const APP_SHELL_URLS = [
   '/',
   '/index.html',
-  '/index.tsx', // Cache the main app script
-  '/vite.svg', // Cache app icon
-  '/manifest.json' // Cache manifest
+  '/index.tsx',
+  '/vite.svg',
+  '/manifest.json'
 ];
 
-// Install the service worker and cache the app shell
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
         console.log('Opened cache and caching app shell');
-        return cache.addAll(urlsToCache);
+        // Pre-cache the main app shell files for instant loading.
+        // Other assets (CDNs, images) will be cached on first fetch.
+        return cache.addAll(APP_SHELL_URLS);
       })
+      .then(() => self.skipWaiting())
   );
-  self.skipWaiting();
 });
 
-// Clean up old caches
 self.addEventListener('activate', event => {
   const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
@@ -28,6 +28,7 @@ self.addEventListener('activate', event => {
       return Promise.all(
         cacheNames.map(cacheName => {
           if (cacheWhitelist.indexOf(cacheName) === -1) {
+            console.log('Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
@@ -36,29 +37,39 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Serve from network first, fall back to cache. Cache new responses.
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') {
-      return;
+    return;
   }
 
+  const url = new URL(event.request.url);
+
+  // API calls - Network only. These should never be cached.
+  const apiHosts = ['api.jikan.moe', 'api.consumet.org', 'graphql.anilist.co', 'api.animethemes.moe', 'api.themoviedb.org'];
+  if (apiHosts.some(host => url.hostname.includes(host))) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  // For all other GET requests (app shell, CDNs, images), use Stale-While-Revalidate strategy.
   event.respondWith(
-      fetch(event.request)
-          .then(networkResponse => {
-              // If fetch is successful, clone and cache it
-              if (networkResponse && networkResponse.ok) {
-                  const responseToCache = networkResponse.clone();
-                  caches.open(CACHE_NAME).then(cache => {
-                      cache.put(event.request, responseToCache);
-                  });
-              }
-              return networkResponse;
-          })
-          .catch(() => {
-              // If fetch fails (e.g., offline), try to get it from the cache
-              return caches.match(event.request).then(cachedResponse => {
-                  return cachedResponse || Promise.reject('No cache match');
-              });
-          })
+    caches.open(CACHE_NAME).then(cache => {
+      return cache.match(event.request).then(cachedResponse => {
+        const fetchPromise = fetch(event.request).then(networkResponse => {
+          // If fetch is successful, clone the response and cache it.
+          if (networkResponse && networkResponse.ok) {
+            cache.put(event.request, networkResponse.clone());
+          }
+          return networkResponse;
+        }).catch(err => {
+            // Fetch failed, probably offline. The cachedResponse (if exists) is already on its way.
+            console.warn('Network request failed, serving from cache if available.', err.message);
+        });
+
+        // Return cached response immediately if available, while fetching in the background.
+        // If not in cache, return the fetch promise, which will either resolve or reject.
+        return cachedResponse || fetchPromise;
+      });
+    })
   );
 });

@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 
 interface LogoProps {
   onClick: () => void;
@@ -7,9 +6,30 @@ interface LogoProps {
 }
 
 const Logo: React.FC<LogoProps> = ({ onClick, className }) => {
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const handleInteraction = () => {
+      const button = buttonRef.current;
+      // If the button is the currently focused element, remove focus ("unselect" it).
+      // Added a fallback check with `matches(':focus')` for robustness.
+      if (button && (document.activeElement === button || button.matches(':focus'))) {
+        button.blur();
+      }
+    };
+
+    window.addEventListener('scroll', handleInteraction, { passive: true });
+    window.addEventListener('touchmove', handleInteraction, { passive: true });
+
+    return () => {
+      window.removeEventListener('scroll', handleInteraction);
+      window.removeEventListener('touchmove', handleInteraction);
+    };
+  }, []);
+
   return (
     <>
-      <button onClick={onClick} className={`logo-button ${className || ''}`} aria-label="Go to homepage">
+      <button ref={buttonRef} onClick={onClick} className={`logo-button ${className || ''}`} aria-label="Go to homepage">
         ANISTREAM
       </button>
       <style>{`

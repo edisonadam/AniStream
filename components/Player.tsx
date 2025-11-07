@@ -10,7 +10,7 @@ import { useWatchProgress } from '../hooks/useWatchProgress';
 import { useProfileData } from '../hooks/useProfileData';
 import { useAuth } from '../hooks/useAuth';
 import { NARUTO_FILLER_EPISODES, VIDEO_SERVERS } from '../constants';
-import { mapJikanToAnime, mapJikanToCharacter, updateAnilistEntry, fetchWithRetry, buildSourceUrl, fetchAniListDetails, fetchConsumetStreamUrl } from '../api';
+import { mapJikanToAnime, mapJikanToCharacter, updateAnilistEntry, fetchWithRetry, fetchAniListDetails, fetchConsumetStreamUrl } from '../api';
 import { GoogleGenAI } from '@google/genai';
 import { getDisplayTitle, mapPartialToFullAnime } from '../utils';
 import CharacterModal from './CharacterModal';
@@ -338,37 +338,19 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
 
         const serverSetting = settings.videoServer;
 
-        const EMBED_SERVERS: VideoServer[] = [
-            'vidembed', 'mappletv', 'vidlink', 'primewire', 'embedsu', 'multiembed',
-            'vidbinge', 'vidsrc', 'vidsrc-pk', 'autoembed', '2embed', 'movieapi', 'embed-api',
-            'vidk', 'plyr'
-        ];
-
-        let url: string | null = null;
-        if (EMBED_SERVERS.includes(serverSetting)) {
-            url = buildSourceUrl(
-                serverSetting,
-                mediaIds.mediaType,
-                mediaIds.tmdb,
-                currentSeason,
-                absoluteEpisodeNumber,
-                settings.autoPlay
-            );
-        } else {
-            // Consumet providers
-            let provider: 'gogoanime' | 'zoro' | 'animepahe' = 'zoro'; // Default provider
-            if (serverSetting === 'gogoanime') {
-                provider = 'gogoanime';
-            } else if (serverSetting === 'animepahe') {
-                provider = 'animepahe';
-            } else if (serverSetting === 'zoro') {
-                provider = 'zoro';
-            }
-            // Other servers like 'hop', 'izy' will use the default 'zoro' provider.
-
-            const titleToSearch = playerAnime.title_english || playerAnime.title;
-            url = await fetchConsumetStreamUrl(titleToSearch, absoluteEpisodeNumber, provider);
+        // Always use Consumet providers for a direct stream URL compatible with Artplayer
+        let provider: 'gogoanime' | 'zoro' | 'animepahe' = 'zoro'; // Default provider
+        if (serverSetting === 'gogoanime') {
+            provider = 'gogoanime';
+        } else if (serverSetting === 'animepahe') {
+            provider = 'animepahe';
+        } else if (serverSetting === 'zoro') {
+            provider = 'zoro';
         }
+        // Other servers like 'hop', 'izy' will use the default 'zoro' provider, which is a good fallback.
+
+        const titleToSearch = playerAnime.title_english || playerAnime.title;
+        const url = await fetchConsumetStreamUrl(titleToSearch, absoluteEpisodeNumber, provider);
 
         if (url) {
             setVideoUrl(url);
@@ -382,7 +364,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
     } finally {
         setIsStreamLoading(false);
     }
-}, [playerAnime, currentSeason, currentEpisode, seasons, mediaIds.mediaType, mediaIds.tmdb, settings.videoServer, settings.autoPlay]);
+}, [playerAnime, currentSeason, currentEpisode, seasons, mediaIds.mediaType, settings.videoServer]);
 
   useEffect(() => {
     fetchStreamUrl();

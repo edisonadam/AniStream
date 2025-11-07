@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import type { Filter, Settings, Page } from '../types';
-import { CloseIcon, UsersIcon, BookOpenIcon, GiftIcon, MoonIcon, SunIcon, HomeIcon, TrendingUpIcon, CalendarIcon, HistoryIcon, InfoIcon, AcademicCapIcon, EyeIcon, EyeOffIcon, MessageCircleIcon, LevelUpIcon, ChevronDownIcon, ClipboardIcon, ShieldCheckIcon, HeartIcon, NewspaperIcon, StarIcon, MailIcon, QuestionMarkCircleIcon, FilmIcon, DownloadIcon } from './icons/Icons';
+import { CloseIcon, UsersIcon, BookOpenIcon, GiftIcon, MoonIcon, SunIcon, HomeIcon, TrendingUpIcon, CalendarIcon, HistoryIcon, InfoIcon, AcademicCapIcon, EyeIcon, EyeOffIcon, MessageCircleIcon, LevelUpIcon, ChevronDownIcon, ClipboardIcon, ShieldCheckIcon, HeartIcon, NewspaperIcon, StarIcon, MailIcon, QuestionMarkCircleIcon, FilmIcon, DownloadIcon, AnnouncementIcon } from './icons/Icons';
 import Logo from './Logo';
 import { ANIME_TYPES, ANIME_STATUSES, YEAR_OPTIONS, LANGUAGE_OPTIONS, STUDIO_OPTIONS, GENRES, TAG_OPTIONS } from '../constants';
 
@@ -21,6 +21,13 @@ interface SidebarProps {
   installPrompt: Event | null;
   onInstallClick: () => void;
 }
+
+const SidebarSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
+    <div className="p-4 space-y-2 border-b border-white/10">
+        <h3 className="px-4 pt-2 pb-1 text-xs font-semibold text-[rgb(var(--text-muted))] uppercase tracking-wider">{title}</h3>
+        {children}
+    </div>
+);
 
 const SideButton: React.FC<{ icon: React.ReactNode; label: string; onClick: () => void; }> = ({ icon, label, onClick }) => (
     <button onClick={onClick} className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] hover:text-[rgb(var(--color-primary-accent))] transition-colors">
@@ -141,34 +148,43 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
         
         <div className="flex-1 overflow-y-auto scroll-fade-container" style={{ scrollbarWidth: 'thin' }}>
-            <div className="p-4 space-y-2 border-b border-white/10">
+            <SidebarSection title="Menu">
               <SideButton icon={<HomeIcon />} label="Home" onClick={handleGoHome} />
               <SideButton icon={<TrendingUpIcon />} label="Trending" onClick={() => handleNavigation('trending')} />
               <SideButton icon={<StarIcon />} label="Top 100" onClick={() => handleNavigation('top-100')} />
               <SideButton icon={<CalendarIcon />} label="Schedule" onClick={() => handleNavigation('schedule')} />
-              <SideButton icon={<HistoryIcon />} label="History" onClick={() => handleNavigation('history')} />
-              <SideButton icon={<InfoIcon />} label="Updates & Logs" onClick={() => handleNavigation('news')} />
-              <SideButton icon={<FilmIcon />} label="Trailers & Intros/Outros" onClick={() => handleNavigation('videos')} />
-              {installPrompt && <SideButton icon={<DownloadIcon />} label="Install App" onClick={handleInstall} />}
-            </div>
-
-            <div className="p-4 space-y-2 border-b border-white/10">
-              <SideButton icon={<BookOpenIcon />} label="Manga" onClick={() => handleNavigation('manga')} />
-              <SideButton icon={<AcademicCapIcon />} label="For Beginners" onClick={() => handleNavigation('beginners')} />
-              <SideButton icon={<GiftIcon />} label="Surprise Me!" onClick={handleSurprise} />
-              <SideButton icon={<MessageCircleIcon />} label="Community Hub" onClick={() => handleNavigation('community')} />
-              <SideButton icon={<UsersIcon />} label="Watch2Gether" onClick={() => { window.open('https://w2g.tv/', '_blank', 'noopener,noreferrer'); onClose(); }} />
-              {isLoggedIn && <SideButton icon={<LevelUpIcon />} label="Level Up" onClick={() => handleNavigation('comment-meter')} />}
-              <SideButton icon={<NewspaperIcon />} label="Magazines" onClick={() => handleNavigation('magazines')} />
-            </div>
+            </SidebarSection>
             
-            <div className="p-4 space-y-2 border-b border-white/10">
-              <SideButton icon={<InfoIcon />} label="About Us" onClick={() => handleNavigation('about')} />
-              <SideButton icon={<ClipboardIcon />} label="Rules" onClick={() => handleNavigation('rules')} />
-              <SideButton icon={<QuestionMarkCircleIcon />} label="How to Use" onClick={() => handleNavigation('how-to-use')} />
-              <SideButton icon={<MailIcon />} label="Feedback" onClick={() => { window.location.href = 'mailto:edisonadam160@gmail.com?subject=ANISTREAM Feedback'; onClose(); }} />
-              <SideButton icon={<HeartIcon />} label="Donation" onClick={() => handleNavigation('donation')} />
-            </div>
+            <SidebarSection title="Explore">
+              <SideButton icon={<BookOpenIcon />} label="Manga" onClick={() => handleNavigation('manga')} />
+              <SideButton icon={<AnnouncementIcon />} label="New Episodes" onClick={() => handleNavigation('new-episodes')} />
+              <SideButton icon={<MessageCircleIcon />} label="Community Hub" onClick={() => handleNavigation('community')} />
+              <button disabled className="w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-lg text-left text-[rgb(var(--text-muted))] opacity-60 cursor-not-allowed">
+                  <div className="flex items-center gap-3">
+                      <UsersIcon />
+                      <span className="font-semibold">Watch2Gether</span>
+                  </div>
+                  <span className="text-xs font-bold">Coming Soon</span>
+              </button>
+              <SideButton icon={<NewspaperIcon />} label="Magazines" onClick={() => handleNavigation('magazines')} />
+            </SidebarSection>
+            
+            <SidebarSection title="Tools & Info">
+                <SideButton icon={<HistoryIcon />} label="History" onClick={() => handleNavigation('history')} />
+                <SideButton icon={<AcademicCapIcon />} label="For Beginners" onClick={() => handleNavigation('beginners')} />
+                <SideButton icon={<GiftIcon />} label="Surprise Me!" onClick={handleSurprise} />
+                <SideButton icon={<InfoIcon />} label="Updates & Logs" onClick={() => handleNavigation('news')} />
+                <SideButton icon={<FilmIcon />} label="Trailers & Intros" onClick={() => handleNavigation('videos')} />
+            </SidebarSection>
+
+            <SidebarSection title="App">
+                <SideButton icon={<InfoIcon />} label="About Us" onClick={() => handleNavigation('about')} />
+                <SideButton icon={<ClipboardIcon />} label="Rules" onClick={() => handleNavigation('rules')} />
+                <SideButton icon={<QuestionMarkCircleIcon />} label="How to Use" onClick={() => handleNavigation('how-to-use')} />
+                <SideButton icon={<MailIcon />} label="Feedback" onClick={() => { window.location.href = 'mailto:edisonadam160@gmail.com?subject=ANISTREAM Feedback'; onClose(); }} />
+                <SideButton icon={<HeartIcon />} label="Donation" onClick={() => handleNavigation('donation')} />
+                {installPrompt && <SideButton icon={<DownloadIcon />} label="Install App" onClick={handleInstall} />}
+            </SidebarSection>
        
           <FilterSection title="Genres" isOpen={openSections.has('Genres')} onToggle={() => toggleSection('Genres')} sectionRef={(el) => { sectionRefs.current['Genres'] = el; }}>
             <div className="flex flex-wrap gap-2">{GENRES.map(g => <FilterButton key={g} name={g} isSelected={filters.genres.includes(g)} onClick={() => handleMultiSelect('genres', g)} />)}</div>

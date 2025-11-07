@@ -219,6 +219,7 @@ export const COLOR_PRESETS: { id: ColorPreset, name: string }[] = [
     { id: 'violet-fusion', name: 'Violet Fusion' },
     { id: 'cyber-cyan', name: 'Cyber Cyan' },
     { id: 'sunset-orange', name: 'Sunset Orange' },
+    { id: 'rainbow-shift', name: 'Rainbow Shift' },
 ];
 
 export interface ServerOption {

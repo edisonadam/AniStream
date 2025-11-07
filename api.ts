@@ -1,4 +1,4 @@
-import type { Anime, Character, VoiceActor, VideoServer, NewsPromo, Manga, WatchlistStatus } from './types';
+import type { Anime, Character, VoiceActor, NewsPromo, Manga, WatchlistStatus } from './types';
 
 /**
  * A wrapper for the fetch API that includes automatic retries on rate limiting (429) or network errors.
@@ -140,34 +140,6 @@ export const fetchConsumetStreamUrl = async (
         // Re-throw the error so it can be caught and displayed in the UI.
         throw error;
     }
-};
-
-
-/**
- * Builds a video source URL. For embed servers, this now simulates fetching a direct
- * playable link (e.g., .m3u8) to be used with Artplayer, replacing the old iframe logic.
- * @param server The selected video server ID.
- * @param mediaType 'tv' or 'movie'.
- * @param tmdbId The TMDB ID.
- * @param season The season number (for TV shows).
- * @param episode The episode number (for TV shows).
- * @returns The full source URL for the video file.
- */
-export const buildSourceUrl = (
-    server: VideoServer,
-    mediaType: 'tv' | 'movie' | null,
-    tmdbId: number | null,
-    season?: number,
-    episode?: number,
-    autoplayNext?: boolean
-): string | null => {
-    if (!mediaType || !tmdbId) return null;
-
-    // Per instructions, simulate fetching a direct URL for embed servers to use with Artplayer.
-    // In a real application, this part would involve scraping the source iframe.
-    // Here, we return a sample HLS stream for demonstration. This replaces the old iframe logic.
-    console.log(`[Embed Simulation] Detected server ${server}, providing direct link for Player.`);
-    return 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
 };
 
 /**

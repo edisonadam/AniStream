@@ -4,6 +4,8 @@ import { useAuth } from '../hooks/useAuth';
 import { useProfileData } from '../hooks/useProfileData';
 import { MessageCircleIcon, UserPlusIcon, CheckIcon, ThumbsUpIcon } from './icons/Icons';
 import { formatRelativeTime } from '../utils';
+import { db } from '../firebase';
+import { ref, onValue, push, serverTimestamp, runTransaction } from 'firebase/database';
 
 interface CommentsProps {
   anime: Anime;
@@ -62,40 +64,41 @@ const Comments: React.FC<CommentsProps> = ({ anime, currentSeason, currentEpisod
   const [commentScope, setCommentScope] = useState<'episode' | 'all'>('episode');
   const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
   
-  const storageKey = `comments_${anime.id}`;
   const currentEpisodeIdentifier = `s${currentSeason}e${currentEpisode}`;
 
   useEffect(() => {
-    try {
-      const storedComments = localStorage.getItem(storageKey);
-      if (storedComments) {
-        setComments(JSON.parse(storedComments));
-      }
-    } catch (e) {
-      console.error("Failed to load comments", e);
-    }
-  }, [storageKey]);
+    const commentsRef = ref(db, `comments/${anime.id}`);
+    const unsubscribe = onValue(commentsRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+            const commentsList: CommentType[] = Object.entries(data).map(([id, value]) => ({
+                id,
+                ...(value as Omit<CommentType, 'id'>),
+            }));
+            setComments(commentsList);
+        } else {
+            setComments([]);
+        }
+    });
 
-  const persistComments = (newComments: CommentType[]) => {
-    setComments(newComments);
-    localStorage.setItem(storageKey, JSON.stringify(newComments));
-  };
+    return () => unsubscribe();
+  }, [anime.id]);
 
   const handleAddComment = (text: string) => {
     if (!user) return;
-    const newComment: CommentType = {
-      id: Date.now().toString(),
+    const commentsRef = ref(db, `comments/${anime.id}`);
+    const newComment: Omit<CommentType, 'id'> = {
       animeId: anime.id,
       episodeIdentifier: commentScope === 'episode' ? currentEpisodeIdentifier : undefined,
       user: user,
       text: text,
-      timestamp: Date.now(),
+      timestamp: serverTimestamp() as any,
       likes: 0,
       animeTitle: anime.title,
       animeThumbnail: anime.thumbnail,
       animeBanner: anime.bannerImage,
     };
-    persistComments([newComment, ...comments]);
+    push(commentsRef, newComment);
     addAniTokens(600); // Award tokens for commenting
   };
   
@@ -118,10 +121,10 @@ const Comments: React.FC<CommentsProps> = ({ anime, currentSeason, currentEpisod
   }, [comments, commentScope, currentEpisodeIdentifier, sortOrder, isUserBlocked]);
   
   const handleLike = (commentId: string) => {
-    const updatedComments = comments.map(c => 
-      c.id === commentId ? { ...c, likes: (c.likes || 0) + 1 } : c
-    );
-    persistComments(updatedComments);
+    const commentLikesRef = ref(db, `comments/${anime.id}/${commentId}/likes`);
+    runTransaction(commentLikesRef, (currentLikes) => {
+        return (currentLikes || 0) + 1;
+    });
   };
 
   const handleAddFriend = (friend: User) => {

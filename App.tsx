@@ -276,15 +276,35 @@ const App: React.FC = () => {
         setStagedFilters(resetState);
     }, []);
 
+    const hasActiveFilters = useMemo(() => {
+        return filters.query || 
+               filters.genres.length > 0 || 
+               filters.types.length > 0 || 
+               filters.statuses.length > 0 ||
+               filters.years.length > 0 ||
+               filters.languages.length > 0 ||
+               filters.studios.length > 0 ||
+               filters.letter ||
+               filters.tags.length > 0;
+    }, [filters]);
+
     const goHome = useCallback(() => {
-        handleResetFilters(true);
-        setPage('home');
+        if (page === 'home') {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            if (hasActiveFilters) {
+                handleResetFilters(false); // Reset filters without scrolling
+            }
+        } else {
+            handleResetFilters(true); // Reset filters and scroll to top instantly for page change
+            setPage('home');
+        }
+
         setSelectedAnime(null);
         setSelectedClub(null);
         setWatchTogetherRoomId(null);
         window.history.pushState({}, '', window.location.pathname);
         setIsSidebarOpen(false);
-    }, [handleResetFilters]);
+    }, [page, hasActiveFilters, handleResetFilters]);
 
     const navigateTo = useCallback((newPage: Page) => {
         setIsPageLoading(true);
@@ -346,7 +366,7 @@ const App: React.FC = () => {
 
 
         const pageParam = urlParams.get('page') as Page;
-        const validPages: Page[] = ['trending', 'schedule', 'history', 'news', 'manga', 'community', 'beginners', 'comment-meter', 'magazines', 'currency', 'about', 'rules', 'donation', 'og-image-generator', 'top-100', 'notifications', 'how-to-use', 'videos'];
+        const validPages: Page[] = ['trending', 'schedule', 'history', 'news', 'manga', 'community', 'beginners', 'comment-meter', 'magazines', 'currency', 'about', 'rules', 'donation', 'og-image-generator', 'top-100', 'notifications', 'how-to-use', 'videos', 'new-episodes'];
 
         if (pageParam && validPages.includes(pageParam)) {
             navigateTo(pageParam);
@@ -497,18 +517,6 @@ const App: React.FC = () => {
 
         return { anime: mappedData, pagination };
     }, [settings.restrictAdultContent]);
-
-    const hasActiveFilters = useMemo(() => {
-        return filters.query || 
-               filters.genres.length > 0 || 
-               filters.types.length > 0 || 
-               filters.statuses.length > 0 ||
-               filters.years.length > 0 ||
-               filters.languages.length > 0 ||
-               filters.studios.length > 0 ||
-               filters.letter ||
-               filters.tags.length > 0;
-    }, [filters]);
 
     const fetchJikanGridData = useCallback(async (pageNum: number, searchFilters: Filter, isNewSearch: boolean) => {
         const isDefaultHome = !hasActiveFilters;
@@ -1125,6 +1133,24 @@ const App: React.FC = () => {
             case 'og-image-generator': return <OGImageGenerator onGoBack={goHome} />;
             case 'top-100': return <Top100Page onGoBack={goHome} onSelectAnime={(anime) => handleAnimeSelect(anime, 'Top 100')} topAnimeList={topAnimeList} isLoading={isTopAnimeLoading} getEpisodeStatus={getEpisodeStatus} />;
             case 'notifications': return <NotificationsPage onGoBack={goHome} onSelectAnime={handleAnimeSelect} />;
+            case 'new-episodes':
+                return (
+                    <AnimeGrid
+                        title="New Episodes"
+                        animeList={newEpisodeAnime}
+                        onAnimeSelect={(anime) => handleAnimeSelect(anime, 'New Episodes')}
+                        filters={{ query: '', genres: [], types: [], statuses: [], years: [], languages: [], studios: [], sort: 'popularity', tags: [], letter: '' }}
+                        isLoading={isNewEpisodesLoading}
+                        onLoadMore={() => {}}
+                        hasMore={false}
+                        isLoadingMore={false}
+                        sortValue={'popularity'}
+                        loadMoreMode={'manual'}
+                        currentPage={1}
+                        totalPages={1}
+                        getEpisodeStatus={getEpisodeStatus}
+                    />
+                );
             case 'search':
                 return (
                     <AnimeGrid
@@ -1152,7 +1178,7 @@ const App: React.FC = () => {
                 return (
                     <>
                         {isDefaultHome && <FeaturedCarousel animeList={featuredAnime} onAnimeSelect={(anime) => handleAnimeSelect(anime, 'Home')} isLoading={isCarouselLoading} getEpisodeStatus={getEpisodeStatus} />}
-                        {isDefaultHome && settings.showNewEpisodeBadges && <NewEpisodesSection newEpisodeAnime={newEpisodeAnime} onAnimeSelect={(anime) => handleAnimeSelect(anime, 'New Episodes')} getEpisodeStatus={getEpisodeStatus} isLoading={isNewEpisodesLoading} />}
+                        {isDefaultHome && settings.showNewEpisodeBadges && <NewEpisodesSection newEpisodeAnime={newEpisodeAnime} onAnimeSelect={(anime) => handleAnimeSelect(anime, 'New Episodes')} getEpisodeStatus={getEpisodeStatus} isLoading={isNewEpisodesLoading} onViewAll={() => navigateTo('new-episodes')} />}
                         {isDefaultHome && settings.showWatchHistoryOnHome && (
                             <ContinueWatching onSelectAnime={(anime) => handleAnimeSelect(anime, 'Continue Watching')} onShowHistory={() => navigateTo('history')} allAnime={allAnime} getEpisodeStatus={getEpisodeStatus} />
                         )}
