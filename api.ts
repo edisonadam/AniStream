@@ -4,7 +4,7 @@ import type { Anime, Character, VoiceActor, VideoServer, NewsPromo, Manga, Watch
  * A wrapper for the fetch API that includes automatic retries on rate limiting (429) or network errors.
  * @param url The URL to fetch.
  * @param retries The number of times to retry on failure.
- * @param delay The delay in milliseconds between retries.
+ * @param delay The base delay in milliseconds between retries.
  * @returns A promise that resolves to the Response object.
  */
 export const fetchWithRetry = async (url: string, retries = 3, delay = 1000): Promise<Response> => {
@@ -13,18 +13,23 @@ export const fetchWithRetry = async (url: string, retries = 3, delay = 1000): Pr
             const response = await fetch(url);
             // If we get a 429 (Too Many Requests) and we have retries left, wait and try again.
             if (response.status === 429 && i < retries) {
-                console.warn(`Rate limit hit for ${url}. Retrying in ${delay}ms...`);
-                await new Promise(resolve => setTimeout(resolve, delay));
-                continue; // Move to the next iteration to retry the fetch.
+                const retryAfterHeader = response.headers.get('Retry-After');
+                // The header can be in seconds. Default to exponential backoff.
+                const waitTime = retryAfterHeader ? parseInt(retryAfterHeader, 10) * 1000 : delay * (i + 1); 
+                
+                console.warn(`Rate limit hit for ${url}. Retrying in ${waitTime}ms...`);
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+                continue;
             }
             // If the response is anything else (ok or another error), return it immediately.
             return response;
         } catch (error) {
             // This catches network errors (e.g., offline).
             if (i < retries) {
-                console.warn(`Network error for ${url}. Retrying in ${delay}ms...`);
-                await new Promise(resolve => setTimeout(resolve, delay));
-                continue; // Move to the next iteration.
+                const waitTime = delay * (i + 1); // Exponential backoff for network errors
+                console.warn(`Network error for ${url}. Retrying in ${waitTime}ms...`);
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+                continue;
             }
             // If this was the last retry, throw the error.
             throw error;
@@ -213,10 +218,6 @@ export const mapJikanToAnime = (item: any): Anime | null => {
         // for sequels without "Season" in the title, but it's a good baseline.
         seasons_count = 1;
     }
-    
-    const nextAiringDateString = item.broadcast?.string?.includes("Sundays at 09:30") && item.airing ? item.broadcast.string : item.next_episode_date;
-    const nextAiringDate = nextAiringDateString ? new Date(nextAiringDateString).getTime() : 0;
-
 
     return {
         id: item.mal_id,
@@ -242,13 +243,10 @@ export const mapJikanToAnime = (item: any): Anime | null => {
         avgEpisodeDuration: avgEpisodeDuration,
         isAdult: isAdult,
         malUrl: item.url,
+        officialSite: item.external?.find((e: any) => e.name === 'Official Site')?.url,
         startDate: item.aired?.from,
         endDate: item.aired?.to,
         season: item.season ? item.season.charAt(0).toUpperCase() + item.season.slice(1) : undefined,
-        nextAiringEpisode: item.airing && nextAiringDate > 0 ? {
-            at: nextAiringDate,
-            episode: (item.episodes || 0) + 1,
-        } : undefined,
         rank: item.rank || undefined,
     };
 };

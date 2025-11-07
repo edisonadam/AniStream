@@ -138,7 +138,7 @@ const Comments: React.FC<CommentsProps> = ({ anime, currentSeason, currentEpisod
 
 
   return (
-    <div className="mt-12">
+    <div>
       <h3 className="text-2xl font-bold mb-6 text-[rgb(var(--text-primary))]">Comments</h3>
       <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 p-6 rounded-2xl">
         {isLoggedIn && user ? (

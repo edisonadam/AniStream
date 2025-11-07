@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { CloseIcon, PlayIcon, StarIcon } from './icons/Icons';
 import type { Anime } from '../types';
@@ -8,11 +8,15 @@ import { getDisplayTitle } from '../utils';
 interface WatchlistOverlayProps {
     onClose: () => void;
     onSelectAnime: (anime: Anime, source?: string) => void;
+    newEpisodeAnime: (Anime & { episodeNumber: number })[];
 }
 
-const WatchlistOverlay: React.FC<WatchlistOverlayProps> = ({ onClose, onSelectAnime }) => {
+type Tab = 'all' | 'new';
+
+const WatchlistOverlay: React.FC<WatchlistOverlayProps> = ({ onClose, onSelectAnime, newEpisodeAnime }) => {
     const { watchlist, removeFromWatchlist } = useWatchlist();
     const { settings } = useSettings();
+    const [activeTab, setActiveTab] = useState<Tab>('all');
 
     useEffect(() => {
         document.body.style.overflow = 'hidden';
@@ -26,6 +30,13 @@ const WatchlistOverlay: React.FC<WatchlistOverlayProps> = ({ onClose, onSelectAn
         onClose();
     };
 
+    const newInWatchlist = useMemo(() => {
+        const watchlistIds = new Set(watchlist.map(a => a.id));
+        return newEpisodeAnime.filter(a => watchlistIds.has(a.id));
+    }, [newEpisodeAnime, watchlist]);
+
+    const listToDisplay = activeTab === 'new' ? newInWatchlist : watchlist;
+
     return (
         <div className="fixed inset-0 bg-[rgb(var(--surface-1))/0.95] backdrop-blur-lg z-50 animate-cinematic-fade-in flex flex-col">
             <div className="flex-shrink-0 container mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -33,13 +44,19 @@ const WatchlistOverlay: React.FC<WatchlistOverlayProps> = ({ onClose, onSelectAn
                     <h2 className="text-3xl font-bold text-[rgb(var(--text-primary))]">My Watchlist</h2>
                     <button onClick={onClose} className="text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))]"><CloseIcon /></button>
                 </div>
+                 <div className="flex items-center bg-[rgb(var(--surface-3))] rounded-full p-1 mt-4 max-w-xs">
+                    <button onClick={() => setActiveTab('all')} className={`flex-1 px-3 py-1 text-sm rounded-full transition-all ${activeTab === 'all' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>All ({watchlist.length})</button>
+                    {settings.showNewEpisodeBadges && (
+                        <button onClick={() => setActiveTab('new')} className={`flex-1 px-3 py-1 text-sm rounded-full transition-all ${activeTab === 'new' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>New Episodes ({newInWatchlist.length})</button>
+                    )}
+                </div>
             </div>
 
             <div className="flex-1 overflow-y-auto">
                 <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                    {watchlist.length > 0 ? (
+                    {listToDisplay.length > 0 ? (
                         <div className="space-y-4">
-                            {watchlist.map(anime => (
+                            {listToDisplay.map(anime => (
                                 <div key={anime.id} className="flex items-center gap-4 bg-[rgb(var(--surface-2))/0.5] p-3 rounded-xl hover:bg-[rgb(var(--surface-2))] transition-colors">
                                     <img src={anime.thumbnail} alt={getDisplayTitle(anime, settings)} className="w-16 h-24 object-cover rounded-md flex-shrink-0" />
                                     <div className="flex-1 min-w-0">
@@ -68,7 +85,7 @@ const WatchlistOverlay: React.FC<WatchlistOverlayProps> = ({ onClose, onSelectAn
                             ))}
                         </div>
                     ) : (
-                        <p className="text-center text-[rgb(var(--text-muted))] p-12 text-lg">Your watchlist is empty.</p>
+                        <p className="text-center text-[rgb(var(--text-muted))] p-12 text-lg">{activeTab === 'all' ? 'Your watchlist is empty.' : 'No new episodes from your watchlist.'}</p>
                     )}
                 </div>
             </div>

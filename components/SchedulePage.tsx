@@ -6,6 +6,7 @@ import { useSettings } from '../hooks/useSettings';
 
 interface SchedulePageProps {
   onAnimeSelect: (anime: Anime) => void;
+  isNew: (animeId: number) => { isNew: boolean; episodeNumber: number | null };
 }
 
 const getCurrentSeason = (): { year: number; season: string } => {
@@ -22,7 +23,7 @@ const getCurrentSeason = (): { year: number; season: string } => {
 
 const SEASONS_ORDER = ['winter', 'spring', 'summer', 'fall'];
 
-const SchedulePage: React.FC<SchedulePageProps> = ({ onAnimeSelect }) => {
+const SchedulePage: React.FC<SchedulePageProps> = ({ onAnimeSelect, isNew }) => {
     const [seasonsList, setSeasonsList] = useState<{ year: number }[]>([]);
     const [selectedYear, setSelectedYear] = useState<number>(getCurrentSeason().year);
     const [selectedSeason, setSelectedSeason] = useState<string>(getCurrentSeason().season);
@@ -33,6 +34,7 @@ const SchedulePage: React.FC<SchedulePageProps> = ({ onAnimeSelect }) => {
     const [error, setError] = useState<string | null>(null);
 
     const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(0);
     const [hasMore, setHasMore] = useState(true);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const { settings } = useSettings();
@@ -56,7 +58,12 @@ const SchedulePage: React.FC<SchedulePageProps> = ({ onAnimeSelect }) => {
 
     const fetchSeasonalData = useCallback(async (isNewSearch: boolean) => {
         const pageNum = isNewSearch ? 1 : currentPage + 1;
-        if (isNewSearch) setIsLoading(true); else setIsLoadingMore(true);
+        if (isNewSearch) {
+            setIsLoading(true);
+            setTotalPages(0);
+        } else {
+            setIsLoadingMore(true);
+        }
         setError(null);
         
         const sfwQuery = settings.restrictAdultContent ? '&sfw' : '';
@@ -81,6 +88,7 @@ const SchedulePage: React.FC<SchedulePageProps> = ({ onAnimeSelect }) => {
             setSeasonalAnime(prev => isNewSearch ? mapped : [...prev, ...mapped]);
             setHasMore(data.pagination?.has_next_page ?? false);
             setCurrentPage(pageNum);
+            setTotalPages(data.pagination?.last_visible_page ?? 0);
 
         } catch (e) {
             setError(e instanceof Error ? e.message : 'An error occurred.');
@@ -161,6 +169,9 @@ const SchedulePage: React.FC<SchedulePageProps> = ({ onAnimeSelect }) => {
                     filters={{ query: '', genres: [], types: [], statuses: [], years: [], languages: [], studios: [], sort: 'popularity', tags: [] }}
                     sortValue='popularity'
                     loadMoreMode={settings.loadMoreMode}
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    isNew={isNew}
                 />
             )}
         </div>

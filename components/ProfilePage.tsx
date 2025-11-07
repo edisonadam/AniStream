@@ -13,11 +13,12 @@ interface ProfilePageProps {
     onGoBack: () => void;
     allAnime: Anime[];
     onSelectAnime: (anime: Anime) => void;
+    isNew: (animeId: number) => { isNew: boolean; episodeNumber: number | null };
 }
 
 type Tab = 'profile-settings' | 'friends';
 
-const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectAnime }) => {
+const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectAnime, isNew }) => {
     const { user, updateUser, logout } = useAuth();
     const { ratings, friends, removeFriend } = useProfileData();
     const { watchProgressList } = useWatchProgress();
@@ -110,10 +111,10 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
             )}
         </div>
         
-        <DataSection title="Continue Watching" data={continueWatchingList} renderItem={(item: WatchProgressInfo) => animeMap.get(item.animeId) && <AnimeCard anime={animeMap.get(item.animeId)!} onSelect={onSelectAnime} />} />
-        <DataSection title="My Watchlist" data={watchlist} renderItem={(item: Anime) => <AnimeCard anime={item} onSelect={onSelectAnime} />} />
-        <DataSection title="Viewing History" data={watchProgressList} renderItem={(item: WatchProgressInfo) => animeMap.get(item.animeId) && <AnimeCard anime={animeMap.get(item.animeId)!} onSelect={onSelectAnime} />} />
-        <DataSection title="My Ratings" data={ratings} renderItem={(item: Rating) => animeMap.get(item.animeId) && <AnimeCard anime={animeMap.get(item.animeId)!} onSelect={onSelectAnime} />} />
+        <DataSection title="Continue Watching" data={continueWatchingList} renderItem={(item: WatchProgressInfo) => animeMap.get(item.animeId) && <AnimeCard anime={animeMap.get(item.animeId)!} onSelect={onSelectAnime} isNew={isNew(item.animeId).isNew} />} />
+        <DataSection title="My Watchlist" data={watchlist} renderItem={(item: Anime) => <AnimeCard anime={item} onSelect={onSelectAnime} isNew={isNew(item.id).isNew} />} />
+        <DataSection title="Viewing History" data={watchProgressList} renderItem={(item: WatchProgressInfo) => animeMap.get(item.animeId) && <AnimeCard anime={animeMap.get(item.animeId)!} onSelect={onSelectAnime} isNew={isNew(item.animeId).isNew} />} />
+        <DataSection title="My Ratings" data={ratings} renderItem={(item: Rating) => animeMap.get(item.animeId) && <AnimeCard anime={animeMap.get(item.animeId)!} onSelect={onSelectAnime} isNew={isNew(item.animeId).isNew} />} />
       </div>
     );
     

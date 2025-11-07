@@ -244,9 +244,9 @@ export const VIDEO_SERVERS: ServerOption[] = [
             { id: 'movieapi', name: 'MovieAPI', type: 'sub' },
         ]
     },
-    { id: 'kiwi', name: 'Kiwi', type: 'sub' },
-    { id: 'jet', name: 'Jet', type: 'sub' },
-    { id: 'telli', name: 'Telli', type: 'sub' },
+    { id: 'gogoanime', name: 'GogoAnime', type: 'sub' },
+    { id: 'zoro', name: 'Zoro', type: 'sub' },
+    { id: 'animepahe', name: 'AnimePahe', type: 'sub' },
     
     // Dub Servers
     { id: 'hop', name: 'Hop', type: 'dub' },

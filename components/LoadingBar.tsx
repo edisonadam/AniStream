@@ -18,11 +18,12 @@ const LoadingBar: React.FC<{ isLoading: boolean }> = ({ isLoading }) => {
             if (intervalRef.current) clearInterval(intervalRef.current);
             return 95;
           }
-          // Slow down progress as it gets closer to 100
-          let diff = (100 - p) / 10;
-          return Math.min(p + Math.random() * diff, 95);
+          // Exponential decay towards 95% to feel more realistic
+          const remaining = 95 - p;
+          const increment = Math.max(0.5, remaining / 20 + Math.random());
+          return Math.min(p + increment, 95);
         });
-      }, 800);
+      }, 150); // Faster interval for smoother animation
 
     } else {
       if (intervalRef.current) clearInterval(intervalRef.current);

@@ -4,7 +4,7 @@ import type { Settings, Theme, ColorPreset } from '../types';
 const defaultSettings: Settings = {
   theme: 'dark',
   colorPreset: 'abyssal-blue',
-  videoServer: 'kiwi',
+  videoServer: 'gogoanime',
   blurEpisodeThumbnails: true,
   restrictAdultContent: true,
   displayTitleLanguage: 'english',
@@ -33,6 +33,8 @@ const defaultSettings: Settings = {
   autoSkip: false,
   startMuted: false,
   videoLoadStrategy: 'idle',
+  showNewEpisodeBadges: true,
+  lightsOffMode: false,
 };
 
 interface SettingsContextType {

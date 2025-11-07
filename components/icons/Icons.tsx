@@ -25,6 +25,20 @@ export const GoogleIcon: React.FC<IconProps> = ({ className }) => (
     </svg>
 );
 
+export const LightbulbIcon: React.FC<IconProps> = createIcon(<>
+    <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/>
+    <path d="M9 18h6"/>
+    <path d="M10 22h4"/>
+    <line x1="12" y1="2" x2="12" y2="4"/>
+    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+</>);
+export const LightbulbOffIcon: React.FC<IconProps> = createIcon(<>
+    <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/>
+    <path d="M9 18h6"/>
+    <path d="M10 22h4"/>
+</>);
+
 export const HamburgerIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />);
 export const SearchIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />);
 export const BellIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />);
@@ -55,6 +69,7 @@ export const FastForwardIcon: React.FC<IconProps> = createIcon(<path strokeLinec
 export const RefreshCwIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h5M20 20v-5h-5M4 4l1.5 1.5A9 9 0 0120 12M20 20l-1.5-1.5A9 9 0 004 12" />);
 export const ShareIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />);
 export const DownloadIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />);
+export const AnnouncementIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M10.25 3.75c-1.5 0-3 .75-3.75 2.25l-2.25 4.5c-.75 1.5.75 3 2.25 3h10.5c1.5 0 3-1.5 2.25-3l-2.25-4.5c-.75-1.5-2.25-2.25-3.75-2.25h-3.75zM9 13.5l-2.25 4.5M15 13.5l2.25 4.5M12 13.5V21" />);
 export const SparklesIcon: React.FC<IconProps> = createSolidIcon(<path fillRule="evenodd" d="M5 2a1 1 0 011 1v1.586l.707-.707a1 1 0 011.414 1.414L7.414 6H9a1 1 0 110 2H7.414l.707.707a1 1 0 01-1.414 1.414L6 9.414V11a1 1 0 11-2 0V9.414l-.707.707a1 1 0 01-1.414-1.414L2.586 8H1a1 1 0 110-2h1.586l-.707-.707a1 1 0 011.414-1.414L4 4.586V3a1 1 0 011-1zM15 2a1 1 0 011 1v1.586l.707-.707a1 1 0 011.414 1.414L17.414 6H19a1 1 0 110 2h-1.586l.707.707a1 1 0 01-1.414 1.414L16 9.414V11a1 1 0 11-2 0V9.414l-.707.707a1 1 0 01-1.414-1.414L12.586 8H11a1 1 0 110-2h1.586l-.707-.707a1 1 0 011.414-1.414L14 4.586V3a1 1 0 011-1zM5 12a1 1 0 011 1v1.586l.707-.707a1 1 0 011.414 1.414L7.414 16H9a1 1 0 110 2H7.414l.707.707a1 1 0 01-1.414 1.414L6 19.414V21a1 1 0 11-2 0v-1.586l-.707.707a1 1 0 01-1.414-1.414L2.586 18H1a1 1 0 110-2h1.586l-.707-.707a1 1 0 011.414-1.414L4 14.586V13a1 1 0 011-1z" clipRule="evenodd" />);
 export const ArrowUpIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />);
 export const UsersIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M15 21a6 6 0 00-9-5.197m0 0A5.995 5.995 0 0112 12.75a5.995 5.995 0 01-3 5.197z" />);
@@ -117,3 +132,5 @@ export const PictureInPictureIcon: React.FC<IconProps> = createIcon(<>
     <rect x="12" y="3" width="9" height="7" rx="2" />
 </>);
 export const ArrowTopRightOnSquareIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />);
+export const MailIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />);
+export const QuestionMarkCircleIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.79 4 4 0 .863-.27 1.66-.744 2.267l-1.12 1.122c-.44.44-.668 1.057-.668 1.688v.025M12 18h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />);

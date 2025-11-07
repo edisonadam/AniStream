@@ -8,6 +8,8 @@ import { fetchWithRetry, mapJikanToAnime } from '../api';
 import Player from './Player';
 import { formatRelativeTime } from '../utils';
 import { UsersIcon, CloseIcon } from './icons/Icons';
+// FIX: Import useSettings to provide required props to Player component.
+import { useSettings } from '../hooks/useSettings';
 
 interface WatchTogetherPageProps {
   roomId: string;
@@ -105,6 +107,8 @@ const WatchTogetherPage: React.FC<WatchTogetherPageProps> = ({ roomId, onExit })
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [artplayer, setArtplayer] = useState<any>(null);
+    // FIX: Get settings to pass to Player component.
+    const { settings, updateSettings } = useSettings();
 
     const isHost = user?.uid === roomData?.hostId;
     const isSyncing = useRef(false);
@@ -261,12 +265,16 @@ const WatchTogetherPage: React.FC<WatchTogetherPageProps> = ({ roomId, onExit })
                         onSelectRelated={() => {}}
                         allAnime={[]}
                         onGenreSelect={() => {}}
+                        onStudioSelect={() => {}}
                         onUserSelect={() => {}}
                         onEnterRoom={() => {}}
                         isWatchTogetherSession={true}
                         isHost={isHost}
                         onEpisodeChangeByHost={handleEpisodeChange}
                         onPlayerReady={setArtplayer}
+                        // FIX: Pass settings and updateSettings to the Player component.
+                        settings={settings}
+                        updateSettings={updateSettings}
                     />
                 </div>
             </div>

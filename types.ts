@@ -67,7 +67,7 @@ export interface Filter {
   letter?: string;
 }
 
-export type VideoServer = 'kiwi' | 'jet' | 'telli' | 'hop' | 'izy' | 'bee' | 'bun_kuz' | 'embed-api' | 'vidsrc' | 'vidsrc-pk' | 'vidbinge' | 'animepahe' | 'vidembed' | 'bun' | 'kuz' | 'vidk' | 'plyr' | 'mappletv' | 'vidlink' | 'primewire' | 'embedsu' | 'multiembed' | 'autoembed' | '2embed' | 'movieapi';
+export type VideoServer = 'gogoanime' | 'zoro' | 'hop' | 'izy' | 'bee' | 'bun_kuz' | 'embed-api' | 'vidsrc' | 'vidsrc-pk' | 'vidbinge' | 'animepahe' | 'vidembed' | 'bun' | 'kuz' | 'vidk' | 'plyr' | 'mappletv' | 'vidlink' | 'primewire' | 'embedsu' | 'multiembed' | 'autoembed' | '2embed' | 'movieapi';
 
 export interface Season {
   season_number: number;
@@ -82,6 +82,7 @@ export interface Episode {
   still_path: string | null;
   runtime: number | null;
   air_date?: string;
+  overview?: string | null;
   qualities?: {
     [key in '1080p' | '720p' | '480p']?: {
       url: string;
@@ -119,12 +120,17 @@ export type Theme = 'light' | 'dark';
 export type ColorPreset = 'abyssal-blue' | 'violet-fusion' | 'cyber-cyan' | 'sunset-orange';
 export type EpisodeViewStyle = 'compact' | 'grid' | 'horizontal';
 export type DefaultLanguage = 'sub' | 'dub' | 'ssub';
-export type Page = 'home' | 'player' | 'profile' | 'club-detail' | 'magazines' | 'trending' | 'schedule' | 'history' | 'news' | 'manga' | 'beginners' | 'search' | 'community' | 'comment-meter' | 'currency' | 'about' | 'rules' | 'donation' | 'watch-together' | 'og-image-generator' | 'top-100' | 'notifications';
+export type Page = 'home' | 'player' | 'profile' | 'club-detail' | 'magazines' | 'trending' | 'schedule' | 'history' | 'news' | 'manga' | 'beginners' | 'search' | 'community' | 'comment-meter' | 'currency' | 'about' | 'rules' | 'donation' | 'watch-together' | 'og-image-generator' | 'top-100' | 'notifications' | 'how-to-use' | 'videos';
 export type ToastType = 'success' | 'warning' | 'error' | 'info' | 'favorite' | 'unfavorite';
 
 export type WatchlistStatus = 'Watching' | 'Completed' | 'On-Hold' | 'Dropped' | 'Plan to Watch';
 
-export type NotificationType = 'reply' | 'share' | 'friend_request' | 'watchlist' | 'favorites' | 'mal_sync' | 'system' | 'general';
+export type NotificationType = 'reply' | 'share' | 'friend_request' | 'watchlist' | 'favorites' | 'mal_sync' | 'system' | 'general' | 'new_episode';
+
+export interface NotificationPrefs {
+  newEpisode: boolean;
+  newDub: boolean;
+}
 
 export interface Settings {
   theme: Theme;
@@ -158,6 +164,8 @@ export interface Settings {
   autoSkip: boolean;
   startMuted: boolean;
   videoLoadStrategy: 'idle' | 'visible' | 'eager';
+  showNewEpisodeBadges: boolean;
+  lightsOffMode: boolean;
 }
 
 export interface WatchProgressInfo {
@@ -272,6 +280,11 @@ export interface NewsPromo {
         images: { jpg: { image_url: string } };
         title: string;
     };
+    trailer?: {
+        youtube_id: string | null;
+        url: string | null;
+        embed_url: string | null;
+    };
 }
 
 // Community Page Types
@@ -319,3 +332,15 @@ export type ShortcutAction =
   'previousEpisode' | 'escape' | 'showShortcuts' | 'focusPlayer';
 
 export type Shortcuts = Record<ShortcutAction, string[]>;
+
+// Consumet API response type
+export interface RecentEpisode {
+    id: string;
+    episodeId: string;
+    episodeNumber: number;
+    title: string;
+    image: string;
+    url: string;
+    releaseTimestamp: number;
+    malId?: number;
+}

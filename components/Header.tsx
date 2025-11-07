@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { HamburgerIcon, SearchIcon, BellIcon, UserIcon, CloseIcon, BookmarkIcon, LogoutIcon, UsersIcon, MessageCircleIcon, LevelUpIcon, HeartIcon, RefreshCwIcon, SettingsIcon } from './icons/Icons';
+import { HamburgerIcon, SearchIcon, BellIcon, UserIcon, CloseIcon, BookmarkIcon, LogoutIcon, UsersIcon, MessageCircleIcon, LevelUpIcon, HeartIcon, RefreshCwIcon, SettingsIcon, FilmIcon } from './icons/Icons';
 import { useAuth } from '../hooks/useAuth';
 import type { Notification, Anime, Page, NotificationType } from '../types';
 import Logo from './Logo';
@@ -28,6 +28,7 @@ const NavLink: React.FC<{ page: Page; onNavigate: (page: Page) => void; children
 
 const NotificationIcon: React.FC<{ type: NotificationType }> = ({ type }) => {
     switch (type) {
+        case 'new_episode': return <FilmIcon className="w-5 h-5 text-red-400" />;
         case 'watchlist': return <BookmarkIcon className="w-5 h-5 text-blue-400" />;
         case 'favorites': return <HeartIcon className="w-5 h-5 text-pink-400" />;
         case 'mal_sync': return <RefreshCwIcon className="w-5 h-5 text-teal-400" />;
@@ -92,7 +93,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
         <div className="flex items-center justify-between h-20">
           {/* Left Section */}
           <div className="flex items-center space-x-4">
-            <button onClick={onMenuClick} className="lg:hidden text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] transition-colors" aria-label="Open menu"><HamburgerIcon /></button>
+            <button onClick={onMenuClick} className="text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] transition-colors" aria-label="Open menu"><HamburgerIcon /></button>
             <Logo onClick={onGoHome} />
             <nav className="hidden lg:flex items-center space-x-6 ml-6">
                 <button onClick={onGoHome} className="font-semibold text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] transition-colors duration-300">Home</button>

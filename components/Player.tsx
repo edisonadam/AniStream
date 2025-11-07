@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import ReactDOM from 'react-dom';
-import type { Anime, Season, Episode, VideoServer, EpisodeViewStyle, User, Character, DefaultLanguage, Page, Filter } from '../types';
-import { ChevronLeftIcon, StarIcon, ChevronRightIcon, ViewGridIcon, ViewListIcon, ViewCarouselIcon, EyeIcon, EyeOffIcon, RewindIcon, FastForwardIcon, RefreshCwIcon, ShareIcon, CloseIcon, DownloadIcon, SparklesIcon, ExternalLinkIcon, CodeIcon, SearchIcon, PauseIcon, VolumeUpIcon, VolumeOffIcon, SettingsIcon, FullscreenEnterIcon, FullscreenExitIcon, ExclamationTriangleIcon, ScissorsIcon, UsersIcon, UserPlusIcon, PictureInPictureIcon } from './icons/Icons';
+// FIX: Add 'Settings' to the import from '../types'
+import type { Anime, Season, Episode, VideoServer, EpisodeViewStyle, User, Character, DefaultLanguage, Page, Filter, Settings } from '../types';
+// FIX: Import 'PlayIcon' to fix 'Cannot find name' error.
+import { ChevronLeftIcon, StarIcon, ChevronRightIcon, ViewGridIcon, ViewListIcon, ViewCarouselIcon, EyeIcon, EyeOffIcon, RewindIcon, FastForwardIcon, RefreshCwIcon, ShareIcon, CloseIcon, DownloadIcon, AnnouncementIcon, ExternalLinkIcon, CodeIcon, SearchIcon, PlayIcon, PauseIcon, VolumeUpIcon, VolumeOffIcon, SettingsIcon, FullscreenEnterIcon, FullscreenExitIcon, ExclamationTriangleIcon, ScissorsIcon, UsersIcon, UserPlusIcon, PictureInPictureIcon, FilmIcon, ArrowTopRightOnSquareIcon, LightbulbOffIcon, LightbulbIcon } from './icons/Icons';
 import AnimeCard from './AnimeCard';
 import Comments from './Comments';
-import { useSettings } from '../hooks/useSettings';
 import { useWatchProgress } from '../hooks/useWatchProgress';
 import { useProfileData } from '../hooks/useProfileData';
 import { useAuth } from '../hooks/useAuth';
@@ -36,6 +37,7 @@ interface PlayerProps {
   onGoBack: () => void;
   onSelectRelated: (anime: Anime, source?: string) => void;
   onGenreSelect: (genre: string) => void;
+  onStudioSelect: (studio: string) => void;
   onUserSelect: (user: User) => void;
   isEmbed?: boolean;
   onEnterRoom: (roomId: string) => void;
@@ -44,12 +46,22 @@ interface PlayerProps {
   onEpisodeChangeByHost?: (season: number, episode: number) => void;
   onPlayerReady?: (player: any) => void;
   breadcrumbsData?: { page: Page; filters: Filter; source?: string };
+  // FIX: Add settings and updateSettings to props to resolve errors in App.tsx
+  settings: Settings;
+  updateSettings: (newSettings: Partial<Settings>) => void;
 }
 
 interface MediaIds {
   tmdb: number | null;
   imdb: string | null;
   mediaType: 'tv' | 'movie' | null;
+}
+
+interface MediaItem {
+  key: string; // youtube ID or URL
+  name: string;
+  type: 'youtube' | 'direct';
+  thumbnail?: string;
 }
 
 // Embed Modal Component
@@ -138,15 +150,22 @@ const formatAiringTime = (timestamp: number): string => {
     const diff = airingDate.getTime() - now;
 
     if (diff <= 0) return `Aired on ${airingDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
-
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    
+    const years = Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
+    const months = Math.floor((diff % (1000 * 60 * 60 * 24 * 365.25)) / (1000 * 60 * 60 * 24 * 30.44));
+    const days = Math.floor((diff % (1000 * 60 * 60 * 24 * 30.44)) / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
     let parts = [];
+    if (years > 0) parts.push(`${years}y`);
+    if (months > 0) parts.push(`${months}mo`);
     if (days > 0) parts.push(`${days}d`);
     if (hours > 0) parts.push(`${hours}h`);
-    if (minutes > 0 && days === 0) parts.push(`${minutes}m`);
+    if (minutes > 0 && years === 0 && months === 0 && days === 0) parts.push(`${minutes}m`);
+    if (seconds > 0 && parts.length < 2) parts.push(`${seconds}s`);
+
 
     if (parts.length > 0) return `in ${parts.slice(0, 2).join(' ')}`;
     return 'Airing soon';
@@ -160,7 +179,15 @@ const getSeasonFromDate = (date: Date): string => {
     return 'fall';
 };
 
-const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGenreSelect, onUserSelect, isEmbed = false, onEnterRoom, isWatchTogetherSession = false, isHost = false, onEpisodeChangeByHost, onPlayerReady, breadcrumbsData }) => {
+// Helper component for the details grid
+const DetailItem: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+    <div>
+        <p className="font-semibold text-[rgb(var(--text-muted))]">{label}</p>
+        <div className="text-[rgb(var(--text-secondary))] font-medium truncate">{children}</div>
+    </div>
+);
+
+const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGenreSelect, onStudioSelect, onUserSelect, isEmbed = false, onEnterRoom, isWatchTogetherSession = false, isHost = false, onEpisodeChangeByHost, onPlayerReady, breadcrumbsData, settings, updateSettings }) => {
   const [playerAnime, setPlayerAnime] = useState<Anime>(anime);
   const [recommendations, setRecommendations] = useState<Anime[]>([]);
   const [similarAnime, setSimilarAnime] = useState<Anime[]>([]);
@@ -173,10 +200,12 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
   
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [episodes, setEpisodes] = useState<Episode[]>([]);
-  const [trailers, setTrailers] = useState<{key: string, name: string}[]>([]);
+  const [trailers, setTrailers] = useState<MediaItem[]>([]);
+  const [introsOutros, setIntrosOutros] = useState<MediaItem[]>([]);
   const [isLoadingEpisodes, setIsLoadingEpisodes] = useState(false);
   const [episodeError, setEpisodeError] = useState<string | null>(null);
   const [isLoadingTrailers, setIsLoadingTrailers] = useState(false);
+  const [isLoadingIntrosOutros, setIsLoadingIntrosOutros] = useState(false);
   const [characters, setCharacters] = useState<Character[]>([]);
   const [isLoadingCharacters, setIsLoadingCharacters] = useState(false);
   const [currentSeason, setCurrentSeason] = useState<number>(1);
@@ -186,7 +215,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
   
   const [mediaIds, setMediaIds] = useState<MediaIds>({ tmdb: null, imdb: null, mediaType: null });
   
-  const [activeTab, setActiveTab] = useState<'episodes' | 'trailers' | 'characters'>('episodes');
+  const [playingMedia, setPlayingMedia] = useState<MediaItem | null>(null);
 
   const [isSeasonTransitioning, setIsSeasonTransitioning] = useState(false);
   const [displayTitle, setDisplayTitle] = useState(anime.title);
@@ -204,7 +233,6 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
   const [failedImages, setFailedImages] = useState<Set<string | number>>(new Set());
   
-  const { settings, updateSettings } = useSettings();
   const { user } = useAuth();
   const { updateProgress, getWatchProgress } = useWatchProgress();
   const { rateAnime, getRating, friends, addNotification } = useProfileData();
@@ -220,9 +248,10 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
   const [surpriseMessage, setSurpriseMessage] = useState<string | null>(null);
   const [isSurpriseLoading, setIsSurpriseLoading] = useState(false);
   const [surpriseError, setSurpriseError] = useState<string | null>(null);
-  const [loadingFact, setLoadingFact] = useState<string | null>(null);
   const [episodeSearchQuery, setEpisodeSearchQuery] = useState('');
   const [isSynopsisExpanded, setIsSynopsisExpanded] = useState(false);
+  const [isFullPage, setIsFullPage] = useState(false);
+  const [sidebarTab, setSidebarTab] = useState<'characters' | 'trailers' | 'intros'>('characters');
 
     // State and refs for Player Focus Mode
     const [isFocusMode, setIsFocusMode] = useState(false);
@@ -235,6 +264,18 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
   const [streamError, setStreamError] = useState<string | null>(null);
 
   const isBlurred = localBlur === null ? settings.blurEpisodeThumbnails : localBlur;
+
+  useEffect(() => {
+    if (settings.lightsOffMode) {
+        document.body.classList.add('lights-off-active');
+    } else {
+        document.body.classList.remove('lights-off-active');
+    }
+    // Cleanup function in case component unmounts
+    return () => {
+        document.body.classList.remove('lights-off-active');
+    };
+  }, [settings.lightsOffMode]);
 
   const fetchStreamUrl = useCallback(async () => {
     if (!playerAnime) return;
@@ -281,9 +322,15 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
             );
         } else {
             // Consumet providers
-            let provider: 'gogoanime' | 'zoro' | 'animepahe' = 'zoro';
-            if (serverSetting === 'kiwi') provider = 'gogoanime';
-            else if (serverSetting === 'animepahe') provider = 'animepahe';
+            let provider: 'gogoanime' | 'zoro' | 'animepahe' = 'zoro'; // Default provider
+            if (serverSetting === 'gogoanime') {
+                provider = 'gogoanime';
+            } else if (serverSetting === 'animepahe') {
+                provider = 'animepahe';
+            } else if (serverSetting === 'zoro') {
+                provider = 'zoro';
+            }
+            // Other servers like 'hop', 'izy' will use the default 'zoro' provider.
 
             const titleToSearch = playerAnime.title_english || playerAnime.title;
             url = await fetchConsumetStreamUrl(titleToSearch, absoluteEpisodeNumber, provider);
@@ -315,7 +362,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
   }, []);
 
   useEffect(() => {
-    if (isEmbedModalOpen || selectedCharacter || isClippingModalOpen || isInviteFriendModalOpen || isRoomManagerOpen || isDownloadModalOpen) {
+    if (isEmbedModalOpen || selectedCharacter || isClippingModalOpen || isInviteFriendModalOpen || isRoomManagerOpen || isDownloadModalOpen || playingMedia) {
         document.body.classList.add('modal-zoom-effect-active');
     } else {
         document.body.classList.remove('modal-zoom-effect-active');
@@ -324,7 +371,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
     return () => {
         document.body.classList.remove('modal-zoom-effect-active');
     };
-  }, [isEmbedModalOpen, selectedCharacter, isClippingModalOpen, isInviteFriendModalOpen, isRoomManagerOpen, isDownloadModalOpen]);
+  }, [isEmbedModalOpen, selectedCharacter, isClippingModalOpen, isInviteFriendModalOpen, isRoomManagerOpen, isDownloadModalOpen, playingMedia]);
 
   const sortedSeasons = useMemo(() => {
     return [...seasons].sort((a, b) => a.season_number - b.season_number);
@@ -405,51 +452,38 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
         // Reset states for the new anime
         setError(null);
         setMediaIds({ tmdb: null, imdb: null, mediaType: null });
-        setSeasons([]); setEpisodes([]); setTrailers([]); setCharacters([]); setSeriesParts([]); setRelatedMovies([]); setRecommendations([]); setSimilarAnime([]);
-        setActiveTab('episodes'); setLocalBlur(null); setEpisodePage(1); setFailedImages(new Set()); setNextAiringInfo(null);
+        setSeasons([]); setEpisodes([]); setTrailers([]); setIntrosOutros([]); setCharacters([]); setSeriesParts([]); setRelatedMovies([]); setRecommendations([]); setSimilarAnime([]); setRelatedAnime([]);
+        setLocalBlur(null); setEpisodePage(1); setFailedImages(new Set()); setNextAiringInfo(null);
         setEpisodeSearchQuery('');
+        setSidebarTab('characters');
 
-        const fetchAllDetails = async () => {
-            setIsLoading(true);
+        const fetchPlayerData = async (animeForLookup: Anime): Promise<{ tmdbData: any } | null> => {
             try {
-                // Step 1: Get full Jikan details. This is the most reliable source for the title and year.
-                const fullDetailsRes = await fetchWithRetry(`https://api.jikan.moe/v4/anime/${anime.id}/full`);
-                if (!fullDetailsRes.ok) throw new Error(`Failed to fetch base anime details from Jikan API (Status: ${fullDetailsRes.status})`);
+                const relationsRes = await fetchWithRetry(`https://api.jikan.moe/v4/anime/${animeForLookup.id}/relations`);
+                const relationsData = relationsRes.ok ? (await relationsRes.json()).data : [];
+                const parentStory = relationsData?.find((r: any) => r.relation === 'Parent story')?.entry[0];
+                const prequel = relationsData?.find((r: any) => r.relation === 'Prequel')?.entry[0];
+
+                const baseAnimeEntry = parentStory || prequel;
                 
-                const fullDetailsData = await fullDetailsRes.json();
-                const animeFromJikan = mapJikanToAnime(fullDetailsData.data);
-                if (!animeFromJikan) throw new Error("Could not process base anime data from Jikan.");
-
-                // Step 2: Fetch TMDB data for seasons/episodes using the reliable Jikan title.
-                await fetchPlayerData(animeFromJikan);
-
-                // Step 3: Fetch all supplementary data in parallel
-                if (!isEmbed) {
-                    await fetchSupplementaryData(animeFromJikan);
+                let titleForTmdb = baseAnimeEntry ? baseAnimeEntry.name : animeForLookup.title;
+                let yearForTmdb: number | null = baseAnimeEntry ? null : animeForLookup.releaseYear;
+                
+                if (/(season|part|cour|saison|temporada)\s\d+/i.test(animeForLookup.title)) {
+                    yearForTmdb = null;
                 }
-
-            } catch (e) {
-                console.error("Failed to fetch player data", e);
-                setError(e instanceof Error ? e.message : "An unexpected error occurred.");
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        const fetchPlayerData = async (animeForLookup: Anime) => {
-            try {
-                const parentStory = (await fetchWithRetry(`https://api.jikan.moe/v4/anime/${animeForLookup.id}/relations`).then(res => res.ok ? res.json() : { data: [] })).data?.find((r: any) => r.relation === 'Parent story')?.entry[0];
-                const baseAnimeForTmdb = parentStory ? { title: parentStory.name, year: null } : { title: animeForLookup.title, year: animeForLookup.releaseYear };
+                
+                const searchTitle = titleForTmdb.replace(/(season|part|cour|saison|temporada)\s\d+/i, '').trim();
 
                 let foundTmdbId: number | null = null;
                 let foundMediaType: 'tv' | 'movie' | null = animeForLookup.type === 'Movie' ? 'movie' : 'tv';
 
-                if (baseAnimeForTmdb.title) {
+                if (searchTitle) {
                     const searchMediaType = animeForLookup.type === 'Movie' ? 'movie' : 'tv';
-                    const searchParams = new URLSearchParams({ api_key: TMDB_API_KEY, query: baseAnimeForTmdb.title.replace(/(season|part)\s\d+/i, '').trim() });
-                    if (baseAnimeForTmdb.year) {
-                        if (searchMediaType === 'tv') searchParams.append('first_air_date_year', baseAnimeForTmdb.year.toString());
-                        else searchParams.append('year', baseAnimeForTmdb.year.toString());
+                    const searchParams = new URLSearchParams({ api_key: TMDB_API_KEY, query: searchTitle });
+                    if (yearForTmdb) {
+                        if (searchMediaType === 'tv') searchParams.append('first_air_date_year', yearForTmdb.toString());
+                        else searchParams.append('year', yearForTmdb.toString());
                     }
                     const searchRes = await fetchWithRetry(`https://api.themoviedb.org/3/search/${searchMediaType}?${searchParams.toString()}`);
                     if (searchRes.ok) {
@@ -483,28 +517,32 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
                             setCurrentSeason(seasonToSet);
                             setCurrentEpisode(episodeToSet);
                         }
+                        return { tmdbData };
                     }
                 }
             } catch (e) {
                 console.error("Failed to fetch player-critical data (TMDB)", e);
             }
+            return null;
         };
-
-        const fetchSupplementaryData = async (baseAnime: Anime) => {
+        
+        const fetchSupplementaryData = async (baseAnime: Anime, tmdbData: any | null) => {
             setIsLoadingTrailers(true);
             setIsLoadingCharacters(true);
+            setIsLoadingIntrosOutros(true);
             
-            const [relationsPromise, anilistPromise, charactersRes, videosRes, jikanRecsPromise] = await Promise.allSettled([
+            const [relationsPromise, anilistPromise, charactersRes, jikanVideosRes, jikanRecsPromise, anithemesPromise] = await Promise.allSettled([
                 fetchWithRetry(`https://api.jikan.moe/v4/anime/${baseAnime.id}/relations`).then(res => res.json()),
                 fetchAniListDetails(baseAnime.id),
                 fetchWithRetry(`https://api.jikan.moe/v4/anime/${baseAnime.id}/characters`),
                 fetchWithRetry(`https://api.jikan.moe/v4/anime/${baseAnime.id}/videos`),
                 fetchWithRetry(`https://api.jikan.moe/v4/anime/${baseAnime.id}/recommendations`).then(res => res.json()),
+                fetchWithRetry(`https://api.animethemes.moe/anime?filter[has]=resources&filter[resource_site]=MyAnimeList&filter[resource_id]=${baseAnime.id}&include=animethemes.animethemeentries.videos,animethemes.song`)
             ]);
 
             let finalAnime = { ...baseAnime };
+            let anilistTrailer: MediaItem | null = null;
 
-            // Enrich with AniList data
             if (anilistPromise.status === 'fulfilled' && anilistPromise.value) {
                 const ad = anilistPromise.value.details;
                 finalAnime = { ...finalAnime, title: ad.title.english || ad.title.romaji || finalAnime.title, title_english: ad.title.english || finalAnime.title_english, title_japanese: ad.title.native || finalAnime.title_japanese, bannerImage: ad.bannerImage || finalAnime.bannerImage, synopsis: ad.description || finalAnime.synopsis, genres: ad.genres.length > 0 ? ad.genres : finalAnime.genres, rating: ad.averageScore ? ad.averageScore / 10 : finalAnime.rating, studio: ad.studios.length > 0 ? ad.studios.join(', ') : finalAnime.studio };
@@ -512,23 +550,160 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
                     setNextAiringInfo({ at: ad.nextAiringEpisode.airingAt * 1000, episode: ad.nextAiringEpisode.episode });
                 }
                 setRecommendations(anilistPromise.value.recommendations.map((p: any) => mapPartialToFullAnime(p as any)));
-            } else if (finalAnime.nextAiringEpisode) {
-                setNextAiringInfo(finalAnime.nextAiringEpisode);
+                
+                const anilistRelations = anilistPromise.value.relations
+                    .map((r: any) => mapPartialToFullAnime(r))
+                    .filter((a: Anime | null): a is Anime => a !== null);
+                setRelatedAnime(anilistRelations);
+                
+                if (ad.trailer && ad.trailer.site === 'youtube' && ad.trailer.id) {
+                    anilistTrailer = { key: ad.trailer.id, name: 'Official Trailer (from AniList)', type: 'youtube' };
+                }
             }
 
             setPlayerAnime(finalAnime);
-            setSeriesParts([finalAnime]);
             
-            // Process Relations, Characters, Videos, etc.
-            if (relationsPromise.status === 'fulfilled' && relationsPromise.value.data) { /* ... */ }
-            if (charactersRes.status === 'fulfilled' && charactersRes.value.ok) { /* ... */ }
-            if (videosRes.status === 'fulfilled' && videosRes.value.ok) { /* ... */ }
-            if (jikanRecsPromise.status === 'fulfilled' && jikanRecsPromise.value.data) { /* ... */ }
+            if (relationsPromise.status === 'fulfilled' && relationsPromise.value.data) {
+                const relationEntries = relationsPromise.value.data.flatMap((rel: any) => rel.entry);
+                const series = relationEntries
+                    .filter((e: any) => e.type === 'anime')
+                    .map((e: any) => ({ id: e.mal_id, title: e.name, type: e.type, thumbnail: baseAnime.thumbnail }));
+                
+                const uniqueSeries = Array.from(new Map([
+                    { id: finalAnime.id, title: finalAnime.title, type: finalAnime.type, thumbnail: finalAnime.thumbnail },
+                    ...series
+                ].map(item => [item.id, item])).values());
+                
+                if (uniqueSeries.length > 1) {
+                    setSeriesParts(uniqueSeries);
+                } else {
+                    setSeriesParts([finalAnime]);
+                }
+            } else {
+                setSeriesParts([finalAnime]);
+            }
+            
+            if (charactersRes.status === 'fulfilled' && charactersRes.value.ok) {
+                const charactersData = await charactersRes.value.json();
+                setCharacters((charactersData.data || []).map(mapJikanToCharacter).filter(Boolean));
+            }
+            
+            const jikanVideosData = (jikanVideosRes.status === 'fulfilled' && jikanVideosRes.value.ok) 
+                ? await jikanVideosRes.value.json() 
+                : null;
+
+            // Trailers
+            const jikanTrailers: MediaItem[] = [];
+            if (jikanVideosData?.data?.promo) {
+                jikanVideosData.data.promo.forEach((v: any) => {
+                    const key = v.trailer?.youtube_id;
+                    if (key) jikanTrailers.push({ key, name: v.title, type: 'youtube' });
+                });
+            }
+            const tmdbTrailers: MediaItem[] = [];
+            if (tmdbData?.videos?.results) {
+                tmdbData.videos.results.forEach((video: any) => {
+                    if (video.site === 'YouTube' && video.key && ['Trailer', 'Teaser', 'Clip'].includes(video.type)) {
+                        tmdbTrailers.push({ key: video.key, name: video.name || video.type, type: 'youtube' });
+                    }
+                });
+            }
+
+            const allTrailersMap = new Map<string, MediaItem>();
+            if (anilistTrailer) {
+                allTrailersMap.set(anilistTrailer.key, anilistTrailer);
+            }
+            tmdbTrailers.filter(t => t.name.toLowerCase().includes('official trailer')).forEach(t => {
+                if (!allTrailersMap.has(t.key)) allTrailersMap.set(t.key, t);
+            });
+            tmdbTrailers.forEach(t => { if (!allTrailersMap.has(t.key)) allTrailersMap.set(t.key, t); });
+            jikanTrailers.forEach(t => { if (!allTrailersMap.has(t.key)) allTrailersMap.set(t.key, t); });
+            setTrailers(Array.from(allTrailersMap.values()));
+            
+            // Intros & Outros
+            const allThemes: MediaItem[] = [];
+            if (anithemesPromise.status === 'fulfilled' && anithemesPromise.value.ok) {
+                const anithemesData = await anithemesPromise.value.json();
+                if (anithemesData?.anime?.[0]?.animethemes) {
+                    for (const theme of anithemesData.anime[0].animethemes) {
+                        const songTitle = theme.song?.title || 'Unknown Song';
+                        for (const entry of theme.animethemeentries) {
+                            const video = entry.videos.find((v: any) => v.tags.includes('NC')) || entry.videos[0];
+                            if (video?.link) {
+                                const name = `${theme.type}${theme.sequence || ''}${entry.version > 1 ? `v${entry.version}` : ''}${video.tags ? ` (${video.tags})` : ''} - "${songTitle}"`;
+                                allThemes.push({ key: video.link, name: name, type: 'direct' });
+                            }
+                        }
+                    }
+                }
+            }
+        
+            const existingThemeKeys = new Set(allThemes.map(t => t.key));
+        
+            if (jikanVideosData?.data?.music_videos) {
+                jikanVideosData.data.music_videos.forEach((v: any) => {
+                    const key = v.video?.youtube_id;
+                    if (key && !existingThemeKeys.has(key)) {
+                        allThemes.push({ key, name: v.title, type: 'youtube' });
+                        existingThemeKeys.add(key);
+                    }
+                });
+            }
+        
+            if (tmdbData?.videos?.results) {
+                tmdbData.videos.results.forEach((video: any) => {
+                    if (video.site === 'YouTube' && video.key && ['Opening Credits', 'Ending Credits'].includes(video.type)) {
+                        if (!existingThemeKeys.has(video.key)) {
+                            allThemes.push({ key: video.key, name: video.name || video.type, type: 'youtube' });
+                            existingThemeKeys.add(video.key);
+                        }
+                    }
+                });
+            }
+        
+            const finalThemesMap = new Map<string, MediaItem>();
+            allThemes.forEach(theme => {
+                if (!finalThemesMap.has(theme.key)) {
+                    finalThemesMap.set(theme.key, theme);
+                }
+            });
+            setIntrosOutros(Array.from(finalThemesMap.values()));
+
+            if (jikanRecsPromise.status === 'fulfilled' && jikanRecsPromise.value.data) {
+                if (anilistPromise.status !== 'fulfilled' || !anilistPromise.value) {
+                    setRecommendations(jikanRecsPromise.value.data.map((r: any) => mapJikanToAnime(r.entry)).filter(Boolean));
+                }
+            }
             
             setIsLoadingTrailers(false);
             setIsLoadingCharacters(false);
+            setIsLoadingIntrosOutros(false);
         };
         
+        const fetchAllDetails = async () => {
+            setIsLoading(true);
+            try {
+                const fullDetailsRes = await fetchWithRetry(`https://api.jikan.moe/v4/anime/${anime.id}/full`);
+                if (!fullDetailsRes.ok) throw new Error(`Failed to fetch base anime details from Jikan API (Status: ${fullDetailsRes.status})`);
+                
+                const fullDetailsData = await fullDetailsRes.json();
+                const animeFromJikan = mapJikanToAnime(fullDetailsData.data);
+                if (!animeFromJikan) throw new Error("Could not process base anime data from Jikan.");
+
+                const playerData = await fetchPlayerData(animeFromJikan);
+
+                if (!isEmbed) {
+                    await fetchSupplementaryData(animeFromJikan, playerData?.tmdbData);
+                }
+
+            } catch (e) {
+                console.error("Failed to fetch player data", e);
+                setError(e instanceof Error ? e.message : "An unexpected error occurred.");
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
         fetchAllDetails();
   }, [anime.id, isEmbed, getWatchProgress, settings]);
 
@@ -575,7 +750,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
         const data = await res.json();
         setEpisodes(data.episodes?.map((ep: any) => ({
             ...ep,
-            episode_number: ep.episode_number, name: ep.name, still_path: ep.still_path, runtime: ep.runtime, air_date: ep.air_date
+            episode_number: ep.episode_number, name: ep.name, still_path: ep.still_path, runtime: ep.runtime, air_date: ep.air_date, overview: ep.overview,
         })) || []);
     } catch (e) {
         console.error(e);
@@ -597,10 +772,6 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
     }
   }, [fetchSeasonEpisodes, mediaIds.mediaType, mediaIds.tmdb, currentSeason, isLoading]);
   
-  const showEpisodesTab = useMemo(() => mediaIds.mediaType === 'tv' && seasons.length > 0, [mediaIds.mediaType, seasons]);
-  const showTrailersTab = useMemo(() => true, []);
-  const showCharactersTab = useMemo(() => true, []);
-
   const filteredAndSortedEpisodes = useMemo(() => {
     let episodesToShow = [...episodes];
 
@@ -625,17 +796,13 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
       const start = (episodePage - 1) * EPISODES_PER_PAGE;
       return filteredAndSortedEpisodes.slice(start, start + EPISODES_PER_PAGE);
   }, [filteredAndSortedEpisodes, episodePage]);
-
-  useEffect(() => {
-    if (!isLoading) {
-        if (showEpisodesTab) setActiveTab('episodes');
-        else if (showCharactersTab) setActiveTab('characters');
-        else if (showTrailersTab) setActiveTab('trailers');
-    }
-  }, [isLoading, showEpisodesTab, showTrailersTab, showCharactersTab]);
+  
+  const currentEpisodeDetails = useMemo(() => {
+    return episodes.find(ep => ep.episode_number === currentEpisode);
+  }, [episodes, currentEpisode]);
 
   useLayoutEffect(() => {
-    if (activeTab !== 'episodes' || isPageTransitioning || isSeasonTransitioning || isNavigatingWithArrows.current) {
+    if (isPageTransitioning || isSeasonTransitioning || isNavigatingWithArrows.current) {
         isNavigatingWithArrows.current = false;
         return;
     }
@@ -644,7 +811,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
         if (episodeElement) episodeElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
     }, 400);
     return () => clearTimeout(timer);
-  }, [currentEpisode, activeTab, isPageTransitioning, isSeasonTransitioning, paginatedEpisodes]);
+  }, [currentEpisode, isPageTransitioning, isSeasonTransitioning, paginatedEpisodes]);
   
   const handleShareWithFriend = (friend: User) => {
     if (!user || !playerAnime) return;
@@ -961,9 +1128,27 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
     return `${baseUrl}?embed=true&animeId=${playerAnime.id}&autoplay=1&theme=${settings.theme}`;
   }, [playerAnime, settings.theme]);
 
-    const currentEpisodeDetails = useMemo(() => {
-        return episodes.find(ep => ep.episode_number === currentEpisode);
-    }, [episodes, currentEpisode]);
+  const mainCharacters = characters.filter(c => c.role === 'Main');
+  const supportingCharacters = characters.filter(c => c.role === 'Supporting');
+
+  const CharacterRow: React.FC<{ character: Character, onClick: () => void }> = ({ character, onClick }) => (
+    <div onClick={onClick} className="flex items-center gap-3 p-2 rounded-lg hover:bg-[rgb(var(--surface-3))] cursor-pointer transition-colors group">
+        <img src={character.image} alt={character.name} className="w-10 h-14 object-cover rounded-md flex-shrink-0" />
+        <p className="text-sm font-semibold text-[rgb(var(--text-secondary))] group-hover:text-[rgb(var(--color-primary-accent))]">{character.name}</p>
+    </div>
+  );
+
+    const MediaRow: React.FC<{ item: MediaItem, onClick: () => void }> = ({ item, onClick }) => (
+        <button onClick={onClick} className="flex items-center gap-3 p-2 rounded-lg hover:bg-[rgb(var(--surface-3))] cursor-pointer transition-colors group w-full text-left">
+            <div className="relative w-24 h-14 aspect-video bg-[rgb(var(--surface-3))] rounded-md overflow-hidden flex-shrink-0">
+                <img src={item.type === 'youtube' ? `https://i.ytimg.com/vi/${item.key}/mqdefault.jpg` : (item.thumbnail || playerAnime.thumbnail)} alt={item.name} className="w-full h-full object-cover" />
+                 <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <PlayIcon className="w-8 h-8 text-white" />
+                </div>
+            </div>
+            <p className="text-sm font-semibold text-[rgb(var(--text-secondary))] group-hover:text-[rgb(var(--color-primary-accent))] line-clamp-2">{item.name}</p>
+        </button>
+    );
 
   const SeasonNavigator = () => {
     const useTmdbSeasons = seasons.length > 0;
@@ -1028,101 +1213,13 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
             <div className="flex gap-3 overflow-x-auto pb-4 -mx-1 px-1" style={{ scrollbarWidth: 'thin' }}>
                 {relatedMovies.map(movie => (
                     <div key={movie.id} className="flex-shrink-0 w-32 sm:w-36">
-                        <AnimeCard anime={movie} onSelect={onSelectRelated} />
+                        <AnimeCard anime={movie} onSelect={onSelectRelated} isNew={false} />
                     </div>
                 ))}
             </div>
         </div>
     );
   };
-
-    const YouTubeTrailerPlayer: React.FC<{ videoId: string; title: string; fallbackThumbnail: string; }> = ({ videoId, title, fallbackThumbnail }) => {
-        const playerRef = useRef<HTMLDivElement>(null);
-
-        useEffect(() => {
-            if (!videoId || !playerRef.current) return;
-            
-            let player: any = null;
-            const playerElement = playerRef.current; // Capture ref value
-
-            const getValidOrigin = (): string | undefined => {
-                if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
-                    return window.location.origin;
-                }
-                if (window.location.protocol === 'blob:') {
-                    const match = window.location.href.match(/^blob:(https?:\/\/[^/]+)/);
-                    if (match && match[1]) {
-                        return match[1];
-                    }
-                }
-                return undefined;
-            };
-
-            const initializePlayer = async () => {
-                try {
-                    await loadYouTubeAPI();
-                    
-                    if (!playerElement) return;
-
-                    const onError = (event: any) => {
-                        const payload = {
-                            timestamp: new Date().toISOString(),
-                            videoId,
-                            pageUrl: window.location.href,
-                            userAgent: navigator.userAgent,
-                            playerError: event.data,
-                            location: 'PlayerTrailers'
-                        };
-                        console.error('YouTube Player Error Report:', payload);
-
-                        if (playerElement) {
-                            playerElement.innerHTML = `
-                                <div class="w-full h-full bg-black text-white relative">
-                                    <img src="${fallbackThumbnail}" alt="Trailer thumbnail" class="w-full h-full object-cover opacity-30" />
-                                    <div class="absolute inset-0 flex flex-col items-center justify-center p-2 text-xs text-center gap-1">
-                                        <p class="font-bold text-red-400">Error loading trailer (Code: ${event.data})</p>
-                                        <p class="text-gray-300">This video may be private or region-restricted.</p>
-                                    </div>
-                                </div>`;
-                        }
-                    };
-                    
-                    const playerVars: any = {
-                        autoplay: 1,
-                        mute: 1,
-                        playsinline: 1,
-                    };
-
-                    const origin = getValidOrigin();
-                    if (origin) {
-                        playerVars.origin = origin;
-                    }
-
-                    player = new window.YT.Player(playerElement, {
-                        videoId: videoId,
-                        playerVars: playerVars,
-                        events: { 
-                            onReady: (event: any) => {
-                                event.target.mute();
-                                event.target.playVideo();
-                            },
-                            onError: onError 
-                        }
-                    });
-                } catch (error) {
-                    console.error("Failed to initialize YouTube trailer player:", error);
-                }
-            };
-            
-            initializePlayer();
-
-            return () => {
-                player?.destroy();
-            };
-        }, [videoId, title, fallbackThumbnail]);
-
-        return <div ref={playerRef} className="w-full h-full"></div>;
-    };
 
   const EpisodeListContent = ({ episodesToShow, isBlurred, view }: { episodesToShow: Episode[], isBlurred: boolean, view: EpisodeViewStyle }) => {
     if (isLoadingEpisodes) return <p className="text-[rgb(var(--text-muted))]">Loading episodes...</p>;
@@ -1188,14 +1285,13 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
     })}</div>
   };
   
-  if (isLoading || !playerAnime) {
-      return (
-          <div className="w-full h-screen bg-[rgb(var(--surface-1))] flex flex-col items-center justify-center gap-4 text-center p-4">
-              <div className="w-16 h-16 border-4 border-[rgb(var(--surface-3))] border-t-[rgb(var(--color-primary))] rounded-full animate-spin"></div>
-              <p className="font-semibold text-lg text-[rgb(var(--text-primary))]">Preparing your stream...</p>
-              {loadingFact && <p className="text-sm text-[rgb(var(--text-muted))] max-w-sm">{loadingFact}</p>}
-          </div>
-      );
+  if (!playerAnime) {
+    // This case should ideally not happen if the app logic is correct, but it's a safe fallback.
+    return (
+        <div className="w-full h-screen bg-[rgb(var(--surface-1))] flex items-center justify-center">
+            <p>Error: Anime data is missing.</p>
+        </div>
+    );
   }
 
   const Breadcrumbs = () => {
@@ -1221,7 +1317,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
   };
 
   return (
-    <div className="animate-subtle-fade-in-up">
+    <div className={`animate-subtle-fade-in-up ${isFullPage ? 'fixed inset-0 bg-[rgb(var(--bg-gradient-start))] z-[9999] overflow-y-auto' : ''}`}>
         {/* Modal Portals */}
         {modalRoot && isEmbedModalOpen && ReactDOM.createPortal(<EmbedModal animeId={playerAnime.id} onClose={() => setIsEmbedModalOpen(false)} />, modalRoot)}
         {modalRoot && isShareModalOpen && ReactDOM.createPortal(<div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center animate-cinematic-fade-in" onClick={() => setIsShareModalOpen(false)}><div className="bg-[rgb(var(--surface-2))] p-6 rounded-2xl w-96" onClick={e => e.stopPropagation()}><h3 className="text-lg font-bold mb-4">Share with a friend</h3><div className="space-y-2">{friends.map(f => <button key={f.uid} onClick={() => handleShareWithFriend(f)} className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-[rgb(var(--surface-3))] text-left"><img src={f.avatar} alt={f.username} className="w-8 h-8 rounded-full"/>{f.username}</button>)}</div></div></div>, modalRoot)}
@@ -1230,36 +1326,118 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
         {modalRoot && isRoomManagerOpen && ReactDOM.createPortal(<RoomManagerModal anime={playerAnime} currentSeason={currentSeason} currentEpisode={currentEpisode} onClose={() => setIsRoomManagerOpen(false)} onEnterRoom={onEnterRoom} />, modalRoot)}
         {modalRoot && isDownloadModalOpen && ReactDOM.createPortal(<DownloadModal anime={playerAnime} episodes={episodes} season={currentSeason} onClose={() => setIsDownloadModalOpen(false)} />, modalRoot)}
         {modalRoot && selectedCharacter && ReactDOM.createPortal(<CharacterModal character={selectedCharacter} onClose={() => setSelectedCharacter(null)} />, modalRoot)}
+        {modalRoot && playingMedia && ReactDOM.createPortal(
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center animate-cinematic-fade-in p-4" onClick={() => setPlayingMedia(null)}>
+                <div className="bg-black rounded-2xl w-full max-w-4xl aspect-video relative" onClick={e => e.stopPropagation()}>
+                    <button onClick={() => setPlayingMedia(null)} className="absolute -top-10 right-0 text-white hover:text-[rgb(var(--color-primary-accent))] z-10"><CloseIcon /></button>
+                    {playingMedia.type === 'youtube' ? (
+                        <iframe
+                            src={`https://www.youtube.com/embed/${playingMedia.key}?autoplay=1`}
+                            title="Trailer"
+                            frameBorder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                            className="w-full h-full rounded-2xl"
+                        ></iframe>
+                    ) : (
+                        <video src={playingMedia.key} controls autoPlay className="w-full h-full rounded-2xl bg-black" />
+                    )}
+                </div>
+            </div>,
+            modalRoot
+        )}
 
-      <div className="relative aspect-video w-full max-h-[90vh] bg-black shadow-lg shadow-black/50 overflow-hidden" ref={playerNodeWrapperRef}>
-        <div ref={artplayerRef} className="w-full h-full"></div>
-        {streamError && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 bg-black">
-                {playerAnime?.bannerImage && (
-                    <img src={playerAnime.bannerImage} alt={getDisplayTitle(playerAnime, settings)} className="absolute inset-0 w-full h-full object-cover opacity-20" />
-                )}
-                <div className="relative z-10">
-                    <ExclamationTriangleIcon className="w-12 h-12 text-red-500 mb-4 mx-auto" />
-                    <h3 className="text-xl font-bold text-red-400">Failed to Load Video</h3>
-                    <p className="text-sm text-[rgb(var(--text-muted))] max-w-md mt-2">{streamError}</p>
-                    <button onClick={fetchStreamUrl} disabled={isStreamLoading} className="mt-6 px-4 py-2 bg-white/10 rounded-lg font-semibold hover:bg-white/20 transition-colors disabled:opacity-50">
-                        {isStreamLoading ? 'Retrying...' : 'Retry'}
-                    </button>
+      <div className="relative h-48 md:h-64 w-full flex flex-col justify-end">
+        <img src={playerAnime.bannerImage} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[rgb(var(--bg-gradient-start))] to-transparent"></div>
+        <div className="relative z-10 p-4 sm:p-6 lg:p-8 !pt-0">
+            <div className="container mx-auto">
+                <div className="flex items-end gap-4">
+                    <h1 className="text-3xl md:text-5xl font-bold text-white flex-1" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}>
+                        {displayTitle}
+                    </h1>
+                     <div className="flex items-center gap-2 flex-shrink-0">
+                        <button onClick={() => setIsDownloadModalOpen(true)} className="p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors" title="Download Options">
+                            <DownloadIcon className="w-5 h-5"/>
+                        </button>
+                        <button onClick={() => setIsFullPage(true)} className="p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors" title="Enter Full Page Player">
+                            <ArrowTopRightOnSquareIcon className="w-5 h-5"/>
+                        </button>
+                    </div>
                 </div>
+                {!isEmbed && <div className="mt-2"><Breadcrumbs /></div>}
             </div>
-        )}
-        {isStreamLoading && !streamError && (
-             <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 bg-black/50 backdrop-blur-sm">
-                {playerAnime?.bannerImage && (
-                    <img src={playerAnime.bannerImage} alt={getDisplayTitle(playerAnime, settings)} className="absolute inset-0 w-full h-full object-cover opacity-20 blur-sm" />
-                )}
-                <div className="relative z-10">
-                    <div className="w-10 h-10 border-4 border-white/20 border-t-white rounded-full animate-spin mx-auto"></div>
-                    <p className="mt-4 font-semibold">Fetching video source...</p>
-                </div>
-             </div>
-        )}
+        </div>
       </div>
+      
+        <div className="container mx-auto px-4 sm:px-6 lg:p-8 pt-8">
+            <div className={`relative ${settings.lightsOffMode ? 'z-[61]' : 'z-10'}`}>
+                <div className={`relative aspect-video w-full max-h-[90vh] bg-black shadow-lg shadow-black/50 overflow-hidden ${isFullPage ? 'fixed inset-0 z-[10000] w-screen h-screen max-h-full rounded-none' : 'rounded-2xl'}`} ref={playerNodeWrapperRef}>
+                    <div ref={artplayerRef} className="w-full h-full"></div>
+                    {isFullPage && (
+                        <div className="absolute top-4 right-4 flex gap-2 z-10">
+                            <button onClick={() => setIsDownloadModalOpen(true)} className="p-2 bg-black/50 rounded-full text-white hover:bg-white/20 transition-colors" title="Download Options">
+                                <DownloadIcon className="w-6 h-6" />
+                            </button>
+                            <button onClick={() => setIsFullPage(false)} className="p-2 bg-black/50 rounded-full text-white hover:bg-red-600 transition-colors" title="Exit Full Page Player">
+                                <CloseIcon className="w-6 h-6" />
+                            </button>
+                        </div>
+                    )}
+                    {streamError && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 bg-black">
+                            {playerAnime?.bannerImage && (
+                                <img src={playerAnime.bannerImage} alt={getDisplayTitle(playerAnime, settings)} className="absolute inset-0 w-full h-full object-cover opacity-20" />
+                            )}
+                            <div className="relative z-10">
+                                <ExclamationTriangleIcon className="w-12 h-12 text-red-500 mb-4 mx-auto" />
+                                <h3 className="text-xl font-bold text-red-400">Failed to Load Video</h3>
+                                <p className="text-sm text-[rgb(var(--text-muted))] max-w-md mt-2">{streamError}</p>
+                                <button onClick={fetchStreamUrl} disabled={isStreamLoading} className="mt-6 px-4 py-2 bg-white/10 rounded-lg font-semibold hover:bg-white/20 transition-colors disabled:opacity-50">
+                                    {isStreamLoading ? 'Retrying...' : 'Retry'}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                    {isStreamLoading && !streamError && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 bg-black/50 backdrop-blur-sm">
+                            {playerAnime?.bannerImage && (
+                                <img src={playerAnime.bannerImage} alt={getDisplayTitle(playerAnime, settings)} className="absolute inset-0 w-full h-full object-cover opacity-20 blur-sm" />
+                            )}
+                            <div className="relative z-10">
+                                <div className="w-10 h-10 border-4 border-white/20 border-t-white rounded-full animate-spin mx-auto"></div>
+                                <p className="mt-4 font-semibold">Fetching video source...</p>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {nextAiringInfo && (
+                    <div className="text-center my-4 p-3 bg-[rgb(var(--surface-2))/0.6] rounded-xl border border-white/10">
+                        <p className="font-semibold text-[rgb(var(--color-primary-accent))]">
+                            Next Episode ({nextAiringInfo.episode}) airs {formatAiringTime(nextAiringInfo.at)}.
+                        </p>
+                    </div>
+                )}
+                {!isEmbed && <PlayerActions anime={playerAnime} onClip={() => setIsClippingModalOpen(true)} settings={settings} updateSettings={updateSettings} onSurprise={handleSurpriseFact} />}
+                
+                {(surpriseMessage || surpriseError || isSurpriseLoading) && (
+                    <div className="relative mt-4 bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 p-4 rounded-2xl animate-cinematic-fade-in">
+                        <button onClick={closeSurprise} className="absolute top-2 right-2 text-[rgb(var(--text-muted))] hover:text-white"><CloseIcon className="w-5 h-5"/></button>
+                        <div className="flex items-start gap-3">
+                            <AnnouncementIcon className="w-6 h-6 text-[rgb(var(--color-primary-accent))] flex-shrink-0 mt-1" />
+                            <div className="flex-1">
+                                <h4 className="font-bold text-[rgb(var(--text-primary))]">Surprise Fact!</h4>
+                                {isSurpriseLoading && <p className="text-sm text-[rgb(var(--text-muted))]">Generating a fun fact...</p>}
+                                {surpriseError && <p className="text-sm text-red-400">{surpriseError}</p>}
+                                {surpriseMessage && <p className="text-sm text-[rgb(var(--text-secondary))]">{surpriseMessage}</p>}
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+
 
       <div className="player-focus-overlay" aria-hidden={!isFocusMode} onClick={() => setIsFocusMode(false)}>
         <div className="player-focus-overlay-backdrop"></div>
@@ -1270,68 +1448,18 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
       </div>
       
     {/* Page content */}
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div className="container mx-auto px-4 sm:px-6 lg:p-8 py-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
         <div className="lg:col-span-2">
-
-        {!isEmbed && (
-             <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-4">
-                <div>
-                   <Breadcrumbs />
-                   <h1 className="text-3xl font-bold text-[rgb(var(--text-primary))] mt-2">{displayTitle}</h1>
-                   <div className="flex items-center gap-3 text-sm text-[rgb(var(--text-muted))] mt-1">
-                       <span>{headerEpisodeText}</span>
-                       {averageRuntime && <span>&bull; {formatDuration(averageRuntime)}</span>}
-                   </div>
-                    {nextAiringInfo && (
-                        <div className="mt-2 text-sm text-green-400 font-semibold">
-                            Next Episode {nextAiringInfo.episode} airs {formatAiringTime(nextAiringInfo.at)}
-                        </div>
-                    )}
-                </div>
-                {!isWatchTogetherSession && (
-                    <div className="flex items-center gap-2 self-start sm:self-center">
-                        <button onClick={handlePrevEpisode} className="p-2 bg-white/10 rounded-full hover:bg-white/20"><ChevronLeftIcon /></button>
-                        <button onClick={handleNextEpisode} className="p-2 bg-white/10 rounded-full hover:bg-white/20"><ChevronRightIcon /></button>
-                    </div>
-                )}
-            </div>
-        )}
-            
-            {!isEmbed && <PlayerActions anime={playerAnime} onClip={() => setIsClippingModalOpen(true)}/>}
-
-            {!isEmbed && currentEpisodeDetails?.name && (
-                <div className="mt-6 bg-[rgb(var(--surface-2))/0.6] p-4 rounded-2xl border border-white/10">
-                    <h3 className="font-bold text-lg mb-2 text-[rgb(var(--color-primary-accent))]">Episode {currentEpisodeDetails.episode_number}: {currentEpisodeDetails.name}</h3>
-                    <p className="text-sm text-[rgb(var(--text-secondary))] max-h-24 overflow-y-auto pr-2">{currentEpisodeDetails.overview || 'No synopsis available for this episode.'}</p>
-                </div>
-            )}
-            
-            {/* Surprise Fact */}
-            {(surpriseMessage || surpriseError) && (
-                 <div className="relative mt-6 p-4 bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl rounded-2xl border border-white/10">
-                    <button onClick={closeSurprise} className="absolute top-2 right-2 text-[rgb(var(--text-muted))] hover:text-white"><CloseIcon className="w-4 h-4" /></button>
-                    <div className="flex items-start gap-3">
-                        <SparklesIcon className="w-5 h-5 text-[rgb(var(--color-secondary-accent))] flex-shrink-0 mt-0.5" />
-                        <p className="text-sm text-[rgb(var(--text-secondary))]">{surpriseMessage || surpriseError}</p>
-                    </div>
-                 </div>
-            )}
-        
-        {!isEmbed && (
-            <>
-            <div className="mt-8">
-                <SeasonNavigator/>
-
-                <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 p-4 sm:p-6 rounded-2xl">
-                     <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-3">
-                        <div className="flex items-center gap-2 border-b border-white/10 sm:border-b-0 self-stretch sm:self-center">
-                            {showEpisodesTab && <button onClick={() => setActiveTab('episodes')} className={`px-4 py-2 text-lg font-semibold transition-colors ${activeTab === 'episodes' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>Episodes</button>}
-                            {showCharactersTab && <button onClick={() => setActiveTab('characters')} className={`px-4 py-2 text-lg font-semibold transition-colors ${activeTab === 'characters' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>Characters</button>}
-                            {showTrailersTab && <button onClick={() => setActiveTab('trailers')} className={`px-4 py-2 text-lg font-semibold transition-colors ${activeTab === 'trailers' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>Trailers</button>}
-                        </div>
-                        {activeTab === 'episodes' && (
-                             <div className="flex items-center gap-2">
+            {!isEmbed && (
+                <div className="mb-8">
+                    <SeasonNavigator/>
+                    <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 p-4 sm:p-6 rounded-2xl mt-6">
+                        <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-3">
+                            <div className="flex items-center gap-2 border-b border-white/10 sm:border-b-0 self-stretch sm:self-center">
+                                <h3 className="px-4 py-2 text-lg font-semibold text-[rgb(var(--color-primary-accent))]">Episodes</h3>
+                            </div>
+                            <div className="flex items-center gap-2">
                                 <button onClick={() => setLocalEpisodeViewStyle('compact')} className={`p-2 rounded-lg ${localEpisodeViewStyle === 'compact' ? 'bg-[rgb(var(--color-primary))] text-white' : 'bg-white/10'}`}><ViewListIcon/></button>
                                 <button onClick={() => setLocalEpisodeViewStyle('grid')} className={`p-2 rounded-lg ${localEpisodeViewStyle === 'grid' ? 'bg-[rgb(var(--color-primary))] text-white' : 'bg-white/10'}`}><ViewGridIcon/></button>
                                 <button onClick={() => setLocalEpisodeViewStyle('horizontal')} className={`p-2 rounded-lg ${localEpisodeViewStyle === 'horizontal' ? 'bg-[rgb(var(--color-primary))] text-white' : 'bg-white/10'}`}><ViewCarouselIcon/></button>
@@ -1341,79 +1469,167 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
                                 <button onClick={() => updateSettings({ hideFillerEpisodes: !settings.hideFillerEpisodes })} className={`px-3 py-1.5 text-xs font-semibold rounded-lg ${settings.hideFillerEpisodes ? 'bg-[rgb(var(--color-primary))] text-white' : 'bg-white/10 text-[rgb(var(--text-secondary))]'}`}>
                                     {settings.hideFillerEpisodes ? 'Show Fillers' : 'Hide Fillers'}
                                 </button>
-                             </div>
+                            </div>
+                        </div>
+
+                        {filteredAndSortedEpisodes.length > 20 && (
+                            <div className="relative mb-4">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[rgb(var(--text-muted))]"><SearchIcon className="w-4 h-4"/></div>
+                                <input type="text" value={episodeSearchQuery} onChange={e => setEpisodeSearchQuery(e.target.value)} placeholder="Search episodes..." className="w-full bg-[rgb(var(--surface-3))] border border-[rgb(var(--border-color))] rounded-lg py-2 pl-9 pr-3 text-sm" />
+                            </div>
+                        )}
+                        <div className={`transition-opacity duration-300 ${isSeasonTransitioning || isPageTransitioning ? 'opacity-30' : 'opacity-100'}`}>
+                            <EpisodeListContent episodesToShow={paginatedEpisodes} isBlurred={isBlurred} view={localEpisodeViewStyle} />
+                        </div>
+                         {currentEpisodeDetails && currentEpisodeDetails.overview && (
+                            <div className="mt-4 p-4 bg-[rgb(var(--surface-3))/0.5] rounded-lg border border-white/10">
+                                <h4 className="font-bold text-sm mb-1 text-[rgb(var(--text-primary))]">Episode {currentEpisodeDetails.episode_number}: {currentEpisodeDetails.name}</h4>
+                                <p className="text-xs text-[rgb(var(--text-muted))] max-h-24 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+                                    {currentEpisodeDetails.overview}
+                                </p>
+                            </div>
                         )}
                     </div>
-
-                    {activeTab === 'episodes' && (
-                        <>
-                            {filteredAndSortedEpisodes.length > 20 && (
-                                <div className="relative mb-4">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[rgb(var(--text-muted))]"><SearchIcon className="w-4 h-4"/></div>
-                                    <input type="text" value={episodeSearchQuery} onChange={e => setEpisodeSearchQuery(e.target.value)} placeholder="Search episodes..." className="w-full bg-[rgb(var(--surface-3))] border border-[rgb(var(--border-color))] rounded-lg py-2 pl-9 pr-3 text-sm" />
-                                </div>
-                            )}
-                            <div className={`transition-opacity duration-300 ${isSeasonTransitioning || isPageTransitioning ? 'opacity-30' : 'opacity-100'}`}>
-                                <EpisodeListContent episodesToShow={paginatedEpisodes} isBlurred={isBlurred} view={localEpisodeViewStyle} />
-                            </div>
-                        </>
-                    )}
-                    {activeTab === 'trailers' && (
-                        isLoadingTrailers ? <p>Loading trailers...</p> : trailers.length > 0 ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {trailers.map(t => <div key={t.key} className="aspect-video bg-black rounded-lg overflow-hidden"><YouTubeTrailerPlayer videoId={t.key} title={t.name} fallbackThumbnail={playerAnime.bannerImage} /></div>)}
-                            </div>
-                        ) : <p className="text-[rgb(var(--text-muted))]">No trailers available.</p>
-                    )}
-                    {activeTab === 'characters' && (
-                        isLoadingCharacters ? <p>Loading characters...</p> : characters.length > 0 ? (
-                            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
-                                {characters.map(c => <div key={c.id} onClick={() => setSelectedCharacter(c)} className="text-center cursor-pointer group"><img src={c.image} alt={c.name} className="aspect-[2/3] w-full object-cover rounded-lg shadow-md group-hover:scale-105 transition-transform" /><p className="mt-1 text-xs font-semibold text-[rgb(var(--text-secondary))] truncate group-hover:text-[rgb(var(--color-primary-accent))]">{c.name}</p></div>)}
-                            </div>
-                        ) : <p className="text-[rgb(var(--text-muted))]">No characters found.</p>
-                    )}
                 </div>
-            </div>
-            
-            <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="md:col-span-2">
-                    <h2 className="text-2xl font-bold mb-3 text-[rgb(var(--text-primary))]">Synopsis</h2>
-                    <p className="text-sm text-[rgb(var(--text-secondary))]">{playerAnime.synopsis.length > 300 && !isSynopsisExpanded ? `${playerAnime.synopsis.substring(0, 300)}...` : playerAnime.synopsis}
-                        {playerAnime.synopsis.length > 300 && (
-                            <button onClick={() => setIsSynopsisExpanded(!isSynopsisExpanded)} className="font-bold text-[rgb(var(--color-primary-accent))] ml-1">
-                                {isSynopsisExpanded ? 'Read less' : 'Read more'}
-                            </button>
-                        )}
-                    </p>
-                </div>
-                <div className="md:col-span-1 space-y-4">
-                     <img src={playerAnime.thumbnail} alt={getDisplayTitle(playerAnime, settings)} className="w-full aspect-[2/3] object-cover rounded-2xl shadow-lg" />
-                     {playerAnime.malUrl && (
-                        <a href={playerAnime.malUrl} target="_blank" rel="noopener noreferrer" className="block w-full text-center py-2.5 bg-blue-800 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors">
-                            View on MyAnimeList
-                        </a>
-                     )}
-                </div>
-            </div>
-
-            <div className="mt-8 bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 p-4 rounded-2xl">
-                 <h3 className="text-lg font-semibold text-[rgb(var(--color-primary-accent))] mb-3">Anime Details</h3>
-                 <div className="space-y-2 text-sm text-[rgb(var(--text-secondary))]">
-                    <div className="flex justify-between"><span>Type:</span> <span className="font-semibold text-right">{playerAnime.type}</span></div>
-                    <div className="flex justify-between"><span>Status:</span> <span className="font-semibold text-right">{playerAnime.status}</span></div>
-                    <div className="flex justify-between"><span>Aired:</span> <span className="font-semibold text-right">{formatDate(playerAnime.startDate)} to {formatDate(playerAnime.endDate)}</span></div>
-                    <div className="flex justify-between"><span>Season:</span> <span className="font-semibold text-right">{playerAnime.season} {playerAnime.releaseYear}</span></div>
-                    <div className="flex justify-between"><span>Studio:</span> <span className="font-semibold text-right">{playerAnime.studio}</span></div>
-                 </div>
-            </div>
-
-            {settings.showComments && !isEmbed && <Comments anime={playerAnime} currentSeason={currentSeason} currentEpisode={currentEpisode} onUserSelect={onUserSelect} />}
-            </>
-        )}
+            )}
         </div>
 
         {!isEmbed && (
             <aside className="lg:col-span-1 space-y-6">
+                <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 p-4 rounded-2xl">
+                    <img src={playerAnime.thumbnail} alt={getDisplayTitle(playerAnime, settings)} className="w-full aspect-[2/3] object-cover rounded-xl shadow-lg mb-4" />
+                     {playerAnime.synopsis && (
+                        <div className="my-4">
+                            <p className="text-sm text-[rgb(var(--text-secondary))]">
+                                {isSynopsisExpanded || playerAnime.synopsis.length <= 250 ? playerAnime.synopsis : `${playerAnime.synopsis.substring(0, 250)}...`}
+                                {playerAnime.synopsis.length > 250 && (
+                                    <button onClick={() => setIsSynopsisExpanded(prev => !prev)} className="font-bold text-[rgb(var(--color-primary-accent))] ml-1">
+                                        {isSynopsisExpanded ? 'Read less' : 'Read more'}
+                                    </button>
+                                )}
+                            </p>
+                        </div>
+                    )}
+                     <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                        <DetailItem label="Format">{playerAnime.type || 'N/A'}</DetailItem>
+                        <DetailItem label="Status">{playerAnime.status}</DetailItem>
+                        <DetailItem label="Rating">{playerAnime.rating ? `${playerAnime.rating.toFixed(2)} / 10` : 'N/A'}</DetailItem>
+                        <DetailItem label="Episodes">{playerAnime.totalEpisodes || 'N/A'}</DetailItem>
+                        <DetailItem label="Duration">{playerAnime.avgEpisodeDuration ? `~${playerAnime.avgEpisodeDuration} min` : 'N/A'}</DetailItem>
+                        <DetailItem label="Season">{`${playerAnime.season || ''} ${playerAnime.releaseYear || ''}`.trim() || 'N/A'}</DetailItem>
+                        <DetailItem label="Start Date">{formatDate(playerAnime.startDate)}</DetailItem>
+                        <DetailItem label="End Date">{formatDate(playerAnime.endDate)}</DetailItem>
+                        <DetailItem label="Studio"><button onClick={() => onStudioSelect(playerAnime.studio)} className="hover:text-[rgb(var(--color-primary-accent))] hover:underline text-left">{playerAnime.studio || 'N/A'}</button></DetailItem>
+                        <DetailItem label="Country">JP</DetailItem>
+                        <DetailItem label="Adult">{playerAnime.isAdult ? 'Yes' : 'No'}</DetailItem>
+                    </div>
+                    <div className="flex flex-wrap gap-2 mt-4">
+                        {playerAnime.genres.map(genre => (
+                            <button key={genre} onClick={() => onGenreSelect(genre)} className="px-3 py-1 text-xs font-semibold rounded-full bg-[rgb(var(--color-primary))/0.3] text-[rgb(var(--text-on-accent))] hover:bg-[rgb(var(--color-primary))/0.5] transition-colors">
+                                {genre}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-white/10 flex flex-wrap gap-3">
+                        {playerAnime.officialSite && (
+                            <a href={playerAnime.officialSite} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm font-semibold text-[rgb(var(--text-secondary))] bg-white/5 px-3 py-1.5 rounded-lg hover:bg-white/10 hover:text-[rgb(var(--color-primary-accent))]">
+                                <ExternalLinkIcon className="w-4 h-4" /> Official Site
+                            </a>
+                        )}
+                        {playerAnime.malUrl && (
+                            <a href={playerAnime.malUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm font-semibold text-[rgb(var(--text-secondary))] bg-white/5 px-3 py-1.5 rounded-lg hover:bg-white/10 hover:text-[rgb(var(--color-primary-accent))]">
+                                <StarIcon className="w-4 h-4" /> MyAnimeList
+                            </a>
+                        )}
+                    </div>
+                </div>
+                
+                <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden">
+                    <div className="flex border-b border-white/10">
+                        <button
+                            onClick={() => setSidebarTab('characters')}
+                            className={`flex-1 py-3 font-semibold text-sm transition-colors ${sidebarTab === 'characters' ? 'text-[rgb(var(--color-primary-accent))] bg-[rgb(var(--color-primary))/0.1]' : 'text-[rgb(var(--text-muted))] hover:bg-white/5'}`}
+                        >
+                            Characters ({characters.length})
+                        </button>
+                        <button
+                            onClick={() => setSidebarTab('trailers')}
+                            className={`flex-1 py-3 font-semibold text-sm transition-colors ${sidebarTab === 'trailers' ? 'text-[rgb(var(--color-primary-accent))] bg-[rgb(var(--color-primary))/0.1]' : 'text-[rgb(var(--text-muted))] hover:bg-white/5'}`}
+                        >
+                            Trailers ({trailers.length})
+                        </button>
+                        <button
+                            onClick={() => setSidebarTab('intros')}
+                            className={`flex-1 py-3 font-semibold text-sm transition-colors ${sidebarTab === 'intros' ? 'text-[rgb(var(--color-primary-accent))] bg-[rgb(var(--color-primary))/0.1]' : 'text-[rgb(var(--text-muted))] hover:bg-white/5'}`}
+                        >
+                            Intros/Outros ({introsOutros.length})
+                        </button>
+                    </div>
+
+                    <div className="p-4 min-h-[10rem]" key={sidebarTab}>
+                        {sidebarTab === 'characters' && (
+                            <div className="animate-cinematic-fade-in">
+                                {isLoadingCharacters ? (
+                                    <p className="text-center text-sm text-[rgb(var(--text-muted))]">Loading characters...</p>
+                                ) : characters.length > 0 ? (
+                                    <>
+                                        {mainCharacters.length > 0 && (
+                                            <div>
+                                                <h5 className="font-semibold text-gray-400 mb-2 text-xs uppercase tracking-wider">Main</h5>
+                                                <div className="space-y-1 max-h-[calc(5*4.75rem)] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin' }}>
+                                                    {mainCharacters.map(c => <CharacterRow key={c.id} character={c} onClick={() => setSelectedCharacter(c)} />)}
+                                                </div>
+                                            </div>
+                                        )}
+                                        {supportingCharacters.length > 0 && (
+                                            <div className={mainCharacters.length > 0 ? "mt-4" : ""}>
+                                                <h5 className="font-semibold text-gray-400 mb-2 text-xs uppercase tracking-wider">Supporting</h5>
+                                                <div className="space-y-1 max-h-[calc(5*4.75rem)] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin' }}>
+                                                    {supportingCharacters.map(c => <CharacterRow key={c.id} character={c} onClick={() => setSelectedCharacter(c)} />)}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    <p className="text-center text-sm text-[rgb(var(--text-muted))]">No characters available.</p>
+                                )}
+                            </div>
+                        )}
+                        {sidebarTab === 'trailers' && (
+                            <div className="animate-cinematic-fade-in">
+                                <div className="space-y-2 max-h-[calc(10*4.5rem)] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin' }}>
+                                    {isLoadingTrailers ? (
+                                        <p className="text-[rgb(var(--text-muted))] text-sm text-center">Loading trailers...</p>
+                                    ) : trailers.length > 0 ? (
+                                        trailers.map((trailer, index) => trailer.key && (
+                                            <MediaRow key={index} item={trailer} onClick={() => setPlayingMedia(trailer)} />
+                                        ))
+                                    ) : (
+                                        <p className="text-[rgb(var(--text-muted))] text-sm text-center">No trailers available for this title.</p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                        {sidebarTab === 'intros' && (
+                            <div className="animate-cinematic-fade-in">
+                                <div className="space-y-2 max-h-[calc(10*4.5rem)] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin' }}>
+                                    {isLoadingIntrosOutros ? (
+                                        <p className="text-[rgb(var(--text-muted))] text-sm text-center">Loading themes...</p>
+                                    ) : introsOutros.length > 0 ? (
+                                        introsOutros.map((theme, index) => theme.key && (
+                                            <MediaRow key={index} item={theme} onClick={() => setPlayingMedia(theme)} />
+                                        ))
+                                    ) : (
+                                        <p className="text-[rgb(var(--text-muted))] text-sm text-center">No intros or outros found for this anime.</p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {!isEmbed && settings.showComments && <Comments anime={playerAnime} currentSeason={currentSeason} currentEpisode={currentEpisode} onUserSelect={onUserSelect} />}
+
                 <RelatedMovies/>
                 <div>
                      <h3 className="text-lg font-semibold text-[rgb(var(--color-primary-accent))] mb-3">Recommendations</h3>
@@ -1421,12 +1637,22 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
                     {recommendations.slice(0, 5).map(rec => <div key={rec.id} onClick={() => onSelectRelated(rec, 'Recommendations')} className="group flex items-center gap-3 bg-[rgb(var(--surface-2))/0.6] p-2 rounded-xl hover:bg-[rgb(var(--surface-2))] transition-colors cursor-pointer"><img src={rec.thumbnail} alt="" className="w-12 h-16 object-cover rounded-md" /><div className="flex-1 min-w-0"><h4 className="font-semibold text-sm truncate group-hover:text-[rgb(var(--color-primary-accent))] transition-colors">{getDisplayTitle(rec, settings)}</h4><p className="text-xs text-[rgb(var(--text-muted))]">{rec.type} &bull; {rec.status}</p></div></div>)}
                     </div>
                 </div>
+                {relatedAnime.length > 0 && (
+                    <div>
+                        <h3 className="text-lg font-semibold text-[rgb(var(--color-primary-accent))] mb-3">Related Anime</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                            {relatedAnime.map(rel => (
+                                <AnimeCard key={rel.id} anime={rel} onSelect={onSelectRelated} isNew={false} />
+                            ))}
+                        </div>
+                    </div>
+                )}
                 {similarAnime.length > 0 && (
                     <div>
                         <h3 className="text-lg font-semibold text-[rgb(var(--color-primary-accent))] mb-3">Similar Anime</h3>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-2 gap-4">
                             {similarAnime.map(anime => (
-                                <AnimeCard key={anime.id} anime={anime} onSelect={onSelectRelated} />
+                                <AnimeCard key={anime.id} anime={anime} onSelect={onSelectRelated} isNew={false} />
                             ))}
                         </div>
                     </div>

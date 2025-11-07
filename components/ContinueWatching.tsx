@@ -9,15 +9,17 @@ interface ContinueWatchingProps {
     onShowHistory: () => void;
     onSelectAnime: (anime: Anime) => void;
     allAnime: Anime[];
+    isNew: (animeId: number) => { isNew: boolean; episodeNumber: number | null };
 }
 
 interface ContinueWatchingCardProps {
     anime: Anime;
     progressInfo: WatchProgressInfo;
     onSelect: () => void;
+    isNew: boolean;
 }
 
-const ContinueWatchingCard: React.FC<ContinueWatchingCardProps> = ({ anime, progressInfo, onSelect }) => {
+const ContinueWatchingCard: React.FC<ContinueWatchingCardProps> = ({ anime, progressInfo, onSelect, isNew }) => {
     const { settings } = useSettings();
     const displayTitle = getDisplayTitle(anime, settings);
 
@@ -27,6 +29,7 @@ const ContinueWatchingCard: React.FC<ContinueWatchingCardProps> = ({ anime, prog
                 <img loading="lazy" src={anime.thumbnail} alt={displayTitle} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
             </div>
              <div className="absolute top-2 right-2 flex flex-col items-end gap-1.5 z-10">
+                {isNew && <span className="order-first px-2 py-1 text-xs font-bold rounded-full bg-red-600 text-white animate-pulse">NEW EP</span>}
                 {anime.releaseYear && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/50 text-white backdrop-blur-md">{anime.releaseYear}</span>}
                 {(anime.hasSub || anime.hasDub) && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/50 text-white backdrop-blur-md">{anime.hasSub && anime.hasDub ? 'SUB/DUB' : anime.hasSub ? 'SUB' : 'DUB'}</span>}
                 {anime.isAdult && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/50 text-white backdrop-blur-md">+18</span>}
@@ -43,7 +46,7 @@ const ContinueWatchingCard: React.FC<ContinueWatchingCardProps> = ({ anime, prog
     );
 }
 
-const ContinueWatching: React.FC<ContinueWatchingProps> = ({ onShowHistory, onSelectAnime, allAnime }) => {
+const ContinueWatching: React.FC<ContinueWatchingProps> = ({ onShowHistory, onSelectAnime, allAnime, isNew }) => {
     const { isLoggedIn } = useAuth();
     const { watchProgressList } = useWatchProgress();
 
@@ -87,6 +90,7 @@ const ContinueWatching: React.FC<ContinueWatchingProps> = ({ onShowHistory, onSe
                         anime={anime} 
                         progressInfo={progressInfo}
                         onSelect={() => onSelectAnime(anime)}
+                        isNew={isNew(anime.id).isNew}
                     />
                 ))}
             </div>

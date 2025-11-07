@@ -130,28 +130,20 @@
         --logo-glow-2: transparent;
       }
 
-      /* Base Scrollbar */
-      ::-webkit-scrollbar { width: 8px; }
-      ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
-      
-      /* Default hidden state for the thumb */
+      /* Draggable Scrollbar */
+      ::-webkit-scrollbar {
+        width: 14px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--scrollbar-track);
+      }
       ::-webkit-scrollbar-thumb {
-        background: var(--scrollbar-thumb);
-        border-radius: 4px;
-        opacity: 0; /* Initially hidden */
-        transition: opacity 0.5s ease-out; /* Smooth transition for hiding/showing */
+        background-color: var(--scrollbar-thumb);
+        border-radius: 6px;
+        border: 3px solid var(--scrollbar-track);
       }
-
-      /* Always visible on hover over the scrollable area */
-      .scroll-fade-container:hover::-webkit-scrollbar-thumb {
-        opacity: 1;
-        transition-delay: 0s; /* Show immediately on hover */
-      }
-
-      /* Programmatically visible (e.g., during scroll activity) */
-      .scroll-fade-container.active-scroll::-webkit-scrollbar-thumb {
-        opacity: 1;
-        transition-delay: 0s;
+      ::-webkit-scrollbar-thumb:hover {
+        background-color: var(--scrollbar-thumb-hover);
       }
 
       html { 
@@ -443,6 +435,16 @@
       .player-zoomed-to-fit .artplayer-video {
         object-fit: contain;
       }
+
+      /* Lights Off Mode */
+      body.lights-off-active::after {
+        content: '';
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.92);
+        z-index: 60; /* Below player, above everything else */
+        animation: cinematic-fade-in 0.3s ease forwards;
+      }
     </style>
   <script type="importmap">
 {
@@ -474,6 +476,8 @@
     <div id="goto-top-root"></div>
     <div id="toast-root"></div>
     <div id="dropdown-root"></div>
+    <div id="loading-bar-root"></div>
+    <div id="floating-player-root"></div>
     <script type="module" src="/index.tsx"></script>
     <script>
       if ('serviceWorker' in navigator) {

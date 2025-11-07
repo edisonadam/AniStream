@@ -13,6 +13,7 @@ import { useToast } from '../hooks/useToast';
 interface AnimeCardProps {
   anime: Anime;
   onSelect: (anime: Anime) => void;
+  isNew: boolean;
 }
 
 const formatDuration = (minutes: number | null): string => {
@@ -30,7 +31,7 @@ const formatDuration = (minutes: number | null): string => {
   return `${hours}h ${remainingMinutes}m`;
 };
 
-const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect }) => {
+const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect, isNew }) => {
   const { addToWatchlist, removeFromWatchlist, isInWatchlist, updateWatchlistStatus, getWatchlistStatus } = useWatchlist();
   const { isLoggedIn } = useAuth();
   const { settings } = useSettings();
@@ -134,6 +135,7 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect }) => {
 
       {/* Top-Left Badge Container */}
       <div className="absolute top-2 left-2 z-20 flex flex-col items-start gap-1.5">
+          {isNew && <span className="order-first px-2 py-1 text-xs font-bold rounded-full bg-red-600 text-white animate-pulse">NEW EP</span>}
           {anime.type && (
             <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/60 text-white backdrop-blur-md">{anime.type.toUpperCase()}</span>
           )}

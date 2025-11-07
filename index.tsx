@@ -10,6 +10,7 @@ import { ShortcutsProvider } from './contexts/ShortcutsContext';
 import { FloatingPlayerProvider } from './contexts/FloatingPlayerContext';
 import { FavoritesProvider } from './contexts/FavoritesContext';
 import { ToastProvider } from './contexts/ToastContext';
+import { NotificationPrefsProvider } from './contexts/NotificationPrefsContext';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -25,19 +26,21 @@ const AppWrapper = () => {
     <ToastProvider>
       <SettingsProvider>
         <AuthProvider>
-          <WatchlistProvider>
-            <FavoritesProvider>
-              <WatchProgressProvider>
-                <ProfileDataProvider>
-                  <ShortcutsProvider>
-                    <FloatingPlayerProvider>
-                      <App />
-                    </FloatingPlayerProvider>
-                  </ShortcutsProvider>
-                </ProfileDataProvider>
-              </WatchProgressProvider>
-            </FavoritesProvider>
-          </WatchlistProvider>
+          <NotificationPrefsProvider>
+            <WatchlistProvider>
+              <FavoritesProvider>
+                <WatchProgressProvider>
+                  <ProfileDataProvider>
+                    <ShortcutsProvider>
+                      <FloatingPlayerProvider>
+                        <App />
+                      </FloatingPlayerProvider>
+                    </ShortcutsProvider>
+                  </ProfileDataProvider>
+                </WatchProgressProvider>
+              </FavoritesProvider>
+            </WatchlistProvider>
+          </NotificationPrefsProvider>
         </AuthProvider>
       </SettingsProvider>
     </ToastProvider>

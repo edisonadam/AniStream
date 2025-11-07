@@ -187,6 +187,7 @@ const SettingsPage: React.FC = () => {
                 rememberVolume: true,
                 rememberPlaybackSpeed: false,
                 showSeekThumbnails: false,
+                lightsOffMode: false,
             });
             addToast("Playback settings restored to default.", "success");
         }
@@ -200,6 +201,12 @@ const SettingsPage: React.FC = () => {
                 <Dropdown label="Load More Style" selected={settings.loadMoreMode} onChange={v => updateSettings({ loadMoreMode: v })} options={[{value: 'auto', label: 'Automatic (Infinite Scroll)'}, {value: 'manual', label: 'Manual (Button)'}]} tooltip="How new content is loaded on grid pages." />
                 <Toggle label="Force Desktop Mode" checked={settings.forceDesktopMode} onChange={() => updateSettings({ forceDesktopMode: !settings.forceDesktopMode })} tooltip="Forces the desktop layout on all devices, including mobile." />
                 <Toggle label="Watch History on Home Page" checked={settings.showWatchHistoryOnHome} onChange={() => updateSettings({ showWatchHistoryOnHome: !settings.showWatchHistoryOnHome })} tooltip="Show or hide the 'Continue Watching' section on the home page." />
+                 <Toggle 
+                    label="Show 'New Episode' Badges" 
+                    checked={settings.showNewEpisodeBadges} 
+                    onChange={() => updateSettings({ showNewEpisodeBadges: !settings.showNewEpisodeBadges })} 
+                    tooltip="Display a badge on anime that has a newly aired episode." 
+                />
             </SettingsSection>
             
             <SettingsSection title="Playback & Homepage">
@@ -207,6 +214,7 @@ const SettingsPage: React.FC = () => {
                 <Toggle label="Auto Play Next Episode" checked={settings.autoPlay} onChange={() => updateSettings({ autoPlay: !settings.autoPlay })} tooltip="Automatically starts the next episode without user interaction." />
                 <Toggle label="Auto Skip Intro/Outro" checked={settings.autoSkip} onChange={() => updateSettings({ autoSkip: !settings.autoSkip })} tooltip="Automatically skips intros and outros for a seamless experience." />
                 <Toggle label="Start Videos Muted" checked={settings.startMuted} onChange={() => updateSettings({ startMuted: !settings.startMuted })} tooltip="Choose whether to start videos muted or unmuted." />
+                <Toggle label="Default Lights Off Mode" checked={settings.lightsOffMode} onChange={() => updateSettings({ lightsOffMode: !settings.lightsOffMode })} tooltip="Automatically enable cinematic 'Lights Off' mode when player loads." />
                 <Dropdown 
                     label="Video Load Strategy" 
                     selected={settings.videoLoadStrategy} 

@@ -9,6 +9,7 @@ interface TopAnimeProps {
   isLoading: boolean;
   onAnimeSelect: (anime: Anime) => void;
   onShowTop100: () => void;
+  isNew: (animeId: number) => { isNew: boolean; episodeNumber: number | null };
 }
 
 const TopAnimeCardSkeleton: React.FC = () => (
@@ -19,7 +20,7 @@ const TopAnimeCardSkeleton: React.FC = () => (
     </div>
 );
 
-const TopAnime: React.FC<TopAnimeProps> = ({ animeList, isLoading, onAnimeSelect, onShowTop100 }) => {
+const TopAnime: React.FC<TopAnimeProps> = ({ animeList, isLoading, onAnimeSelect, onShowTop100, isNew }) => {
   const { settings } = useSettings();
   
   if (isLoading && animeList.length === 0) {
@@ -49,6 +50,7 @@ const TopAnime: React.FC<TopAnimeProps> = ({ animeList, isLoading, onAnimeSelect
       <div className="flex gap-6 overflow-x-auto pb-4 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8" style={{ scrollbarWidth: 'thin' }}>
         {animeList.map((anime, index) => {
           const subDubLabel = anime.hasSub && anime.hasDub ? 'SUB / DUB' : anime.hasSub ? 'SUB' : anime.hasDub ? 'DUB' : null;
+          const hasNewEpisode = isNew(anime.id).isNew;
           return (
             <div key={anime.id} className="relative flex-shrink-0 w-40 group flex flex-col items-center text-center">
               <span 
@@ -63,6 +65,7 @@ const TopAnime: React.FC<TopAnimeProps> = ({ animeList, isLoading, onAnimeSelect
               >
                 <img loading="lazy" src={anime.thumbnail} alt={getDisplayTitle(anime, settings)} className="w-full h-full object-cover" />
                 <div className="absolute top-2 left-2 z-20 flex flex-col items-start gap-1.5">
+                    {hasNewEpisode && <span className="order-first px-2 py-1 text-xs font-bold rounded-full bg-red-600 text-white animate-pulse">NEW EP</span>}
                     {anime.type && (
                       <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-black/60 text-white backdrop-blur-md">{anime.type.toUpperCase()}</span>
                     )}

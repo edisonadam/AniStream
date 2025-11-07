@@ -1,8 +1,6 @@
-
-
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import type { Filter, Settings, Page } from '../types';
-import { CloseIcon, UsersIcon, BookOpenIcon, GiftIcon, MoonIcon, SunIcon, HomeIcon, TrendingUpIcon, CalendarIcon, HistoryIcon, InfoIcon, AcademicCapIcon, EyeIcon, EyeOffIcon, MessageCircleIcon, LevelUpIcon, ChevronDownIcon, ClipboardIcon, ShieldCheckIcon, HeartIcon, NewspaperIcon, StarIcon } from './icons/Icons';
+import { CloseIcon, UsersIcon, BookOpenIcon, GiftIcon, MoonIcon, SunIcon, HomeIcon, TrendingUpIcon, CalendarIcon, HistoryIcon, InfoIcon, AcademicCapIcon, EyeIcon, EyeOffIcon, MessageCircleIcon, LevelUpIcon, ChevronDownIcon, ClipboardIcon, ShieldCheckIcon, HeartIcon, NewspaperIcon, StarIcon, MailIcon, QuestionMarkCircleIcon, FilmIcon } from './icons/Icons';
 import Logo from './Logo';
 import { ANIME_TYPES, ANIME_STATUSES, YEAR_OPTIONS, LANGUAGE_OPTIONS, STUDIO_OPTIONS, GENRES, TAG_OPTIONS } from '../constants';
 
@@ -52,9 +50,20 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [openSections, setOpenSections] = useState<Set<string>>(new Set(['Genres', 'Type']));
   const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({}); // Store refs
 
-  const [isScrollActive, setIsScrollActive] = useState(false);
-  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const scrollableContentRef = useRef<HTMLDivElement>(null);
+  const handleNavigation = (page: Page) => {
+    onClose();
+    onNavigate(page);
+  };
+
+  const handleGoHome = () => {
+    onClose();
+    onGoHome();
+  };
+
+  const handleSurprise = () => {
+    onClose();
+    onSurpriseMe();
+  };
 
   const toggleSection = (title: string) => {
       setOpenSections(prev => {
@@ -88,16 +97,6 @@ const Sidebar: React.FC<SidebarProps> = ({
     onFilterChange({ [key]: newValues });
   };
   
-  const handleNavigation = (page: Page) => {
-    onNavigate(page);
-    onClose();
-  }
-  
-  const handleGoHome = () => {
-    onGoHome();
-    onClose();
-  }
-
   const handleSfwToggle = () => {
     updateSettings({ restrictAdultContent: !settings.restrictAdultContent });
   };
@@ -115,48 +114,6 @@ const Sidebar: React.FC<SidebarProps> = ({
     </button>
   );
 
-  const handleScrollActivity = useCallback(() => {
-    setIsScrollActive(true);
-    if (scrollTimeoutRef.current) {
-      clearTimeout(scrollTimeoutRef.current);
-    }
-    scrollTimeoutRef.current = setTimeout(() => {
-      setIsScrollActive(false);
-    }, 2000); // 2 seconds delay
-  }, []);
-
-  useEffect(() => {
-    const scrollElement = scrollableContentRef.current;
-    if (scrollElement) {
-      scrollElement.addEventListener('scroll', handleScrollActivity, { passive: true });
-      scrollElement.addEventListener('mouseenter', handleScrollActivity);
-      scrollElement.addEventListener('mouseleave', () => {
-        if (scrollTimeoutRef.current) {
-          clearTimeout(scrollTimeoutRef.current);
-        }
-        scrollTimeoutRef.current = setTimeout(() => {
-          setIsScrollActive(false);
-        }, 500); // Shorter delay to fade out quickly if mouse leaves
-      });
-    }
-
-    return () => {
-      if (scrollElement) {
-        scrollElement.removeEventListener('scroll', handleScrollActivity);
-        scrollElement.removeEventListener('mouseenter', handleScrollActivity);
-        scrollElement.removeEventListener('mouseleave', () => {
-          if (scrollTimeoutRef.current) {
-            clearTimeout(scrollTimeoutRef.current);
-          }
-          setIsScrollActive(false); // Immediately hide on unmount/cleanup
-        });
-      }
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-    };
-  }, [handleScrollActivity]);
-
   return (
     <>
       <div
@@ -166,16 +123,16 @@ const Sidebar: React.FC<SidebarProps> = ({
       <aside
         className={`fixed top-0 left-0 w-72 sm:w-80 bg-[rgb(var(--surface-1))/0.7] backdrop-blur-2xl border-r border-white/10 z-50 transform transition-transform duration-300 ease-in-out ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
-        } lg:translate-x-0 lg:flex-shrink-0 h-screen flex flex-col`}
+        } h-screen flex flex-col`}
       >
         <div className="lg:hidden flex-shrink-0 flex justify-between items-center p-4 border-b border-white/10">
-          <Logo onClick={handleGoHome} />
+          <Logo onClick={onGoHome} />
           <button onClick={onClose} className="text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))]">
             <CloseIcon />
           </button>
         </div>
         
-        <div ref={scrollableContentRef} className={`flex-1 overflow-y-auto scroll-fade-container ${isScrollActive ? 'active-scroll' : ''}`} style={{ scrollbarWidth: 'thin' }}>
+        <div className="flex-1 overflow-y-auto scroll-fade-container" style={{ scrollbarWidth: 'thin' }}>
             <div className="p-4 space-y-2 border-b border-white/10">
               <SideButton icon={<HomeIcon />} label="Home" onClick={handleGoHome} />
               <SideButton icon={<TrendingUpIcon />} label="Trending" onClick={() => handleNavigation('trending')} />
@@ -183,14 +140,15 @@ const Sidebar: React.FC<SidebarProps> = ({
               <SideButton icon={<CalendarIcon />} label="Schedule" onClick={() => handleNavigation('schedule')} />
               <SideButton icon={<HistoryIcon />} label="History" onClick={() => handleNavigation('history')} />
               <SideButton icon={<InfoIcon />} label="Updates & Logs" onClick={() => handleNavigation('news')} />
+              <SideButton icon={<FilmIcon />} label="Trailers & Intros/Outros" onClick={() => handleNavigation('videos')} />
             </div>
 
             <div className="p-4 space-y-2 border-b border-white/10">
               <SideButton icon={<BookOpenIcon />} label="Manga" onClick={() => handleNavigation('manga')} />
               <SideButton icon={<AcademicCapIcon />} label="For Beginners" onClick={() => handleNavigation('beginners')} />
-              <SideButton icon={<GiftIcon />} label="Surprise Me!" onClick={onSurpriseMe} />
+              <SideButton icon={<GiftIcon />} label="Surprise Me!" onClick={handleSurprise} />
               <SideButton icon={<MessageCircleIcon />} label="Community Hub" onClick={() => handleNavigation('community')} />
-              <SideButton icon={<UsersIcon />} label="Watch2Gether" onClick={() => window.open('https://w2g.tv/', '_blank', 'noopener,noreferrer')} />
+              <SideButton icon={<UsersIcon />} label="Watch2Gether" onClick={() => { window.open('https://w2g.tv/', '_blank', 'noopener,noreferrer'); onClose(); }} />
               {isLoggedIn && <SideButton icon={<LevelUpIcon />} label="Level Up" onClick={() => handleNavigation('comment-meter')} />}
               <SideButton icon={<NewspaperIcon />} label="Magazines" onClick={() => handleNavigation('magazines')} />
             </div>
@@ -198,6 +156,8 @@ const Sidebar: React.FC<SidebarProps> = ({
             <div className="p-4 space-y-2 border-b border-white/10">
               <SideButton icon={<InfoIcon />} label="About Us" onClick={() => handleNavigation('about')} />
               <SideButton icon={<ClipboardIcon />} label="Rules" onClick={() => handleNavigation('rules')} />
+              <SideButton icon={<QuestionMarkCircleIcon />} label="How to Use" onClick={() => handleNavigation('how-to-use')} />
+              <SideButton icon={<MailIcon />} label="Feedback" onClick={() => { window.location.href = 'mailto:edisonadam160@gmail.com?subject=ANISTREAM Feedback'; onClose(); }} />
               <SideButton icon={<HeartIcon />} label="Donation" onClick={() => handleNavigation('donation')} />
             </div>
        

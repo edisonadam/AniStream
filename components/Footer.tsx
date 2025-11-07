@@ -16,6 +16,8 @@ const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
         <span className="text-[rgb(var(--text-muted))]">|</span>
         <button onClick={() => onNavigate('rules')} className="text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] transition-colors">Rules</button>
         <span className="text-[rgb(var(--text-muted))]">|</span>
+        <button onClick={() => onNavigate('how-to-use')} className="text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] transition-colors">How to Use</button>
+        <span className="text-[rgb(var(--text-muted))]">|</span>
         <a href="mailto:edisonadam160@gmail.com?subject=ANISTREAM Feedback" className="text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] transition-colors">Feedback</a>
         <span className="text-[rgb(var(--text-muted))]">|</span>
         <button onClick={() => onNavigate('donation')} className="text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] transition-colors">Donate &lt;3</button>

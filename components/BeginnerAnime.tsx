@@ -5,9 +5,10 @@ import { BEGINNER_ANIME_LIST } from '../constants';
 
 interface BeginnerAnimeProps {
   onAnimeSelect: (anime: Anime) => void;
+  isNew: (animeId: number) => { isNew: boolean; episodeNumber: number | null };
 }
 
-const BeginnerAnime: React.FC<BeginnerAnimeProps> = ({ onAnimeSelect }) => {
+const BeginnerAnime: React.FC<BeginnerAnimeProps> = ({ onAnimeSelect, isNew }) => {
     const animeList = BEGINNER_ANIME_LIST;
 
     if (animeList.length === 0) {
@@ -22,7 +23,7 @@ const BeginnerAnime: React.FC<BeginnerAnimeProps> = ({ onAnimeSelect }) => {
              <div className="flex gap-4 md:gap-6 overflow-x-auto pb-4 -mx-4 sm:mx-6 lg:mx-8 px-4 sm:px-6 lg:px-8" style={{ scrollbarWidth: 'thin' }}>
                 {animeList.map((anime, index) => (
                     <div key={anime.id} className="flex-shrink-0 w-48 animate-subtle-fade-in-up" style={{ animationDelay: `${index * 50}ms` }}>
-                        <AnimeCard anime={anime} onSelect={onAnimeSelect} />
+                        <AnimeCard anime={anime} onSelect={onAnimeSelect} isNew={isNew(anime.id).isNew} />
                     </div>
                 ))}
             </div>
