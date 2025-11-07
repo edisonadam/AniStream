@@ -7,7 +7,7 @@ import { useWatchProgress } from '../hooks/useWatchProgress';
 import { useToast } from '../hooks/useToast';
 import { updateMalEntry } from '../api';
 import { VIDEO_SERVERS, WATCHLIST_STATUSES } from '../constants';
-import { HeartIcon, HeartIconSolid, CheckIcon, ChevronDownIcon, PlusCircleIcon, ScissorsIcon, FlagIcon, BellIcon, LightbulbIcon, LightbulbOffIcon, AnnouncementIcon } from './icons/Icons';
+import { HeartIcon, HeartIconSolid, CheckIcon, ChevronDownIcon, PlusCircleIcon, ScissorsIcon, FlagIcon, BellIcon, LightbulbIcon, LightbulbOffIcon, AnnouncementIcon, CaptionsIcon } from './icons/Icons';
 import { useNotificationPrefs } from '../hooks/useNotificationPrefs';
 
 interface PlayerActionsProps {
@@ -137,6 +137,10 @@ const PlayerActions: React.FC<PlayerActionsProps> = ({ anime, onClip, settings, 
         addToast("Thank you for your report. A moderator will review it shortly.", 'info');
     }
 
+    const handleSubtitleEditor = () => {
+        addToast("Subtitle Editor is coming soon!", 'info');
+    };
+
     const isLastEpisode = progressInfo && anime.totalEpisodes && progressInfo.currentEpisode === anime.totalEpisodes;
     const progressPercent = progressInfo && anime.totalEpisodes ? (progressInfo.currentEpisode / anime.totalEpisodes) * 100 : 0;
     
@@ -223,6 +227,10 @@ const PlayerActions: React.FC<PlayerActionsProps> = ({ anime, onClip, settings, 
                      <button onClick={onClip} className="flex items-center justify-center gap-2 px-4 py-3 bg-white/10 text-white rounded-xl hover:bg-white/20 font-bold" aria-label="Create clip">
                         <ScissorsIcon className="w-6 h-6"/>
                         <span className="hidden sm:inline">Clip</span>
+                    </button>
+                    <button onClick={handleSubtitleEditor} className="flex items-center justify-center gap-2 px-4 py-3 bg-white/10 text-white rounded-xl hover:bg-white/20 font-bold" aria-label="Open Subtitle Editor">
+                        <CaptionsIcon className="w-6 h-6"/>
+                        <span className="hidden sm:inline">Editor</span>
                     </button>
                     <button onClick={onSurprise} className="flex items-center justify-center gap-2 px-4 py-3 bg-white/10 text-white rounded-xl hover:bg-white/20 font-bold" aria-label="Get a surprise fact">
                         <AnnouncementIcon className="w-6 h-6"/>

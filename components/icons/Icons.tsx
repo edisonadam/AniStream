@@ -39,6 +39,12 @@ export const LightbulbOffIcon: React.FC<IconProps> = createIcon(<>
     <path d="M10 22h4"/>
 </>);
 
+export const CaptionsIcon: React.FC<IconProps> = createIcon(<>
+    <rect x="3" y="5" width="18" height="14" rx="2" ry="2"></rect>
+    <line x1="7" y1="10" x2="12" y2="10"></line>
+    <line x1="7" y1="14" x2="17" y2="14"></line>
+</>);
+
 export const HamburgerIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />);
 export const SearchIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />);
 export const BellIcon: React.FC<IconProps> = createIcon(<path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />);

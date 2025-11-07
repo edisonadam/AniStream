@@ -445,6 +445,24 @@
         z-index: 60; /* Below player, above everything else */
         animation: cinematic-fade-in 0.3s ease forwards;
       }
+      
+      /* Skip Intro/Outro markers */
+      .skip-marker {
+        position: absolute;
+        height: 100%;
+        background-color: rgba(var(--color-primary-accent), 0.4);
+        backdrop-filter: blur(2px);
+        pointer-events: none;
+        top: 0;
+        border-radius: 3px;
+        opacity: 0;
+        transition: opacity 0.3s;
+        will-change: left, width;
+      }
+      .artplayer-app:hover .art-control-progress .skip-marker,
+      .artplayer-app.art-progress-drag .art-control-progress .skip-marker {
+        opacity: 1;
+      }
     </style>
   <script type="importmap">
 {

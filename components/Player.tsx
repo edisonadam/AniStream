@@ -263,6 +263,11 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
   const [isStreamLoading, setIsStreamLoading] = useState(false);
   const [streamError, setStreamError] = useState<string | null>(null);
 
+  const [skipTimes, setSkipTimes] = useState<{ op: [number, number] | null; ed: [number, number] | null }>({ op: null, ed: null });
+  const [showSkipButton, setShowSkipButton] = useState<'op' | 'ed' | null>(null);
+  const introMarkerRef = useRef<HTMLDivElement | null>(null);
+  const outroMarkerRef = useRef<HTMLDivElement | null>(null);
+
   const isBlurred = localBlur === null ? settings.blurEpisodeThumbnails : localBlur;
 
   useEffect(() => {
@@ -707,6 +712,49 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
         fetchAllDetails();
   }, [anime.id, isEmbed, getWatchProgress, settings]);
 
+  // Fetch Intro/Outro skip times from AniSkip
+  useEffect(() => {
+    if (!playerAnime || !currentEpisode || playerAnime.type === 'Movie') {
+        setSkipTimes({ op: null, ed: null });
+        return;
+    }
+
+    const fetchSkipTimes = async () => {
+        try {
+            const malId = playerAnime.id;
+            // The API also needs episode length for better accuracy, but it works with 0.
+            // Using 0 to get times before video is fully loaded.
+            const res = await fetch(`https://api.aniskip.com/v2/skip-times/${malId}/${currentEpisode}?types=op&types=ed&episodeLength=0`);
+            
+            // 404 means no data, which is normal.
+            if (!res.ok) {
+                if (res.status !== 404) {
+                    console.error(`AniSkip API error: ${res.status}`);
+                }
+                setSkipTimes({ op: null, ed: null });
+                return;
+            }
+
+            const data = await res.json();
+            if (data.found) {
+                const op = data.results.find((r: any) => r.skipType === 'op');
+                const ed = data.results.find((r: any) => r.skipType === 'ed');
+                setSkipTimes({
+                    op: op ? [op.interval.startTime, op.interval.endTime] : null,
+                    ed: ed ? [ed.interval.startTime, ed.interval.endTime] : null,
+                });
+            } else {
+                setSkipTimes({ op: null, ed: null });
+            }
+        } catch (e) {
+            console.error("Failed to fetch skip times from AniSkip", e);
+            setSkipTimes({ op: null, ed: null });
+        }
+    };
+
+    fetchSkipTimes();
+  }, [playerAnime, currentEpisode]);
+
 
   useEffect(() => {
     if (playerAnime) {
@@ -919,6 +967,9 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
         };
     }, [isFocusMode]);
 
+  const skipTimesRef = useRef(skipTimes);
+  skipTimesRef.current = skipTimes;
+
   // Artplayer initialization and shortcut handling
   useEffect(() => {
     if (artplayerRef.current && !artplayerInstance.current) {
@@ -972,6 +1023,18 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
 
         artplayerInstance.current = art;
         if(onPlayerReady) onPlayerReady(art);
+
+        if (art.template.$progress) {
+            const introEl = document.createElement('div');
+            introEl.className = 'skip-marker';
+            introMarkerRef.current = introEl;
+            art.template.$progress.appendChild(introEl);
+
+            const outroEl = document.createElement('div');
+            outroEl.className = 'skip-marker';
+            outroMarkerRef.current = outroEl;
+            art.template.$progress.appendChild(outroEl);
+        }
         
         const handleOrientation = () => {
             // FIX: Cast 'art' to 'any' to access 'isMobile' which may be missing from types.
@@ -1002,18 +1065,28 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
                 const progress = (art.currentTime / art.duration) * 100;
                 updateProgress(anime.id, currentSeason, currentEpisode, progress);
 
-                // AutoSkip logic
+                // AutoSkip & Skip Button logic
+                const currentSkipTimes = skipTimesRef.current;
+                const currentTime = art.currentTime;
+                
+                // AutoSkip
                 if (settings.autoSkip) {
-                    // Example: skip intro (0-85s) and outro (last 90s)
-                    const introEndTime = 85;
-                    const outroStartTime = art.duration - 90;
-                    if (art.currentTime > 5 && art.currentTime < introEndTime) {
-                        art.seek = introEndTime;
-                    }
-                    if (art.currentTime > outroStartTime && art.duration > 120) {
+                    if (currentSkipTimes.op && currentTime >= currentSkipTimes.op[0] + 1 && currentTime < currentSkipTimes.op[1]) {
+                        art.seek = currentSkipTimes.op[1];
+                    } else if (currentSkipTimes.ed && currentTime >= currentSkipTimes.ed[0] && currentTime < currentSkipTimes.ed[1]) {
+                        // For outros, just end the video
                         art.seek = art.duration;
                     }
                 }
+
+                // Skip Button
+                let newSkipButtonState: 'op' | 'ed' | null = null;
+                if (currentSkipTimes.op && currentTime >= currentSkipTimes.op[0] && currentTime < currentSkipTimes.op[1]) {
+                    newSkipButtonState = 'op';
+                } else if (currentSkipTimes.ed && currentTime >= currentSkipTimes.ed[0] && currentTime < currentSkipTimes.ed[1]) {
+                    newSkipButtonState = 'ed';
+                }
+                setShowSkipButton(current => current !== newSkipButtonState ? newSkipButtonState : current);
             }
         });
 
@@ -1040,6 +1113,47 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
     }
   }, [anime.id, playerAnime?.bannerImage, displayTitle, getWatchProgress, currentSeason, currentEpisode, updateProgress, settings.autoPlay, onPlayerReady, settings.startMuted, settings.videoLoadStrategy, settings.autoSkip]);
   
+  // Update Intro/Outro markers on progress bar
+  useEffect(() => {
+    const art = artplayerInstance.current;
+    if (!art) return;
+
+    const updateMarkers = () => {
+        const duration = art.duration;
+        const introMarker = introMarkerRef.current;
+        const outroMarker = outroMarkerRef.current;
+
+        if (duration > 0 && introMarker && outroMarker) {
+            if (skipTimes.op) {
+                const [start, end] = skipTimes.op;
+                introMarker.style.left = `${(start / duration) * 100}%`;
+                introMarker.style.width = `${((end - start) / duration) * 100}%`;
+            } else {
+                introMarker.style.width = '0%';
+            }
+            if (skipTimes.ed) {
+                const [start, end] = skipTimes.ed;
+                outroMarker.style.left = `${(start / duration) * 100}%`;
+                outroMarker.style.width = `${((end - start) / duration) * 100}%`;
+            } else {
+                outroMarker.style.width = '0%';
+            }
+        } else if (introMarker && outroMarker) {
+            introMarker.style.width = '0%';
+            outroMarker.style.width = '0%';
+        }
+    };
+    
+    art.on('ready', updateMarkers);
+    art.on('resize', updateMarkers); // In case progress bar size changes
+    updateMarkers(); // Initial update
+
+    return () => {
+        art.off('ready', updateMarkers);
+        art.off('resize', updateMarkers);
+    };
+  }, [skipTimes]);
+
   const handleNextEpisode = useCallback(() => {
     if (mediaIds.mediaType !== 'tv' || !playerAnime) return;
     isNavigatingWithArrows.current = true;
@@ -1409,6 +1523,24 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
                                 <p className="mt-4 font-semibold">Fetching video source...</p>
                             </div>
                         </div>
+                    )}
+                    {showSkipButton && (
+                        <button
+                            onClick={() => {
+                                const art = artplayerInstance.current;
+                                if (!art) return;
+
+                                if (showSkipButton === 'op' && skipTimes.op) {
+                                    art.seek = skipTimes.op[1];
+                                } else if (showSkipButton === 'ed' && skipTimes.ed) {
+                                    art.seek = art.duration; // Skip to end for outro
+                                }
+                                setShowSkipButton(null);
+                            }}
+                            className="absolute bottom-16 sm:bottom-20 right-4 z-20 px-4 py-2 bg-[rgb(var(--surface-2))/0.8] backdrop-blur-md text-white rounded-lg font-semibold hover:bg-[rgb(var(--surface-1))] transition-all animate-subtle-fade-in-up"
+                        >
+                            Skip {showSkipButton === 'op' ? 'Intro' : 'Outro'} <FastForwardIcon className="inline-block w-5 h-5 ml-1" />
+                        </button>
                     )}
                 </div>
 
