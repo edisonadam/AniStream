@@ -7,8 +7,9 @@ import ClubsPage from './ClubsPage';
 import CreateClubModal from './CreateClubModal';
 import RecentCommentsCarousel from './RecentComments';
 import { useProfileData } from '../hooks/useProfileData';
+import { db } from '../firebase';
+import { ref, onValue } from 'firebase/database';
 
-const USER_DIRECTORY_KEY = 'anistream-user-directory';
 const COMMUNITY_POSTS_KEY = 'anistream-community-posts';
 
 interface CommunityPageProps {
@@ -33,11 +34,21 @@ const CommunityPage: React.FC<CommunityPageProps> = ({ onLoginClick, onClubSelec
     useEffect(() => {
         try {
             const storedPosts = localStorage.getItem(COMMUNITY_POSTS_KEY);
-            const storedUsers = localStorage.getItem(USER_DIRECTORY_KEY);
             const storedUserClubs = localStorage.getItem('anistream-user-clubs');
             if (storedPosts) setPosts(JSON.parse(storedPosts).sort((a:CommunityPost, b:CommunityPost) => b.timestamp - a.timestamp));
-            if (storedUsers) setUsers(JSON.parse(storedUsers));
             if (storedUserClubs) setUserCreatedClubs(JSON.parse(storedUserClubs));
+
+            // Fetch users from Firebase
+            const usersRef = ref(db, 'users');
+            const unsubscribe = onValue(usersRef, (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    const usersList: CommunityUser[] = Object.values(data);
+                    setUsers(usersList);
+                }
+            });
+            return () => unsubscribe();
+
         } catch (e) {
             console.error('Failed to load community data', e);
         }

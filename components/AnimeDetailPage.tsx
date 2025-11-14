@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import type { Anime, Character, Page, Filter } from '../types';
@@ -8,6 +9,7 @@ import { useWatchlist } from '../hooks/useWatchlist';
 import { useFavorites } from '../hooks/useFavorites';
 import { useProfileData } from '../hooks/useProfileData';
 import { getDisplayTitle, formatDuration, mapPartialToFullAnime } from '../utils';
+// FIX: Use type guard to ensure data.data is an array before calling .map(), preventing a potential crash.
 import { fetchWithRetry, mapJikanToCharacter, fetchAniListDetails, mapJikanToAnime, isJikanDataArrayResponse } from '../api';
 import { ChevronLeftIcon, StarIcon, PlayIcon, BookmarkIcon, HeartIcon, HeartIconSolid, ShareIcon, FilmIcon, UsersIcon, ThumbsUpIcon, ThumbsDownIcon, ViewListIcon } from './icons/Icons';
 import { useQueue } from '../hooks/useQueue';

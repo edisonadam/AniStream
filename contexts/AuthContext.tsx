@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
-import { auth } from '../firebase';
+import { auth, db } from '../firebase';
 import { onAuthStateChanged, signOut, updateProfile, type User as FirebaseUser } from 'firebase/auth';
+import { ref, get, set } from 'firebase/database';
 import type { User } from '../types';
 
 interface AuthContextType {
@@ -36,10 +37,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
-        setUser(mapFirebaseUserToAppUser(fbUser));
+        const appUser = mapFirebaseUserToAppUser(fbUser);
+        setUser(appUser);
         setFirebaseUser(fbUser);
+
+        // Check and create user in public directory on first login
+        const userRef = ref(db, `users/${fbUser.uid}`);
+        const snapshot = await get(userRef);
+        if (!snapshot.exists()) {
+          await set(userRef, {
+            uid: appUser.uid,
+            username: appUser.username,
+            avatar: appUser.avatar,
+          });
+        }
       } else {
         setUser(null);
         setFirebaseUser(null);

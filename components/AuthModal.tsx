@@ -15,7 +15,6 @@ import {
     sendPasswordResetEmail
 } from 'firebase/auth';
 import { CloseIcon, GoogleIcon, ChevronLeftIcon } from './icons/Icons';
-import type { CommunityUser } from '../types';
 
 interface AuthModalProps {
   onClose: () => void;
@@ -134,21 +133,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, reason }) => {
           photoURL: avatarUrl
       });
       await sendEmailVerification(userCredential.user);
-
-      // Add user to the public directory for search
-      try {
-          const directoryKey = 'anistream-user-directory';
-          const existingUsersRaw = localStorage.getItem(directoryKey);
-          const existingUsers: CommunityUser[] = existingUsersRaw ? JSON.parse(existingUsersRaw) : [];
-          if (!existingUsers.some(u => u.uid === userCredential.user.uid)) {
-              existingUsers.push({
-                  uid: userCredential.user.uid,
-                  username: displayName.trim(),
-                  avatar: avatarUrl,
-              });
-              localStorage.setItem(directoryKey, JSON.stringify(existingUsers));
-          }
-      } catch(e) { console.error("Failed to update user directory", e); }
 
       setSignupSuccess(true);
     } catch (err: any) {
