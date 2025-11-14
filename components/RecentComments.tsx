@@ -71,7 +71,7 @@ const RecentCommentsCarousel: React.FC<RecentCommentsCarouselProps> = ({ onAnime
     if (comments.length === 0) return null;
 
     return (
-        <section className="relative w-full h-[50vh] min-h-[400px] group overflow-hidden">
+        <section className="relative w-full h-[50vh] min-h-[400px] group overflow-hidden my-8">
             {comments.map((comment, index) => (
                 <div 
                     key={comment.id + sortOrder}

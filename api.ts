@@ -190,6 +190,8 @@ export const mapJikanToAnime = (item: any): Anime | null => {
         // for sequels without "Season" in the title, but it's a good baseline.
         seasons_count = 1;
     }
+    
+    const score = item.score ? parseFloat(item.score as any) : null;
 
     return {
         id: item.mal_id,
@@ -206,7 +208,7 @@ export const mapJikanToAnime = (item: any): Anime | null => {
         totalEpisodes: item.episodes || null,
         episodes_count: item.episodes || null,
         seasons_count: seasons_count,
-        rating: item.score || null,
+        rating: score && !isNaN(score) ? score : null,
         type: item.type || null,
         studio: (item.studios || []).length > 0 ? item.studios[0].name : 'Unknown',
         hasSub: true, // Default assumption
@@ -220,6 +222,43 @@ export const mapJikanToAnime = (item: any): Anime | null => {
         endDate: item.aired?.to,
         season: item.season ? item.season.charAt(0).toUpperCase() + item.season.slice(1) : undefined,
         rank: item.rank || undefined,
+        popularity: item.popularity || undefined,
+        source: item.source || undefined,
+        members: item.members || undefined,
+    };
+};
+
+export const mapConsumetTrendingToAnime = (item: any): Anime | null => {
+    if (!item || !item.malId) return null;
+
+    let rating = item.rating ? parseFloat(item.rating) : null;
+    if (rating && rating > 10) {
+        rating = rating / 10;
+    }
+
+    return {
+        id: item.malId,
+        title: item.title,
+        title_english: item.title,
+        title_japanese: item.title, // Consumet doesn't provide this
+        thumbnail: item.image,
+        bannerImage: item.cover || item.image,
+        synopsis: item.description || 'No synopsis available.',
+        genres: item.genres || [],
+        releaseYear: item.releaseDate || null,
+        status: item.status === 'Ongoing' ? 'Ongoing' : 'Completed', // Simple mapping
+        totalEpisodes: item.totalEpisodes || null,
+        episodes_count: item.totalEpisodes || null,
+        seasons_count: null, // Not available
+        rating: rating,
+        type: item.type?.includes('Movie') ? 'Movie' : 'TV', // Heuristic
+        studio: 'Unknown', // Not available
+        hasSub: true, // Assume
+        hasDub: false, // Assume
+        runtime: null,
+        avgEpisodeDuration: item.duration || null,
+        isAdult: false, // Assume false for trending
+        malUrl: `https://myanimelist.net/anime/${item.malId}`,
     };
 };
 
@@ -523,7 +562,7 @@ const mapAnilistToAnime = (item: any): Anime | null => {
         avgEpisodeDuration: item.duration,
         isAdult: item.isAdult,
         malUrl: `https://myanimelist.net/anime/${item.idMal}`,
-        anilistUrl: `https://anilist.co/anime/${item.id}`,
+        // FIX: Removed `anilistUrl` as it does not exist on the `Anime` type.
     };
 };
 
@@ -642,3 +681,17 @@ export const updateAnilistProgress = async (anilistId: number, episode: number, 
     `;
     await fetchAnilist(mutation, { mediaId: anilistId, progress: episode }, token);
 };
+
+/**
+ * Type guard to check if an unknown response has a `data` property that is an array.
+ * @param response The unknown response from a fetch call.
+ * @returns True if the response matches the expected shape.
+ */
+export function isJikanDataArrayResponse(response: unknown): response is { data: any[] } {
+    return (
+        typeof response === 'object' &&
+        response !== null &&
+        'data' in response &&
+        Array.isArray((response as { data: any[] }).data)
+    );
+}

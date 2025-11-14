@@ -79,7 +79,7 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose, onAnimeSelect, o
       onClick={onClose}
     >
       <div 
-        className="relative bg-[rgb(var(--surface-2))/0.6] backdrop-blur-2xl border border-white/10 rounded-[2rem] w-[90%] max-w-2xl transform transition-all shadow-2xl shadow-[rgb(var(--shadow-color))/0.5]" 
+        className="relative bg-[rgb(var(--surface-2))/0.6] backdrop-blur-2xl border border-white/10 rounded-[2rem] w-[90%] max-w-2xl shadow-2xl shadow-[rgb(var(--shadow-color))/0.5] animate-modal-pop-in" 
         onClick={e => e.stopPropagation()}
       >
         <button onClick={onClose} className="absolute top-4 right-4 text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))] z-10" aria-label="Close search">

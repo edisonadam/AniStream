@@ -9,9 +9,10 @@ interface BeginnerAnimePageProps {
   onAnimeSelect: (anime: Anime) => void;
   onGoBack: () => void;
   getEpisodeStatus: (animeId: number) => { isNew: boolean; episodeNumber: number | null };
+  onLoginRequest: (reason: string) => void;
 }
 
-const BeginnerAnimePage: React.FC<BeginnerAnimePageProps> = ({ onAnimeSelect, onGoBack, getEpisodeStatus }) => {
+const BeginnerAnimePage: React.FC<BeginnerAnimePageProps> = ({ onAnimeSelect, onGoBack, getEpisodeStatus, onLoginRequest }) => {
     const { settings } = useSettings();
 
     // Filter list based on SFW setting from the static list
@@ -31,7 +32,7 @@ const BeginnerAnimePage: React.FC<BeginnerAnimePageProps> = ({ onAnimeSelect, on
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
                 {animeList.map((anime, index) => (
                     <div key={anime.id} className="animate-subtle-fade-in-up" style={{ animationDelay: `${index * 30}ms` }}>
-                        <AnimeCard anime={anime} onSelect={onAnimeSelect} episodeStatus={getEpisodeStatus(anime.id)} />
+                        <AnimeCard anime={anime} onSelect={onAnimeSelect} episodeStatus={getEpisodeStatus(anime.id)} onLoginRequest={onLoginRequest} />
                     </div>
                 ))}
             </div>

@@ -1,20 +1,30 @@
+
+
 import React, { useState, useEffect, useMemo } from 'react';
-import type { Anime, Character } from '../types';
+import ReactDOM from 'react-dom';
+import type { Anime, Character, Page, Filter } from '../types';
 import { useSettings } from '../hooks/useSettings';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { useFavorites } from '../hooks/useFavorites';
 import { useProfileData } from '../hooks/useProfileData';
-// FIX: Import formatDuration utility function.
-import { getDisplayTitle, mapPartialToFullAnime, formatDuration } from '../utils';
-import { fetchWithRetry, mapJikanToCharacter, fetchAniListDetails } from '../api';
-import { ChevronLeftIcon, StarIcon, PlayIcon, BookmarkIcon, HeartIcon, HeartIconSolid, ShareIcon, FilmIcon, UsersIcon, ThumbsUpIcon, ThumbsDownIcon } from './icons/Icons';
+import { getDisplayTitle, formatDuration, mapPartialToFullAnime } from '../utils';
+import { fetchWithRetry, mapJikanToCharacter, fetchAniListDetails, mapJikanToAnime, isJikanDataArrayResponse } from '../api';
+import { ChevronLeftIcon, StarIcon, PlayIcon, BookmarkIcon, HeartIcon, HeartIconSolid, ShareIcon, FilmIcon, UsersIcon, ThumbsUpIcon, ThumbsDownIcon, ViewListIcon } from './icons/Icons';
+import { useQueue } from '../hooks/useQueue';
+import { useAuth } from '../hooks/useAuth';
+import CharacterModal from './CharacterModal';
 
 interface AnimeDetailPageProps {
     anime: Anime;
     onGoBack: () => void;
+    onGoHome: () => void;
     onWatchNow: (anime: Anime) => void;
     onGenreSelect: (genre: string) => void;
     onStudioSelect: (studio: string) => void;
+    onLoginRequest: (reason: string) => void;
+    breadcrumbsData?: { page: Page; filters: Filter; source?: string };
+    getEpisodeStatus: (animeId: number) => { isNew: boolean; episodeNumber: number | null };
+    onSelectRelated: (anime: Anime, source?: string) => void;
 }
 
 const StatItem: React.FC<{ label: string; value: string | number | null | undefined }> = ({ label, value }) => (
@@ -24,22 +34,35 @@ const StatItem: React.FC<{ label: string; value: string | number | null | undefi
     </div>
 );
 
-const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ anime, onGoBack, onWatchNow, onGenreSelect, onStudioSelect }) => {
+const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ anime, onGoBack, onGoHome, onWatchNow, onGenreSelect, onStudioSelect, onLoginRequest, breadcrumbsData, getEpisodeStatus, onSelectRelated }) => {
     const { settings } = useSettings();
     const { addToWatchlist, isInWatchlist } = useWatchlist();
     const { addFavorite, removeFavorite, isFavorite } = useFavorites();
     const { likeAnime, dislikeAnime, isLiked, isDisliked } = useProfileData();
+    const { addToQueue, removeFromQueue, isInQueue } = useQueue();
+    const { isLoggedIn } = useAuth();
 
     const [fullAnime, setFullAnime] = useState<Anime>(anime);
     const [characters, setCharacters] = useState<Character[]>([]);
-    const [related, setRelated] = useState<(Partial<Anime> & { relationType: string })[]>([]);
+    const [watchOrder, setWatchOrder] = useState<(Partial<Anime> & { relationType: string })[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSynopsisExpanded, setIsSynopsisExpanded] = useState(false);
+    const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
 
     const isFavorited = isFavorite(fullAnime.id);
     const inWatchlist = isInWatchlist(fullAnime.id);
+    const inQueue = isInQueue(fullAnime.id);
     const liked = isLiked(fullAnime.id);
     const disliked = isDisliked(fullAnime.id);
+
+    const modalRoot = document.getElementById('modal-root');
+
+    useEffect(() => {
+        document.body.classList.toggle('modal-zoom-effect-active', !!selectedCharacter);
+        return () => {
+            document.body.classList.remove('modal-zoom-effect-active');
+        };
+    }, [selectedCharacter]);
 
     useEffect(() => {
         window.scrollTo(0, 0);
@@ -54,22 +77,33 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ anime, onGoBack, onWa
 
                 if (fullDetailsRes.ok) {
                     const data = await fullDetailsRes.json();
-                    // Just get more details, but keep the core anime object passed in props
-                    setFullAnime(prev => ({
-                        ...prev,
-                        ...mapPartialToFullAnime(data.data),
-                        views: Math.floor(Math.random() * 5000) + 100, // Mock data
-                        likes: Math.floor(Math.random() * 500) + 10,   // Mock data
-                    }));
+                    const mappedAnime = mapJikanToAnime(data.data);
+                    if (mappedAnime) {
+                        setFullAnime({
+                            ...mappedAnime,
+                            views: Math.floor(Math.random() * 5000) + 100, // Mock data
+                            likes: Math.floor(Math.random() * 500) + 10,   // Mock data
+                        });
+                    }
                 }
                 
                 if (charactersRes.ok) {
                     const data = await charactersRes.json();
-                    setCharacters(data.data.map(mapJikanToCharacter).filter((c: Character | null): c is Character => c !== null));
+                    // FIX: Use type guard to ensure data.data is an array before calling .map(), preventing a potential crash.
+                    if (isJikanDataArrayResponse(data)) {
+                        setCharacters(data.data.map(mapJikanToCharacter).filter((c: Character | null): c is Character => c !== null));
+                    }
                 }
                 
                 if (anilistData) {
-                    setRelated(anilistData.relations);
+                    const allRelations = anilistData.relations;
+                    const orderPreference = ['PARENT STORY', 'PREQUEL', 'SEQUEL', 'SIDE STORY', 'SPIN OFF', 'ALTERNATIVE', 'CHARACTER', 'SUMMARY', 'OTHER'];
+                    allRelations.sort((a: any, b: any) => {
+                        const aIndex = orderPreference.indexOf(a.relationType.toUpperCase().replace(/_/g, ' '));
+                        const bIndex = orderPreference.indexOf(b.relationType.toUpperCase().replace(/_/g, ' '));
+                        return (aIndex === -1 ? 99 : aIndex) - (bIndex === -1 ? 99 : bIndex);
+                    });
+                    setWatchOrder(allRelations);
                 }
 
             } catch (error) { console.error("Failed to fetch details", error); }
@@ -79,25 +113,93 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ anime, onGoBack, onWa
         fetchDetails();
     }, [anime.id]);
 
-    const handleFavoriteToggle = () => isFavorited ? removeFavorite(fullAnime.id, displayTitle) : addFavorite(fullAnime.id, displayTitle);
-    const handleWatchlistToggle = () => inWatchlist ? {} : addToWatchlist(fullAnime, 'Plan to Watch');
+    const handleAuthenticatedAction = (action: () => void, reason: string) => {
+        if (!isLoggedIn) {
+            onLoginRequest(reason);
+        } else {
+            action();
+        }
+    };
+    
+    const handleFavoriteToggle = () => handleAuthenticatedAction(() => isFavorited ? removeFavorite(fullAnime.id, displayTitle) : addFavorite(fullAnime.id, displayTitle), "Please log in to manage your favorites.");
+    const handleWatchlistToggle = () => handleAuthenticatedAction(() => inWatchlist ? {} : addToWatchlist(fullAnime, 'Plan to Watch'), "Please log in to manage your watchlist.");
+    const handleQueueToggle = () => handleAuthenticatedAction(() => {
+        inQueue ? removeFromQueue(fullAnime.id) : addToQueue(fullAnime);
+    }, "Please log in to manage your queue.");
+    const handleLike = () => handleAuthenticatedAction(() => likeAnime(fullAnime.id), "Please log in to rate anime.");
+    const handleDislike = () => handleAuthenticatedAction(() => dislikeAnime(fullAnime.id), "Please log in to rate anime.");
 
     const displayTitle = getDisplayTitle(fullAnime, settings);
     const synopsis = fullAnime.synopsis || '';
     const canExpandSynopsis = synopsis.length > 300;
     const displaySynopsis = canExpandSynopsis && !isSynopsisExpanded ? `${synopsis.substring(0, 300)}...` : synopsis;
+    
+    const mainCharacters = characters.filter(c => c.role === 'Main');
+    const supportingCharacters = characters.filter(c => c.role === 'Supporting');
+
+    const airedDate = useMemo(() => {
+        if (!fullAnime.startDate) return 'N/A';
+        const start = new Date(fullAnime.startDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+        if (!fullAnime.endDate) return `${start} to ?`;
+        const end = new Date(fullAnime.endDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+        if (start === end) return start;
+        return `${start} to ${end}`;
+    }, [fullAnime.startDate, fullAnime.endDate]);
+
+    const { episodeNumber } = getEpisodeStatus(fullAnime.id);
+    const totalEpisodes = fullAnime.totalEpisodes || fullAnime.episodes_count;
+    const releasedEpisodes = episodeNumber;
+    const shouldShowReleasedBadge = (fullAnime.status === 'Ongoing' || fullAnime.status === 'Upcoming');
+
+    const Breadcrumbs: React.FC = () => {
+        if (!breadcrumbsData) return null;
+        const pageToName: Record<string, string> = {
+            'home': 'Home', 'schedule': 'Schedule', 'trending': 'Trending',
+            'top-100': 'Top 100', 'history': 'History', 'beginners': 'For Beginners',
+        };
+        const sourceName = breadcrumbsData.source || pageToName[breadcrumbsData.page] || 'Back';
+        const path: React.ReactNode[] = [];
+
+        path.push(
+            <button key="home" onClick={onGoHome} className="hover:text-[rgb(var(--color-primary-accent))] transition-colors">
+                Home
+            </button>
+        );
+        
+        if (breadcrumbsData.page !== 'home') {
+            path.push(<span key="sep-home" className="mx-2 opacity-50">/</span>);
+            path.push(
+                <button key="source" onClick={onGoBack} className="hover:text-[rgb(var(--color-primary-accent))] transition-colors">
+                    {sourceName}
+                </button>
+            );
+        }
+        
+        path.push(<span key="sep-title" className="mx-2 opacity-50">/</span>);
+        path.push(<span key="title" className="font-semibold truncate">{displayTitle}</span>);
+
+        return (
+            <nav className="flex items-center text-sm text-white bg-black/20 backdrop-blur-sm px-3 py-1.5 rounded-full w-fit flex-wrap">
+                {path}
+            </nav>
+        );
+    };
 
     return (
         <div className="animate-subtle-fade-in-up">
-            <button onClick={onGoBack} className="absolute top-6 left-6 z-20 flex items-center space-x-2 text-white bg-black/30 backdrop-blur-md p-2 rounded-full hover:bg-black/50 transition-colors">
-                <ChevronLeftIcon className="w-6 h-6" />
-            </button>
+            {modalRoot && selectedCharacter && ReactDOM.createPortal(
+                <CharacterModal character={selectedCharacter} onClose={() => setSelectedCharacter(null)} />,
+                modalRoot
+            )}
             <div className="relative h-64 md:h-80 w-full">
                 <img src={fullAnime.bannerImage || fullAnime.thumbnail} alt="" className="absolute inset-0 w-full h-full object-cover opacity-40" />
                 <div className="absolute inset-0 bg-gradient-to-t from-[rgb(var(--bg-gradient-start))] to-transparent"></div>
             </div>
             
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8 -mt-24 relative z-10 pb-12">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8 -mt-32 relative z-10 pb-12">
+                <div className="mb-4">
+                    <Breadcrumbs />
+                </div>
                 <div className="flex flex-col md:flex-row gap-6">
                     <div className="w-48 mx-auto md:mx-0 md:w-56 flex-shrink-0">
                         <img src={fullAnime.thumbnail} alt={displayTitle} className="w-full aspect-[2/3] object-cover rounded-2xl shadow-2xl" />
@@ -111,19 +213,27 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ anime, onGoBack, onWa
                                     {genre}
                                 </button>
                             ))}
+                            {shouldShowReleasedBadge && (totalEpisodes || releasedEpisodes) && (
+                                 <span className="px-3 py-1 text-xs font-semibold rounded-full bg-cyan-500/20 text-cyan-400">
+                                    {releasedEpisodes || 0} / {totalEpisodes || '?'} Episodes Released
+                                </span>
+                            )}
                         </div>
                     </div>
                 </div>
 
-                <div className="mt-6 p-4 bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl rounded-2xl flex flex-col md:flex-row gap-3">
-                    <button onClick={() => onWatchNow(fullAnime)} className="flex-1 flex items-center justify-center gap-2 px-5 py-3 bg-[rgb(var(--color-primary))] text-white rounded-xl font-bold hover:bg-[rgb(var(--color-primary-hover))]"><PlayIcon className="w-6 h-6"/> Watch Now</button>
-                    <div className="flex gap-3">
-                        <button onClick={handleWatchlistToggle} className={`flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold ${inWatchlist ? 'bg-white/20' : 'bg-white/10'}`}><BookmarkIcon className="w-6 h-6"/> {inWatchlist ? 'In List' : 'Add to List'}</button>
-                        <button onClick={handleFavoriteToggle} className={`p-3 rounded-xl ${isFavorited ? 'bg-red-500/20 text-red-400' : 'bg-white/10'}`}><HeartIconSolid className={`w-6 h-6 ${isFavorited ? '' : 'text-white'}`}/></button>
-                        <button onClick={() => likeAnime(fullAnime.id)} className={`p-3 rounded-xl ${liked ? 'bg-green-500/20 text-green-400' : 'bg-white/10 text-white'}`}><ThumbsUpIcon className="w-6 h-6"/></button>
-                        <button onClick={() => dislikeAnime(fullAnime.id)} className={`p-3 rounded-xl ${disliked ? 'bg-orange-500/20 text-orange-400' : 'bg-white/10 text-white'}`}><ThumbsDownIcon className="w-6 h-6"/></button>
-                        <button className="p-3 bg-white/10 text-white rounded-xl"><ShareIcon className="w-6 h-6"/></button>
+                <div className="mt-6 p-4 bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl rounded-2xl flex flex-col gap-3">
+                    <div className="flex flex-col md:flex-row gap-3">
+                        <button onClick={() => onWatchNow(fullAnime)} className="flex-1 flex items-center justify-center gap-2 px-5 py-3 bg-[rgb(var(--color-primary))] text-white rounded-xl font-bold hover:bg-[rgb(var(--color-primary-hover))]"><PlayIcon className="w-6 h-6"/> Watch Now</button>
+                        <div className="flex gap-3">
+                            <button onClick={handleWatchlistToggle} className={`flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold ${inWatchlist ? 'bg-white/20' : 'bg-white/10'}`}><BookmarkIcon className="w-6 h-6"/> {inWatchlist ? 'In List' : 'Add to List'}</button>
+                            <button onClick={handleFavoriteToggle} className={`p-3 rounded-xl ${isFavorited ? 'bg-red-500/20 text-red-400' : 'bg-white/10'}`}><HeartIconSolid className={`w-6 h-6 ${isFavorited ? '' : 'text-white'}`}/></button>
+                            <button onClick={handleLike} className={`p-3 rounded-xl ${liked ? 'bg-green-500/20 text-green-400' : 'bg-white/10 text-white'}`}><ThumbsUpIcon className="w-6 h-6"/></button>
+                            <button onClick={handleDislike} className={`p-3 rounded-xl ${disliked ? 'bg-orange-500/20 text-orange-400' : 'bg-white/10 text-white'}`}><ThumbsDownIcon className="w-6 h-6"/></button>
+                            <button className="p-3 bg-white/10 text-white rounded-xl"><ShareIcon className="w-6 h-6"/></button>
+                        </div>
                     </div>
+                    <button onClick={handleQueueToggle} className="flex items-center justify-center gap-2 px-5 py-3 bg-[rgb(var(--surface-4))] text-[rgb(var(--text-secondary))] rounded-xl font-bold hover:bg-[rgb(var(--surface-3))]"><ViewListIcon className="w-6 h-6"/> {inQueue ? 'In Queue' : 'Add to Queue'}</button>
                 </div>
 
                 <div className="mt-8 space-y-8">
@@ -134,27 +244,57 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ anime, onGoBack, onWa
                     </div>
                     
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                        <StatItem label="Type" value={fullAnime.type} />
-                        <StatItem label="Episodes" value={fullAnime.totalEpisodes} />
-                        <StatItem label="Duration" value={formatDuration(fullAnime.avgEpisodeDuration)} />
+                        <StatItem label="Score" value={fullAnime.rating ? `${fullAnime.rating.toFixed(2)}` : 'N/A'} />
+                        <StatItem label="Rank" value={fullAnime.rank ? `#${fullAnime.rank.toLocaleString()}` : 'N/A'} />
+                        <StatItem label="Popularity" value={fullAnime.popularity ? `#${fullAnime.popularity.toLocaleString()}` : 'N/A'} />
+                        <StatItem label="Members" value={fullAnime.members?.toLocaleString()} />
                         <StatItem label="Status" value={fullAnime.status} />
                         <StatItem label="Season" value={`${fullAnime.season || ''} ${fullAnime.releaseYear || ''}`.trim()} />
-                        <StatItem label="Rating" value={fullAnime.rating?.toFixed(2)} />
+                        <StatItem label="Aired" value={airedDate} />
+                        <StatItem label="Episodes" value={fullAnime.totalEpisodes} />
+                        <StatItem label="Duration" value={formatDuration(fullAnime.avgEpisodeDuration)} />
+                        <StatItem label="Type" value={fullAnime.type} />
+                        <StatItem label="Studio" value={fullAnime.studio} />
+                        <StatItem label="Source" value={fullAnime.source} />
                         <StatItem label="Views" value={fullAnime.views?.toLocaleString()} />
                         <StatItem label="Likes" value={fullAnime.likes?.toLocaleString()} />
-                        <StatItem label="Studio" value={fullAnime.studio} />
                     </div>
 
-                    {related.length > 0 && (
+                    {watchOrder.length > 0 && (
                         <div>
-                            <h3 className="text-xl font-bold text-[rgb(var(--color-primary-accent))] mb-4">Related Seasons & Series</h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                {related.map(item => (
-                                    <div key={item.id} className="group flex items-center gap-3 bg-[rgb(var(--surface-3))/0.5] p-2 rounded-xl hover:bg-[rgb(var(--surface-3))]">
-                                        <img src={item.thumbnail} alt="" className="w-12 h-16 object-cover rounded-md" />
-                                        <div className="flex-1 min-w-0">
-                                            <h4 className="text-sm font-semibold text-[rgb(var(--text-primary))] truncate">{item.title}</h4>
-                                            <p className="text-xs text-[rgb(var(--text-muted))] capitalize">{item.relationType?.toLowerCase().replace(/_/g, ' ')}</p>
+                            <h3 className="text-xl font-bold text-[rgb(var(--color-primary-accent))] mb-4">Watch Order</h3>
+                            <div className="bg-[rgb(var(--surface-3))/0.5] p-4 rounded-xl space-y-4">
+                                {Object.entries(
+                                    watchOrder.reduce((acc, item) => {
+                                        const type = item.relationType.replace(/_/g, ' ');
+                                        if (!acc[type]) acc[type] = [];
+                                        acc[type].push(item);
+                                        return acc;
+                                    }, {} as Record<string, (Partial<Anime> & { relationType: string })[]>)
+                                ).sort((a, b) => {
+                                    const aType = a[0];
+                                    const bType = b[0];
+                                    const orderPreference = ['Parent Story', 'Prequel', 'Sequel', 'Side Story', 'Spin Off', 'Alternative', 'Character', 'Summary', 'Other'];
+                                    const aIndex = orderPreference.indexOf(aType);
+                                    const bIndex = orderPreference.indexOf(bType);
+                                    return (aIndex === -1 ? 99 : aIndex) - (bIndex === -1 ? 99 : bIndex);
+                                }).map(([type, items]) => (
+                                    <div key={type}>
+                                        <h4 className="font-semibold text-md text-[rgb(var(--text-secondary))] mb-2 capitalize">{type.toLowerCase()}</h4>
+                                        <div className="space-y-2">
+                                            {items.map(item => (
+                                                <button
+                                                    key={item.id}
+                                                    onClick={() => onSelectRelated(mapPartialToFullAnime(item as any), 'Watch Order')}
+                                                    className="group w-full flex items-center gap-3 bg-[rgb(var(--surface-4))/0.5] p-2 rounded-lg hover:bg-[rgb(var(--surface-4))] transition-colors text-left"
+                                                >
+                                                    <img src={item.thumbnail} alt={item.title} className="w-12 h-16 object-cover rounded-md flex-shrink-0" />
+                                                    <div className="flex-1 min-w-0">
+                                                        <h5 className="font-semibold text-sm truncate group-hover:text-[rgb(var(--color-primary-accent))] transition-colors">{item.title}</h5>
+                                                        <p className="text-xs text-[rgb(var(--text-muted))] capitalize">{item.type} &bull; {item.status}</p>
+                                                    </div>
+                                                </button>
+                                            ))}
                                         </div>
                                     </div>
                                 ))}
@@ -165,14 +305,32 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ anime, onGoBack, onWa
                     {characters.length > 0 && (
                         <div>
                             <h3 className="text-xl font-bold text-[rgb(var(--color-primary-accent))] mb-4">Characters</h3>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                                {characters.slice(0, 8).map(char => (
-                                    <div key={char.id} className="bg-[rgb(var(--surface-3))/0.5] p-2 rounded-lg text-center">
-                                        <img src={char.image} alt={char.name} className="w-full aspect-[2/3] object-cover rounded-md" />
-                                        <p className="text-xs font-semibold mt-1 truncate">{char.name}</p>
+                            {mainCharacters.length > 0 && (
+                                <div className="mb-6">
+                                    <h4 className="text-lg font-semibold text-[rgb(var(--text-secondary))] mb-3">Main</h4>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                        {mainCharacters.map(char => (
+                                            <button key={char.id} onClick={() => setSelectedCharacter(char)} className="bg-[rgb(var(--surface-3))/0.5] p-2 rounded-lg text-center transition-all duration-300 hover:scale-105 hover:bg-[rgb(var(--surface-3))] focus:outline-none focus:ring-2 focus:ring-[rgb(var(--color-primary))]">
+                                                <img src={char.image} alt={char.name} className="w-full aspect-[2/3] object-cover rounded-md" />
+                                                <p className="text-xs font-semibold mt-1 truncate">{char.name}</p>
+                                            </button>
+                                        ))}
                                     </div>
-                                ))}
-                            </div>
+                                </div>
+                            )}
+                             {supportingCharacters.length > 0 && (
+                                <div>
+                                    <h4 className="text-lg font-semibold text-[rgb(var(--text-secondary))] mb-3">Supporting</h4>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                        {supportingCharacters.map(char => (
+                                            <button key={char.id} onClick={() => setSelectedCharacter(char)} className="bg-[rgb(var(--surface-3))/0.5] p-2 rounded-lg text-center transition-all duration-300 hover:scale-105 hover:bg-[rgb(var(--surface-3))] focus:outline-none focus:ring-2 focus:ring-[rgb(var(--color-primary))]">
+                                                <img src={char.image} alt={char.name} className="w-full aspect-[2/3] object-cover rounded-md" />
+                                                <p className="text-xs font-semibold mt-1 truncate">{char.name}</p>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

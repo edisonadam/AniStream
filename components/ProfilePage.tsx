@@ -5,7 +5,6 @@ import { useProfileData } from '../hooks/useProfileData';
 import { useWatchProgress } from '../hooks/useWatchProgress';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { useToast } from '../hooks/useToast';
-// FIX: Replaced non-existent ClockIcon with HistoryIcon, which is the correct icon component.
 import { ChevronLeftIcon, VerifiedIcon, UserIcon, ShieldCheckIcon, HistoryIcon, CogIcon, RefreshCwIcon, LockClosedIcon, EyeIcon } from './icons/Icons';
 import type { Anime, Settings } from '../types';
 import { COLOR_PRESETS, VIDEO_SERVERS } from '../constants';
@@ -69,7 +68,6 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack }) => {
                     <nav className="space-y-2">
                         <SideNavItem icon={<UserIcon />} label="General" isActive={activeMainTab === 'general'} onClick={() => setActiveMainTab('general')} />
                         <SideNavItem icon={<ShieldCheckIcon />} label="Security" isActive={activeMainTab === 'security'} onClick={() => setActiveMainTab('security')} />
-                        {/* FIX: Replaced non-existent ClockIcon with HistoryIcon. */}
                         <SideNavItem icon={<HistoryIcon />} label="Sessions" isActive={activeMainTab === 'sessions'} onClick={() => setActiveMainTab('sessions')} />
                         <SideNavItem icon={<CogIcon />} label="Preferences" isActive={activeMainTab === 'preferences'} onClick={() => setActiveMainTab('preferences')} />
                         <SideNavItem icon={<RefreshCwIcon />} label="Sync" isActive={activeMainTab === 'sync'} onClick={() => setActiveMainTab('sync')} />
@@ -291,8 +289,8 @@ const PreferencesSection: React.FC = () => {
         }
     };
     const handleClearHistory = () => {
-        if (window.confirm("Are you sure you want to clear your entire watch history? This cannot be undone.")) {
-            clearProgress(); addToast("Watch history cleared.", "success");
+        if (window.confirm("Are you sure you want to clear your entire view history? This cannot be undone.")) {
+            clearProgress(); addToast("View history cleared.", "success");
         }
     };
 
@@ -325,7 +323,7 @@ const PreferencesSection: React.FC = () => {
             </Section>
             <div className="pt-6 flex flex-wrap gap-4">
                 <button onClick={handleRestore} className="px-4 py-2 bg-yellow-500/10 text-yellow-300 rounded-lg font-semibold hover:bg-yellow-500/20">Restore Defaults</button>
-                <button onClick={handleClearHistory} className="px-4 py-2 bg-red-500/10 text-red-300 rounded-lg font-semibold hover:bg-red-500/20">Clear Watch History</button>
+                <button onClick={handleClearHistory} className="px-4 py-2 bg-red-500/10 text-red-300 rounded-lg font-semibold hover:bg-red-500/20">Clear View History</button>
             </div>
         </div>
     );

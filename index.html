@@ -157,7 +157,7 @@
         --logo-glow-2: transparent;
       }
 
-      /* Draggable Scrollbar */
+      /* Fading Scrollbar (WebKit) */
       ::-webkit-scrollbar {
         width: 14px;
       }
@@ -165,19 +165,27 @@
         background: var(--scrollbar-track);
       }
       ::-webkit-scrollbar-thumb {
-        background-color: var(--scrollbar-thumb);
+        background-color: transparent;
         border-radius: 6px;
         border: 3px solid var(--scrollbar-track);
+        background-clip: content-box;
+        transition: background-color 0.5s ease;
+      }
+      body.is-scrolling ::-webkit-scrollbar-thumb,
+      body:hover ::-webkit-scrollbar-thumb {
+        background-color: var(--scrollbar-thumb);
       }
       ::-webkit-scrollbar-thumb:hover {
         background-color: var(--scrollbar-thumb-hover);
       }
 
+      /* Firefox Scrollbar */
       html { 
         scroll-behavior: smooth; 
-        scrollbar-width: thin; /* For Firefox */
-        scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track); /* For Firefox */
+        scrollbar-width: thin;
+        scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
       }
+
       body {
         font-family: 'Inter', sans-serif;
         background-color: rgb(var(--bg-gradient-start));
@@ -532,6 +540,52 @@
 </script>
 </head>
   <body>
+    <noscript>
+      <style>
+        #preloader, #root, #modal-root, #detail-modal-root, #sidebar-root, #goto-top-root, #toast-root, #dropdown-root, #loading-bar-root, #floating-player-root {
+          display: none !important;
+        }
+        body {
+          overflow: hidden;
+          background-color: #0d0d0d;
+        }
+        .js-warning-container {
+          position: fixed;
+          inset: 0;
+          color: white;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 2rem;
+          text-align: center;
+          z-index: 10000;
+        }
+        .js-warning-logo {
+            font-family: 'Inter', sans-serif;
+            font-size: 2.25rem;
+            font-weight: 800;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #fff;
+            text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 15px #2563eb, 0 0 25px #2563eb;
+            margin-bottom: 2rem;
+        }
+        .js-warning-message {
+          font-family: 'Inter', sans-serif;
+          font-size: 1.25rem;
+          line-height: 1.6;
+          max-width: 600px;
+        }
+      </style>
+      <div class="js-warning-container">
+        <div class="js-warning-logo">ANISTREAM</div>
+        <div class="js-warning-message">
+          Sorry, your JavaScript isn't working or is disabled.<br/>
+          Please enable JavaScript in your browser to continue.
+        </div>
+      </div>
+    </noscript>
     <div id="preloader">
       <div class="logo">ANISTREAM</div>
       <div class="spinner"></div>

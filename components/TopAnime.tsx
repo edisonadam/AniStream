@@ -3,6 +3,7 @@ import type { Anime } from '../types';
 import { useSettings } from '../hooks/useSettings';
 import { getDisplayTitle } from '../utils';
 import { ChevronRightIcon, StarIcon } from './icons/Icons';
+import AnimeCard from './AnimeCard';
 
 interface TopAnimeProps {
   animeList: Anime[];
@@ -10,6 +11,7 @@ interface TopAnimeProps {
   onAnimeSelect: (anime: Anime) => void;
   onShowTop100: () => void;
   getEpisodeStatus: (animeId: number) => { isNew: boolean; episodeNumber: number | null };
+  onLoginRequest: (reason: string) => void;
 }
 
 const TopAnimeCardSkeleton: React.FC = () => (
@@ -20,7 +22,7 @@ const TopAnimeCardSkeleton: React.FC = () => (
     </div>
 );
 
-const TopAnime: React.FC<TopAnimeProps> = ({ animeList, isLoading, onAnimeSelect, onShowTop100, getEpisodeStatus }) => {
+const TopAnime: React.FC<TopAnimeProps> = ({ animeList, isLoading, onAnimeSelect, onShowTop100, getEpisodeStatus, onLoginRequest }) => {
   const { settings } = useSettings();
   
   if (isLoading && animeList.length === 0) {
@@ -49,55 +51,17 @@ const TopAnime: React.FC<TopAnimeProps> = ({ animeList, isLoading, onAnimeSelect
 
       <div className="flex gap-6 overflow-x-auto pb-4 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8" style={{ scrollbarWidth: 'thin' }}>
         {animeList.map((anime, index) => {
-          const subDubLabel = anime.hasSub && anime.hasDub ? 'SUB / DUB' : anime.hasSub ? 'SUB' : anime.hasDub ? 'DUB' : null;
-          const { isNew, episodeNumber } = getEpisodeStatus(anime.id);
           return (
-            <div key={anime.id} className="relative flex-shrink-0 w-40 group flex flex-col items-center text-center">
-              <span 
-                  className="text-7xl font-black text-[rgb(var(--surface-3))] transition-colors duration-300 group-hover:text-[rgb(var(--color-primary-accent))] z-0"
-                  style={{ lineHeight: '0.8', textShadow: `0 2px 4px rgba(0,0,0,0.5)` }}
-              >
-                  {index + 1}
-              </span>
-              <div
-                onClick={() => onAnimeSelect(anime)}
-                className="relative aspect-[2/3] w-full rounded-xl shadow-lg cursor-pointer transform transition-transform duration-300 group-hover:scale-105 group-hover:shadow-2xl group-hover:shadow-[rgb(var(--shadow-color))/0.4] z-10 overflow-hidden -mt-8"
-              >
-                <img loading="lazy" src={anime.thumbnail} alt={getDisplayTitle(anime, settings)} className="w-full h-full object-cover" />
-                <div className="absolute top-2 left-2 z-20 flex flex-col items-start gap-1.5">
-                    {isNew && <span className="order-first px-2 py-1 text-xs font-bold rounded-full bg-red-600 text-white animate-pulse">NEW EP</span>}
-                    {anime.status === 'Ongoing' && episodeNumber && (anime.totalEpisodes || anime.episodes_count) && (
-                        <span
-                            className="order-first inline-flex items-center rounded-full bg-cyan-500/20 px-2 py-0.5 text-[10px] font-semibold text-cyan-400 backdrop-blur-md"
-                            title={`Episode ${episodeNumber} of ${anime.totalEpisodes || anime.episodes_count} released`}
-                        >
-                            Ep {episodeNumber} / {anime.totalEpisodes || anime.episodes_count}
-                        </span>
-                    )}
-                    {anime.type && (
-                      <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-black/60 text-white backdrop-blur-md">{anime.type.toUpperCase()}</span>
-                    )}
-                    {subDubLabel && (
-                        <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-black/60 text-white backdrop-blur-md">
-                            {subDubLabel}
-                        </span>
-                    )}
+            <div key={anime.id} className="relative flex-shrink-0 w-48 group flex flex-col items-center text-center">
+                <span 
+                    className="text-8xl font-black text-[rgb(var(--surface-3))] transition-colors duration-300 group-hover:text-[rgb(var(--color-primary-accent))] z-0"
+                    style={{ lineHeight: '0.8', textShadow: `0 2px 4px rgba(0,0,0,0.5)` }}
+                >
+                    {index + 1}
+                </span>
+                <div className="flex-shrink-0 w-40 -mt-10 z-10">
+                    <AnimeCard anime={anime} onSelect={onAnimeSelect} episodeStatus={getEpisodeStatus(anime.id)} onLoginRequest={onLoginRequest} />
                 </div>
-              </div>
-              <div className="mt-3 w-full">
-                  <h3 
-                      onClick={() => onAnimeSelect(anime)}
-                      className="font-bold text-sm text-[rgb(var(--text-primary))] truncate cursor-pointer hover:text-[rgb(var(--color-primary-accent))] transition-colors"
-                  >
-                      {getDisplayTitle(anime, settings)}
-                  </h3>
-                  {anime.rating && (
-                      <div className="flex items-center justify-center gap-1 mt-1 text-xs text-[rgb(var(--color-warning))]">
-                          <StarIcon className="w-3 h-3"/>
-                          <span>{anime.rating.toFixed(2)}</span>
-                      </div>
-                  )}
-              </div>
             </div>
           )
         })}

@@ -1,16 +1,17 @@
 import React, { createContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
-import type { WatchProgressInfo } from '../types';
+import type { WatchProgressInfo, Anime } from '../types';
 import { useAuth } from '../hooks/useAuth';
+import { getCanonicalId } from '../utils';
 
 interface WatchProgressContextType {
   watchProgressList: WatchProgressInfo[];
   updateProgress: (
-    animeId: number, 
+    anime: Anime, 
     currentSeason: number, 
     currentEpisode: number,
     progress: number
   ) => void;
-  getWatchProgress: (animeId: number) => WatchProgressInfo | undefined;
+  getWatchProgress: (anime: Anime) => WatchProgressInfo | undefined;
   clearProgress: () => void;
 }
 
@@ -24,8 +25,6 @@ export const WatchProgressProvider: React.FC<WatchProgressProviderProps> = ({ ch
   const [watchProgressList, setWatchProgressList] = useState<WatchProgressInfo[]>([]);
   const { user } = useAuth();
 
-  // Use a ref to hold the latest watchProgressList. This allows getWatchProgress
-  // to be stable and not cause re-renders in consumers like the Player component.
   const watchProgressListRef = useRef(watchProgressList);
   watchProgressListRef.current = watchProgressList;
 
@@ -38,7 +37,6 @@ export const WatchProgressProvider: React.FC<WatchProgressProviderProps> = ({ ch
         
         if (storedList) {
           const parsedList = JSON.parse(storedList);
-          // Sort by timestamp descending to show the most recent first
           parsedList.sort((a: WatchProgressInfo, b: WatchProgressInfo) => b.timestamp - a.timestamp);
           setWatchProgressList(parsedList);
         } else {
@@ -53,30 +51,41 @@ export const WatchProgressProvider: React.FC<WatchProgressProviderProps> = ({ ch
     }
   }, [user]);
   
-  const getWatchProgress = useCallback((animeId: number) => {
-    // Read from the ref to get the latest list without depending on the state variable itself.
-    return watchProgressListRef.current.find(item => item.animeId === animeId);
-  }, []); // Empty dependency array ensures the function reference is stable
+  const getWatchProgress = useCallback((anime: Anime) => {
+    const canonicalId = getCanonicalId(anime);
+    return watchProgressListRef.current.find(item => item.canonicalId === canonicalId);
+  }, []);
 
   const updateProgress = useCallback((
-    animeId: number, 
+    anime: Anime, 
     currentSeason: number, 
     currentEpisode: number,
     progress: number
   ) => {
     if (!user) return;
     
+    const canonicalId = getCanonicalId(anime);
+
     setWatchProgressList(prevList => {
-      const newList = prevList.filter(item => item.animeId !== animeId);
+      const existingIndex = prevList.findIndex(item => item.canonicalId === canonicalId);
+      let updatedList;
+
       const newItem: WatchProgressInfo = { 
-          animeId, 
+          canonicalId,
+          animeId: anime.id, 
           currentSeason, 
           currentEpisode, 
           progress: Math.min(100, progress), 
           timestamp: Date.now() 
       };
-      
-      const updatedList = [newItem, ...newList];
+
+      if (existingIndex > -1) {
+        // Update existing item and move to front
+        updatedList = [newItem, ...prevList.slice(0, existingIndex), ...prevList.slice(existingIndex + 1)];
+      } else {
+        // Add new item to the front
+        updatedList = [newItem, ...prevList];
+      }
       
       const limitedList = updatedList.slice(0, 50); // Keep history to 50 items
       localStorage.setItem(`watch-progress-${user.uid}`, JSON.stringify(limitedList));

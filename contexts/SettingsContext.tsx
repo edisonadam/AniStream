@@ -13,7 +13,7 @@ const defaultSettings: Settings = {
   anilistUsername: '',
   anilistToken: '',
   autoSyncAniList: false,
-  showWatchHistoryOnHome: true,
+  showViewHistoryOnHome: true,
   showComments: true,
   defaultLanguage: 'sub',
   loadMoreMode: 'manual',

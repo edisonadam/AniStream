@@ -1,18 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { auth } from '../firebase';
 import { 
-    createUserWithEmailAndPassword, 
-    signInWithEmailAndPassword, 
+    type ConfirmationResult,
+    type AuthCredential,
+    createUserWithEmailAndPassword,
     updateProfile,
+    sendEmailVerification,
+    signInWithEmailAndPassword,
+    linkWithCredential,
     GoogleAuthProvider,
     signInWithPopup,
     RecaptchaVerifier,
     signInWithPhoneNumber,
-    sendEmailVerification,
-    sendPasswordResetEmail,
-    linkWithCredential,
-    type ConfirmationResult,
-    type AuthCredential
+    sendPasswordResetEmail
 } from 'firebase/auth';
 import { CloseIcon, GoogleIcon, ChevronLeftIcon } from './icons/Icons';
 import type { CommunityUser } from '../types';
@@ -55,17 +55,42 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, reason }) => {
   const recaptchaContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Ensure reCAPTCHA is ready when phone view is active
-    if (view === 'phone' && phoneStep === 'input' && recaptchaContainerRef.current) {
-        if (!(window as any).recaptchaVerifier) {
-            (window as any).recaptchaVerifier = new RecaptchaVerifier(auth, recaptchaContainerRef.current, {
-                'size': 'invisible',
-                'callback': (response: any) => {
-                    // reCAPTCHA solved, allow signInWithPhoneNumber.
-                }
-            });
+    // Lazily load and initialize reCAPTCHA when phone view is active
+    const initRecaptcha = () => {
+      try {
+        // RecaptchaVerifier is now imported statically.
+        // Ensure it's not already initialized and the container exists
+        if (!(window as any).recaptchaVerifier && recaptchaContainerRef.current) {
+          (window as any).recaptchaVerifier = new RecaptchaVerifier(auth, recaptchaContainerRef.current, {
+            'size': 'invisible',
+            'callback': () => {
+              // This callback is for an invisible reCAPTCHA and is often triggered automatically.
+            },
+          });
+          (window as any).recaptchaVerifier.render();
         }
+      } catch (e) {
+        console.error("Error initializing reCAPTCHA:", e);
+        setError("Could not initialize phone sign-in. Please try another method.");
+      }
+    };
+    
+    if (view === 'phone' && phoneStep === 'input') {
+      initRecaptcha();
     }
+
+    // Cleanup function to clear the verifier when the component unmounts or view changes
+    return () => {
+      const verifier = (window as any).recaptchaVerifier;
+      if (verifier) {
+        try {
+          verifier.clear();
+        } catch (e) {
+            // It might throw an error if it's already been cleared or the widget is gone, which is fine.
+            console.warn('reCAPTCHA cleanup failed, this may happen on fast re-renders.', e);
+        }
+      }
+    };
   }, [view, phoneStep]);
 
   const handleTabChange = (newTab: 'login' | 'signup') => {
@@ -187,11 +212,21 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, reason }) => {
       setError('');
       try {
           const verifier = (window as any).recaptchaVerifier;
+          if (!verifier) {
+            setError("reCAPTCHA is not ready. Please wait a moment and try again.");
+            setIsLoading(false);
+            return;
+          }
           const result = await signInWithPhoneNumber(auth, phoneNumber, verifier);
           setConfirmationResult(result);
           setPhoneStep('verify');
       } catch (err: any) {
           setError(err.message.replace('Firebase: ', ''));
+          // Reset verifier on error
+          if ((window as any).recaptchaVerifier) {
+            (window as any).recaptchaVerifier.clear();
+            delete (window as any).recaptchaVerifier;
+          }
       } finally {
           setIsLoading(false);
       }
@@ -372,7 +407,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, reason }) => {
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center animate-cinematic-fade-in">
-      <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-2xl border border-white/10 rounded-[2rem] shadow-2xl shadow-[rgb(var(--shadow-color))/0.5] w-full max-w-md m-4 p-8 relative transform transition-all animate-subtle-fade-in-up">
+      <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-2xl border border-white/10 rounded-[2rem] shadow-2xl shadow-[rgb(var(--shadow-color))/0.5] w-full max-w-md m-4 p-8 relative animate-modal-pop-in">
         <button onClick={onClose} className="absolute top-4 right-4 text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))]">
           <CloseIcon />
         </button>

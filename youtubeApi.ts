@@ -11,7 +11,8 @@ export function loadYouTubeAPI(): Promise<void> {
 
   apiPromise = new Promise((resolve, reject) => {
     // Check if the API is already loaded by a previous call
-    if (window.YT && window.YT.Player) {
+    // FIX: Cast window to any to access YT property for YouTube IFrame API
+    if ((window as any).YT && (window as any).YT.Player) {
       resolve();
       return;
     }

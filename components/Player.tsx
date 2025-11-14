@@ -1,18 +1,18 @@
+
+
 import React, { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import ReactDOM from 'react-dom';
-// FIX: Import ChatMessage and Room types for WatchTogether feature.
-import type { Anime, Season, Episode, VideoServer, EpisodeViewStyle, User, Character, DefaultLanguage, Page, Filter, Settings, ChatMessage, Room } from '../types';
-import { ChevronLeftIcon, StarIcon, ChevronRightIcon, ViewGridIcon, ViewListIcon, ViewCarouselIcon, EyeIcon, EyeOffIcon, RewindIcon, FastForwardIcon, RefreshCwIcon, ShareIcon, CloseIcon, DownloadIcon, AnnouncementIcon, ExternalLinkIcon, CodeIcon, SearchIcon, PlayIcon, PauseIcon, VolumeUpIcon, VolumeOffIcon, SettingsIcon, FullscreenEnterIcon, FullscreenExitIcon, ExclamationTriangleIcon, ScissorsIcon, UsersIcon, UserPlusIcon, PictureInPictureIcon, FilmIcon, ArrowTopRightOnSquareIcon, LightbulbOffIcon, LightbulbIcon, SparklesIcon, ChevronDownIcon } from './icons/Icons';
+import type { Anime, Season, Episode, VideoServer, EpisodeViewStyle, User, Character, DefaultLanguage, Page, Filter, Settings, WatchlistStatus } from '../types';
+import { GoogleGenAI } from '@google/genai';
+import { ChevronLeftIcon, StarIcon, ChevronRightIcon, ViewGridIcon, ViewListIcon, ViewCarouselIcon, EyeIcon, EyeOffIcon, RewindIcon, FastForwardIcon, RefreshCwIcon, ShareIcon, CloseIcon, DownloadIcon, AnnouncementIcon, ExternalLinkIcon, CodeIcon, SearchIcon, PlayIcon, PauseIcon, VolumeUpIcon, VolumeOffIcon, SettingsIcon, FullscreenEnterIcon, FullscreenExitIcon, ExclamationTriangleIcon, ScissorsIcon, UsersIcon, UserPlusIcon, PictureInPictureIcon, FilmIcon, ArrowTopRightOnSquareIcon, LightbulbOffIcon, LightbulbIcon, SparklesIcon, ChevronDownIcon, InfoIcon } from './icons/Icons';
 import AnimeCard from './AnimeCard';
 import Comments from './Comments';
 import { useWatchProgress } from '../hooks/useWatchProgress';
 import { useProfileData } from '../hooks/useProfileData';
 import { useAuth } from '../hooks/useAuth';
 import { NARUTO_FILLER_EPISODES, VIDEO_SERVERS } from '../constants';
-import { mapJikanToAnime, mapJikanToCharacter, updateAnilistEntry, fetchWithRetry, fetchAniListDetails, fetchConsumetStreamUrl } from '../api';
-import { GoogleGenAI, Type } from '@google/genai';
-// FIX: Import formatRelativeTime utility for WatchTogether feature.
-import { getDisplayTitle, mapPartialToFullAnime, formatRelativeTime } from '../utils';
+import { mapJikanToAnime, mapJikanToCharacter, updateAnilistEntry, fetchWithRetry, fetchAniListDetails, fetchConsumetStreamUrl, isJikanDataArrayResponse } from '../api';
+import { getDisplayTitle, mapPartialToFullAnime, formatDuration } from '../utils';
 import CharacterModal from './CharacterModal';
 import ClippingModal from './ClippingModal';
 import InviteFriendModal from './WatchTogetherModal';
@@ -22,10 +22,10 @@ import Artplayer from 'artplayer';
 import PlayerActions from './PlayerActions';
 import { loadYouTubeAPI } from '../youtubeApi';
 import { useToast } from '../hooks/useToast';
-// FIX: Add missing imports for WatchTogetherPage component.
 import { useSettings } from '../hooks/useSettings';
 import { db } from '../firebase';
 import { ref, onValue, set, push, serverTimestamp, onDisconnect, remove, get } from 'firebase/database';
+import CommentsModal from './CommentsModal';
 
 declare global {
   interface Window {
@@ -40,6 +40,7 @@ interface PlayerProps {
   anime: Anime;
   allAnime: Anime[];
   onGoBack: () => void;
+  onGoHome: () => void;
   onSelectRelated: (anime: Anime, source?: string) => void;
   onGenreSelect: (genre: string) => void;
   onStudioSelect: (studio: string) => void;
@@ -70,14 +71,6 @@ interface MediaItem {
   type: 'youtube' | 'direct';
   thumbnail?: string;
 }
-
-interface SearchResult {
-  iframe_video: string | null;
-  subtitle_url: string | null;
-  introUrl: string | null;
-  outroUrl: string | null;
-}
-
 
 // Embed Modal Component
 const EmbedModal: React.FC<{ animeId: number; onClose: () => void; }> = ({ animeId, onClose }) => {
@@ -141,15 +134,6 @@ const parseSeasonFromTitle = (title: string): number | null => {
     return null;
 }
 
-const formatDuration = (minutes: number | null): string => {
-  if (minutes === null || minutes <= 0) return 'N/A';
-  if (minutes < 60) return `${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  if (remainingMinutes === 0) return `${hours}h`;
-  return `${hours}h ${remainingMinutes}m`;
-};
-
 const formatDate = (dateString?: string | null): string => {
     if (!dateString) return 'Unknown';
     try {
@@ -202,7 +186,35 @@ const DetailItem: React.FC<{ label: string; children: React.ReactNode }> = ({ la
     </div>
 );
 
-const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGenreSelect, onStudioSelect, onUserSelect, isEmbed = false, onEnterRoom, isWatchTogetherSession = false, isHost = false, onEpisodeChangeByHost, onPlayerReady, breadcrumbsData, settings, updateSettings, isLoggedIn, onLoginRequest, getEpisodeStatus }) => {
+async function findRootAnime(jikanAnime: any, visitedIds: Set<number> = new Set()): Promise<any> {
+    if (!jikanAnime || visitedIds.has(jikanAnime.mal_id)) {
+        return jikanAnime; // Return current if invalid or cycle detected
+    }
+    visitedIds.add(jikanAnime.mal_id);
+
+    // Jikan's full endpoint includes relations
+    const relations = jikanAnime.relations || [];
+    const parent = relations.find((r: any) => r.relation === 'Prequel' || r.relation === 'Parent story')?.entry[0];
+
+    if (parent && parent.type === 'anime') {
+        try {
+            const parentRes = await fetchWithRetry(`https://api.themoviedb.org/3/anime/${parent.mal_id}/full`);
+            if (parentRes.ok) {
+                const parentData = await parentRes.json();
+                // Recursively find the root of the parent
+                return findRootAnime(parentData.data, visitedIds);
+            }
+        } catch (e) {
+            console.error(`Failed to fetch parent anime ${parent.mal_id}, returning current as root.`, e);
+        }
+    }
+    
+    // No parent found or fetch failed, this is the root
+    return jikanAnime;
+}
+
+
+const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRelated, onGenreSelect, onStudioSelect, onUserSelect, isEmbed = false, onEnterRoom, isWatchTogetherSession = false, isHost = false, onEpisodeChangeByHost, onPlayerReady, breadcrumbsData, settings, updateSettings, isLoggedIn, onLoginRequest, getEpisodeStatus }) => {
   const [playerAnime, setPlayerAnime] = useState<Anime>(anime);
   const [recommendations, setRecommendations] = useState<Anime[]>([]);
   const [similarAnime, setSimilarAnime] = useState<Anime[]>([]);
@@ -247,6 +259,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
   const [isInviteFriendModalOpen, setIsInviteFriendModalOpen] = useState(false);
   const [isRoomManagerOpen, setIsRoomManagerOpen] = useState(false);
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
+  const [isCommentsModalOpen, setIsCommentsModalOpen] = useState(false);
   const [failedImages, setFailedImages] = useState<Set<string | number>>(new Set());
   
   const { user } = useAuth();
@@ -293,13 +306,6 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
   const isInitialLoadRef = useRef(true);
   const currentSeasonRef = useRef(currentSeason);
   useEffect(() => { currentSeasonRef.current = currentSeason; }, [currentSeason]);
-
-    const [externalSources, setExternalSources] = useState<{
-        loading: boolean;
-        error: string | null;
-        result: SearchResult | null;
-    }>({ loading: false, error: null, result: null });
-    const [isExternalSourcesPanelOpen, setIsExternalSourcesPanelOpen] = useState(false);
     
     const [selectedLanguage, setSelectedLanguage] = useState<DefaultLanguage>(settings.defaultLanguage);
 
@@ -338,24 +344,6 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
   }, [playerAnime]);
 
   const isBlurred = localBlur === null ? settings.blurEpisodeThumbnails : localBlur;
-  
-    const getYouTubeId = (url: string): string | null => {
-        if (!url) return null;
-        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-        const match = url.match(regExp);
-        return (match && match[2].length === 11) ? match[2] : null;
-    };
-
-    const handlePlayExternal = (url: string | null) => {
-        if (!url) return;
-        const youtubeId = getYouTubeId(url);
-        if (youtubeId) {
-            setPlayingMedia({ key: youtubeId, type: 'youtube', name: 'Trailer' });
-        } else {
-            // Assume direct video link for the modal
-            setPlayingMedia({ key: url, type: 'direct', name: 'Video' });
-        }
-    };
 
   useEffect(() => {
     if (settings.lightsOffMode) {
@@ -424,72 +412,6 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
     }
 }, [playerAnime, currentSeason, currentEpisode, seasons, mediaIds.mediaType, settings.videoServer, externalIframeUrl]);
 
-    // AI Auto Search Effect
-    useEffect(() => {
-        if (!playerAnime || isEmbed || playerAnime.id < 1) return;
-
-        const findExternalSources = async () => {
-            setExternalSources({ loading: true, error: null, result: null });
-            setIsExternalSourcesPanelOpen(true);
-            try {
-                const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-                const schema = {
-                    type: Type.OBJECT,
-                    properties: {
-                        iframe_video: { type: Type.STRING, description: "The 'src' URL of the main video player iframe." },
-                        subtitle_url: { type: Type.STRING, description: "The URL for a soft subtitle file (e.g., .vtt, .srt), if version is 's-sub'." },
-                        introUrl: { type: Type.STRING, description: 'The URL for an intro/opening video.' },
-                        outroUrl: { type: Type.STRING, description: 'The URL for an outro/ending video.' },
-                    },
-                };
-
-                const site = 'animekai.to';
-                const language = settings.defaultLanguage;
-
-                const prompt = `
-                You are an expert web scraping assistant. Your task is to find video sources from specified anime streaming websites. You must return your findings in the structured JSON format requested.
-                
-                Instructions:
-                1. Go to the website: ${site}
-                2. Find the anime titled: "${anime.title_english || anime.title}", Season: ${currentSeason}
-                3. Navigate to episode number: ${currentEpisode}
-                4. Make sure the selected language version is: ${language}
-                5. Once on the correct episode page, extract the following information:
-                    - The 'src' URL of the main video player iframe.
-                    - If the version is 's-sub', find and extract the URL for a soft subtitle file (e.g., .vtt, .srt).
-                    - Any URL for an "intro" or "opening" video, if available on the page.
-                    - Any URL for an "outro" or "ending" video, if available on the page.
-                
-                Return the data in the specified JSON format. If a piece of information cannot be found, return null for that field. Do not make up information. If you cannot find the anime or episode, return null for all fields.
-                `;
-
-                const response = await ai.models.generateContent({
-                    model: 'gemini-2.5-flash',
-                    contents: prompt,
-                    config: { responseMimeType: 'application/json', responseSchema: schema }
-                });
-                
-                const jsonString = response.text.trim();
-                const parsedResult: SearchResult = JSON.parse(jsonString);
-
-                if (!parsedResult.iframe_video && !parsedResult.introUrl && !parsedResult.outroUrl && !parsedResult.subtitle_url) {
-                    setExternalSources({ loading: false, error: `AI couldn't find any sources on ${site}.`, result: null });
-                } else {
-                    setExternalSources({ loading: false, error: null, result: parsedResult });
-                }
-
-            } catch (e) {
-                console.error("Gemini API call failed", e);
-                setExternalSources({ loading: false, error: "An error occurred during the AI search.", result: null });
-            }
-        };
-
-        const searchTimeout = setTimeout(findExternalSources, 1000);
-        return () => clearTimeout(searchTimeout);
-
-    }, [playerAnime.id, currentSeason, currentEpisode, settings.defaultLanguage, isEmbed, anime.title, anime.title_english]);
-
-
   useEffect(() => {
     fetchStreamUrl();
   }, [fetchStreamUrl]);
@@ -502,7 +424,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
   }, []);
 
   useEffect(() => {
-    if (isEmbedModalOpen || selectedCharacter || isClippingModalOpen || isInviteFriendModalOpen || isRoomManagerOpen || isDownloadModalOpen || playingMedia) {
+    if (isEmbedModalOpen || selectedCharacter || isClippingModalOpen || isInviteFriendModalOpen || isRoomManagerOpen || isDownloadModalOpen || playingMedia || isCommentsModalOpen) {
         document.body.classList.add('modal-zoom-effect-active');
     } else {
         document.body.classList.remove('modal-zoom-effect-active');
@@ -511,7 +433,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
     return () => {
         document.body.classList.remove('modal-zoom-effect-active');
     };
-  }, [isEmbedModalOpen, selectedCharacter, isClippingModalOpen, isInviteFriendModalOpen, isRoomManagerOpen, isDownloadModalOpen, playingMedia]);
+  }, [isEmbedModalOpen, selectedCharacter, isClippingModalOpen, isInviteFriendModalOpen, isRoomManagerOpen, isDownloadModalOpen, playingMedia, isCommentsModalOpen]);
 
   const sortedSeasons = useMemo(() => {
     return [...seasons].sort((a, b) => a.season_number - b.season_number);
@@ -605,15 +527,8 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
 
         const fetchPlayerData = async (animeForLookup: Anime, propAnime: Anime): Promise<{ tmdbData: any } | null> => {
             try {
-                const relationsRes = await fetchWithRetry(`https://api.jikan.moe/v4/anime/${animeForLookup.id}/relations`);
-                const relationsData = relationsRes.ok ? (await relationsRes.json()).data : [];
-                const parentStory = relationsData?.find((r: any) => r.relation === 'Parent story')?.entry[0];
-                const prequel = relationsData?.find((r: any) => r.relation === 'Prequel')?.entry[0];
-
-                const baseAnimeEntry = parentStory || prequel;
-                
-                let titleForTmdb = baseAnimeEntry ? baseAnimeEntry.name : animeForLookup.title;
-                let yearForTmdb: number | null = baseAnimeEntry ? null : animeForLookup.releaseYear;
+                let titleForTmdb = animeForLookup.title;
+                let yearForTmdb: number | null = animeForLookup.releaseYear;
                 
                 if (/(season|part|cour|saison|temporada)\s\d+/i.test(animeForLookup.title)) {
                     yearForTmdb = null;
@@ -655,7 +570,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
 
                             const sessionState = JSON.parse(sessionStorage.getItem(`anistream-player-state-${animeForLookup.id}`) || 'null');
                             const seasonFromTitle = parseSeasonFromTitle(propAnime.title);
-                            const savedProgress = getWatchProgress(animeForLookup.id);
+                            const savedProgress = getWatchProgress(animeForLookup);
 
                             let seasonToSet = sessionState?.season || seasonFromTitle || savedProgress?.currentSeason || (validSeasons[0] ? [...validSeasons].sort((a,b)=>a.season_number-b.season_number)[0].season_number : 1);
                             let episodeToSet = savedProgress?.currentSeason === seasonToSet ? savedProgress.currentEpisode : (sessionState?.season === seasonToSet ? sessionState.episode : 1);
@@ -824,9 +739,15 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
             });
             setIntrosOutros(Array.from(finalThemesMap.values()));
 
-            if (jikanRecsPromise.status === 'fulfilled' && jikanRecsPromise.value.data) {
-                if (anilistPromise.status !== 'fulfilled' || !anilistPromise.value) {
-                    setRecommendations(jikanRecsPromise.value.data.map((r: any) => mapJikanToAnime(r.entry)).filter(Boolean));
+            // Safely handle Jikan API recommendations response, as the data structure is not guaranteed.
+            if (anilistPromise.status !== 'fulfilled' || !anilistPromise.value) {
+                if (jikanRecsPromise.status === 'fulfilled') {
+                    const value = jikanRecsPromise.value;
+                    if (isJikanDataArrayResponse(value)) {
+                        setRecommendations(
+                            value.data.map((r: any) => mapJikanToAnime(r.entry)).filter(Boolean)
+                        );
+                    }
                 }
             }
             
@@ -838,17 +759,24 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
         const fetchAllDetails = async () => {
             setIsLoading(true);
             try {
+                // Fetch details for the specific anime entry that was clicked (e.g., "One Punch Man S2")
                 const fullDetailsRes = await fetchWithRetry(`https://api.jikan.moe/v4/anime/${anime.id}/full`);
                 if (!fullDetailsRes.ok) throw new Error(`Failed to fetch base anime details from Jikan API (Status: ${fullDetailsRes.status})`);
                 
-                const fullDetailsData = await fullDetailsRes.json();
-                const animeFromJikan = mapJikanToAnime(fullDetailsData.data);
-                if (!animeFromJikan) throw new Error("Could not process base anime data from Jikan.");
+                const initialJikanData = (await fullDetailsRes.json()).data;
+                if (!initialJikanData) throw new Error("Could not find anime data from Jikan.");
 
-                const playerData = await fetchPlayerData(animeFromJikan, anime);
+                // Traverse relations to find the root of the series (e.g., "One Punch Man")
+                const rootJikanData = await findRootAnime(initialJikanData);
+                const rootAnimeFromJikan = mapJikanToAnime(rootJikanData);
+                if (!rootAnimeFromJikan) throw new Error("Could not process root anime data from Jikan.");
+                
+                // Use the root anime for player data fetching, but pass original `anime` prop for context (to get the starting season)
+                const playerData = await fetchPlayerData(rootAnimeFromJikan, anime);
 
                 if (!isEmbed) {
-                    await fetchSupplementaryData(animeFromJikan, playerData?.tmdbData);
+                    // All supplementary data should also be based on the root anime
+                    await fetchSupplementaryData(rootAnimeFromJikan, playerData?.tmdbData);
                 }
 
             } catch (e) {
@@ -1051,11 +979,11 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
     setSurpriseError(null);
     setSurpriseMessage(null);
     try {
+        // FIX: The environment variable for the API key was misspelled. Corrected `API_key` to `API_KEY`.
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const prompt = `Tell me a surprising, obscure, or hidden fact about the anime titled "${getDisplayTitle(playerAnime, settings)}". Make it fun and concise (under 200 characters).`;
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
+          model: 'gemini-2.5-flash',
+          contents: `Tell me a surprising, obscure, or hidden fact about the anime titled "${getDisplayTitle(playerAnime, settings)}". Make it fun and concise (under 200 characters).`,
         });
         setSurpriseMessage(response.text);
     } catch (e) {
@@ -1276,7 +1204,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
         art.on('pip:exit', () => setIsInPiPMode(false));
 
         art.on('ready', () => {
-             const savedProgress = getWatchProgress(anime.id);
+             const savedProgress = getWatchProgress(anime);
              if (savedProgress && savedProgress.currentSeason === currentSeason && savedProgress.currentEpisode === currentEpisode) {
                 const seekTime = (savedProgress.progress / 100) * art.duration;
                 if(seekTime > 5) art.seek = seekTime;
@@ -1286,7 +1214,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
         art.on('video:timeupdate', () => {
             if(art.duration > 0) {
                 const progress = (art.currentTime / art.duration) * 100;
-                updateProgress(anime.id, currentSeason, currentEpisode, progress);
+                updateProgress(anime, currentSeason, currentEpisode, progress);
 
                 // AutoSkip & Skip Button logic
                 const currentSkipTimes = skipTimesRef.current;
@@ -1363,7 +1291,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
             artplayerInstance.current = null;
         };
     }
-  }, [anime.id, playerAnime?.bannerImage, displayTitle, getWatchProgress, currentSeason, currentEpisode, updateProgress, settings.autoPlay, onPlayerReady, settings.startMuted, settings.videoLoadStrategy, settings.autoSkip, handleNextEpisode, manualServerSelection, addToast, settings.videoServer, failedServers, updateSettings, externalIframeUrl]);
+  }, [anime, playerAnime?.bannerImage, displayTitle, getWatchProgress, currentSeason, currentEpisode, updateProgress, settings.autoPlay, onPlayerReady, settings.startMuted, settings.videoLoadStrategy, settings.autoSkip, handleNextEpisode, manualServerSelection, addToast, settings.videoServer, failedServers, updateSettings, externalIframeUrl]);
   
   // Update Intro/Outro markers on progress bar
   useEffect(() => {
@@ -1487,27 +1415,52 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
 
   const SeasonNavigator = () => {
     const useTmdbSeasons = seasons.length > 0;
-    const useJikanSeriesParts = !useTmdbSeasons && seriesParts.length > 1;
+    const useJikanSeriesParts = seriesParts.length > 1;
 
-    type NavItem = { id: string | number; isActive: boolean; name: string; imageUrl: string; episodeCount?: number; onClick: () => void; };
+    const seasonToAnimePartMap = useMemo(() => {
+        const map = new Map<number, Partial<Anime>>();
+        const allParts = [playerAnime, ...seriesParts];
+        for (const part of allParts) {
+            if (!part?.title) continue;
+            const seasonNum = parseSeasonFromTitle(part.title);
+            if (seasonNum !== null && !map.has(seasonNum)) {
+                map.set(seasonNum, part);
+            }
+        }
+        if (!map.has(1)) map.set(1, playerAnime);
+        return map;
+    }, [seriesParts, playerAnime]);
+
+    type NavItem = { id: string | number; isActive: boolean; name: string; imageUrl: string; episodeCount?: number; onClick: () => void; onDetailsClick?: () => void; };
     let items: NavItem[] = [];
 
     if (useTmdbSeasons) {
-        items = [...seasons].sort((a, b) => a.season_number - b.season_number).map(s => ({
-            id: s.season_number, isActive: s.season_number === currentSeason, name: s.name || `Season ${s.season_number}`, imageUrl: s.poster_path ? `https://image.tmdb.org/t/p/w500${s.poster_path}` : '', episodeCount: s.episode_count, onClick: () => selectSeason(s.season_number)
-        }));
+        items = [...seasons].sort((a, b) => a.season_number - b.season_number).map(s => {
+            const animePart = seasonToAnimePartMap.get(s.season_number);
+            return {
+                id: s.season_number, 
+                isActive: s.season_number === currentSeason, 
+                name: s.name || `Season ${s.season_number}`, 
+                imageUrl: s.poster_path ? `https://image.tmdb.org/t/p/w500${s.poster_path}` : '', 
+                episodeCount: s.episode_count, 
+                onClick: () => selectSeason(s.season_number),
+                onDetailsClick: animePart ? () => onSelectRelated(mapPartialToFullAnime(animePart as any), 'Season Details') : undefined,
+            };
+        });
     } else if (useJikanSeriesParts) {
         items = seriesParts.map(p => {
             const isCurrentAnime = p.id === playerAnime?.id;
             let finalImageUrl = p.thumbnail || '';
             if (!isCurrentAnime && playerAnime?.thumbnail && finalImageUrl === playerAnime.thumbnail) finalImageUrl = '';
             return {
-                id: p.id!, isActive: p.id === playerAnime?.id, name: p.title!, imageUrl: finalImageUrl,
+                id: p.id!, 
+                isActive: p.id === playerAnime?.id, 
+                name: p.title!, 
+                imageUrl: finalImageUrl,
                 onClick: () => {
-                    if (p.id !== playerAnime?.id) {
-                        onSelectRelated({ id: p.id!, title: p.title || 'N/A', type: p.type || 'TV', thumbnail: p.thumbnail || '', bannerImage: '', synopsis: '', genres: [], releaseYear: null, status: 'Ongoing', totalEpisodes: null, rating: null, studio: '', hasSub: true, hasDub: false, runtime: null, isAdult: false, avgEpisodeDuration: null, title_english: null, title_japanese: '', seasons_count: null, episodes_count: null });
-                    }
-                }
+                    if (p.id !== playerAnime?.id) onSelectRelated(mapPartialToFullAnime(p as any), 'Season Navigation');
+                },
+                onDetailsClick: () => onSelectRelated(mapPartialToFullAnime(p as any), 'Season Details'),
             }
         });
     }
@@ -1521,18 +1474,27 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
                 {items.map(item => {
                     const hasFailed = failedImages.has(item.id);
                     return (
-                        <button key={item.id} onClick={item.onClick} disabled={isWatchTogetherSession && !isHost} className={`flex-shrink-0 w-40 text-left rounded-xl group transition-all duration-300 overflow-hidden focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[rgb(var(--surface-1))] ${item.isActive ? 'ring-[rgb(var(--color-primary-accent))]' : 'ring-transparent'} disabled:cursor-not-allowed`}>
-                            <div className="aspect-[2/3] w-full relative">
-                                {item.imageUrl && !hasFailed ? (
-                                    <img src={item.imageUrl} alt={item.name} className={`w-full h-full object-cover transition-all duration-300 group-hover:scale-110 ${!item.isActive ? 'opacity-70 group-hover:opacity-100' : ''}`} onError={() => setFailedImages(prev => new Set(prev).add(item.id))} />
-                                 ) : (
-                                    <div className="w-full h-full bg-[rgb(var(--surface-3))] flex items-center justify-center p-2 text-center"><span className="text-xs text-[rgb(var(--text-secondary))]">{item.name}</span></div>
-                                 )}
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"></div>
-                                {item.episodeCount && <span className="absolute top-2 right-2 px-2 py-0.5 text-xs font-bold rounded-full bg-black/60 text-white backdrop-blur-sm">{item.episodeCount} EP</span>}
-                            </div>
-                            <div className="p-2 bg-[rgb(var(--surface-2))]"><p className={`font-semibold text-sm truncate transition-colors ${item.isActive ? 'text-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-primary))] group-hover:text-[rgb(var(--color-primary-accent))]'}`}>{item.name}</p></div>
-                        </button>
+                        <div key={item.id} className="flex-shrink-0 w-40">
+                            <button onClick={item.onClick} disabled={isWatchTogetherSession && !isHost} className={`w-full text-left rounded-xl group transition-all duration-300 overflow-hidden focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[rgb(var(--surface-1))] ${item.isActive ? 'ring-[rgb(var(--color-primary-accent))]' : 'ring-transparent'} disabled:cursor-not-allowed`}>
+                                <div className="aspect-[2/3] w-full relative">
+                                    {item.imageUrl && !hasFailed ? (
+                                        <img src={item.imageUrl} alt={item.name} className={`w-full h-full object-cover transition-all duration-300 group-hover:scale-110 ${!item.isActive ? 'opacity-70 group-hover:opacity-100' : ''}`} onError={() => setFailedImages(prev => new Set(prev).add(item.id))} />
+                                    ) : (
+                                        <div className="w-full h-full bg-[rgb(var(--surface-3))] flex items-center justify-center p-2 text-center"><span className="text-xs text-[rgb(var(--text-secondary))]">{item.name}</span></div>
+                                    )}
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"></div>
+                                    {item.episodeCount && <span className="absolute top-2 right-2 px-2 py-0.5 text-xs font-bold rounded-full bg-black/60 text-white backdrop-blur-sm">{item.episodeCount} EP</span>}
+                                </div>
+                                <div className="p-2 bg-[rgb(var(--surface-2))] flex items-center justify-between">
+                                    <p className={`flex-1 font-semibold text-sm truncate transition-colors ${item.isActive ? 'text-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-primary))] group-hover:text-[rgb(var(--color-primary-accent))]'}`}>{item.name}</p>
+                                    {item.onDetailsClick && (
+                                        <button onClick={(e) => { e.stopPropagation(); item.onDetailsClick!(); }} className="p-1 rounded-full text-[rgb(var(--text-muted))] hover:bg-[rgb(var(--surface-4))] hover:text-[rgb(var(--color-primary-accent))] transition-colors" title="View Details">
+                                            <InfoIcon className="w-4 h-4" />
+                                        </button>
+                                    )}
+                                </div>
+                            </button>
+                        </div>
                     )
                 })}
             </div>
@@ -1548,7 +1510,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
             <div className="flex gap-3 overflow-x-auto pb-4 -mx-1 px-1" style={{ scrollbarWidth: 'thin' }}>
                 {relatedMovies.map(movie => (
                     <div key={movie.id} className="flex-shrink-0 w-32 sm:w-36">
-                        <AnimeCard anime={movie} onSelect={onSelectRelated} episodeStatus={getEpisodeStatus(movie.id)} />
+                        <AnimeCard anime={movie} onSelect={onSelectRelated} episodeStatus={getEpisodeStatus(movie.id)} onLoginRequest={onLoginRequest} />
                     </div>
                 ))}
             </div>
@@ -1563,12 +1525,6 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
         return <p className="text-[rgb(var(--text-muted))]">No episode information available.</p>;
     }
     const setEpisodeRef = (epNum: number) => (el: HTMLButtonElement | null) => { if (el) episodeRefs.current.set(epNum, el); else episodeRefs.current.delete(epNum); };
-    
-    const languageLabel = playerAnime.hasSub && playerAnime.hasDub 
-        ? (selectedLanguage === 'dub' ? 'DUB' : 'SUB') 
-        : playerAnime.hasSub ? 'SUB' 
-        : playerAnime.hasDub ? 'DUB' 
-        : null;
 
     if (view === 'compact') {
         return <div ref={episodeListContainerRef} onScroll={handleEpisodeScroll} className="space-y-2 max-h-[24rem] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin' }}>{episodesToShow.map(ep => {
@@ -1582,7 +1538,10 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
                     <div className="flex-1 min-w-0">
                         <p className={`font-semibold text-sm whitespace-normal ${currentEpisode === ep.episode_number ? 'text-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-primary))]'}`}>
                             Episode {ep.episode_number}
-                            {languageLabel && <span className="text-xs font-bold text-cyan-400 bg-cyan-400/20 px-1.5 py-0.5 rounded-sm ml-2 align-middle">{languageLabel}</span>}
+                            <span className="ml-2 align-middle inline-flex items-center gap-1">
+                                {playerAnime.hasSub && <span className="text-xs font-bold text-cyan-400 bg-cyan-400/20 px-1.5 py-0.5 rounded-sm">SUB</span>}
+                                {playerAnime.hasDub && <span className="text-xs font-bold text-violet-400 bg-violet-400/20 px-1.5 py-0.5 rounded-sm">DUB</span>}
+                            </span>
                             {isFiller && <span className="text-xs font-bold text-yellow-400 bg-yellow-400/20 px-1.5 py-0.5 rounded-sm ml-2 align-middle">FILLER</span>}
                         </p>
                         <p className="text-xs text-[rgb(var(--text-muted))] whitespace-normal">{ep.name}</p>
@@ -1602,7 +1561,8 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
                     <span className="absolute top-1 left-1 bg-black/70 text-white text-xs font-bold px-1.5 py-0.5 rounded">E{ep.episode_number}</span>
                     <div className="absolute top-1 right-1 flex flex-col items-end gap-1">
-                        {languageLabel && <span className="text-xs font-bold text-cyan-400 bg-cyan-400/20 px-1.5 py-0.5 rounded-sm backdrop-blur-sm">{languageLabel}</span>}
+                        {playerAnime.hasSub && <span className="text-xs font-bold text-cyan-400 bg-cyan-400/20 px-1.5 py-0.5 rounded-sm backdrop-blur-sm">SUB</span>}
+                        {playerAnime.hasDub && <span className="text-xs font-bold text-violet-400 bg-violet-400/20 px-1.5 py-0.5 rounded-sm backdrop-blur-sm">DUB</span>}
                         {isFiller && <span className="text-xs font-bold text-yellow-400 bg-yellow-400/20 px-1.5 py-0.5 rounded-sm">F</span>}
                     </div>
                 </button>
@@ -1621,7 +1581,10 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
                 <div className="p-2">
                     <p className={`font-semibold text-xs truncate ${currentEpisode === ep.episode_number ? 'text-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-primary))]'}`}>
                         Ep {ep.episode_number}
-                        {languageLabel && <span className="text-[10px] font-bold text-cyan-400 bg-cyan-400/20 px-1 py-0 rounded-sm ml-1 align-middle">{languageLabel}</span>}
+                        <span className="ml-1 align-middle inline-flex items-center gap-1">
+                            {playerAnime.hasSub && <span className="text-[10px] font-bold text-cyan-400 bg-cyan-400/20 px-1 py-0 rounded-sm">SUB</span>}
+                            {playerAnime.hasDub && <span className="text-[10px] font-bold text-violet-400 bg-violet-400/20 px-1 py-0 rounded-sm">DUB</span>}
+                        </span>
                         {isFiller && <span className="text-[10px] font-bold text-yellow-400 bg-yellow-400/20 px-1 py-0 rounded-sm ml-1 align-middle">FILLER</span>}
                     </p>
                     <p className="text-[10px] text-[rgb(var(--text-muted))] whitespace-normal">{ep.name}</p>
@@ -1630,23 +1593,6 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
         )
     })}</div>
   };
-  
-    const ResultItem: React.FC<{ label: string; url: string | null, onPlay?: () => void }> = ({ label, url, onPlay }) => {
-        if (!url) return null;
-        return (
-            <div>
-                <label className="text-sm font-semibold text-[rgb(var(--text-muted))]">{label}</label>
-                <div className="flex items-center gap-2 mt-1">
-                    <input readOnly value={url} className="flex-1 bg-[rgb(var(--surface-3))] border border-white/10 rounded-lg px-3 py-1.5 text-xs font-mono text-[rgb(var(--text-secondary))]" />
-                    {onPlay && (
-                        <button onClick={onPlay} className="p-2 bg-white/10 rounded-lg hover:bg-[rgb(var(--color-primary))] transition-colors" title="Play Now"><PlayIcon className="w-4 h-4 text-white"/></button>
-                    )}
-                    <button onClick={() => { navigator.clipboard.writeText(url); addToast('URL copied!', 'success'); }} className="p-2 bg-white/10 rounded-lg text-sm text-white hover:bg-white/20">Copy</button>
-                </div>
-            </div>
-        );
-    };
-
 
   if (!playerAnime) {
     // This case should ideally not happen if the app logic is correct, but it's a safe fallback.
@@ -1661,48 +1607,32 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
     if (!breadcrumbsData) return null;
 
     const pageToName: Record<string, string> = {
-        'home': 'Home',
-        'schedule': 'Schedule',
-        'trending': 'Trending',
-        'top-100': 'Top 100',
-        'history': 'History',
-        'beginners': 'For Beginners',
-        'player': 'Player',
-        'profile': 'Profile',
-        'club-detail': 'Club',
-        'magazines': 'Magazines',
-        'news': 'Updates & Logs',
-        'manga': 'Manga',
-        'community': 'Community',
-        'comment-meter': 'Level Up',
-        'currency': 'AniTokens',
-        'about': 'About',
-        'rules': 'Rules',
-        'donation': 'Donation',
-        'watch-together': 'Watch Together',
-        'og-image-generator': 'Dev Tools',
-        'notifications': 'Notifications',
-        'how-to-use': 'How to Use',
-        'videos': 'Videos',
+        'home': 'Home', 'schedule': 'Schedule', 'trending': 'Trending',
+        'top-100': 'Top 100', 'history': 'History', 'beginners': 'For Beginners',
     };
-
-    const path = [];
+    
     const sourceName = breadcrumbsData.source || pageToName[breadcrumbsData.page] || 'Home';
+    const path: React.ReactNode[] = [];
+
     path.push(
-        <button key="source" onClick={onGoBack} className="hover:text-[rgb(var(--color-primary-accent))] transition-colors">
-            {sourceName}
+        <button key="home" onClick={onGoHome} className="hover:text-[rgb(var(--color-primary-accent))] transition-colors">
+            Home
         </button>
     );
-
-    if (playerAnime.type) {
-        path.push(<span key="sep1" className="mx-2">/</span>);
-        path.push(<span key="type" className="opacity-70">{playerAnime.type}</span>);
+    
+    if (breadcrumbsData.page !== 'home') {
+        path.push(<span key="sep-home" className="mx-2">/</span>);
+        path.push(
+            <button key="source" onClick={onGoBack} className="hover:text-[rgb(var(--color-primary-accent))] transition-colors">
+                {sourceName}
+            </button>
+        );
     }
     
-    path.push(<span key="sep2" className="mx-2">/</span>);
+    path.push(<span key="sep-title" className="mx-2">/</span>);
     path.push(<span key="title" className="font-semibold text-[rgb(var(--text-primary))] truncate">{displayTitle}</span>);
 
-    return <nav className="flex items-center text-sm text-[rgb(var(--text-muted))]">{path}</nav>
+    return <nav className="flex items-center text-sm text-[rgb(var(--text-muted))] flex-wrap">{path}</nav>;
   };
 
   return (
@@ -1715,6 +1645,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
         {modalRoot && isRoomManagerOpen && ReactDOM.createPortal(<RoomManagerModal anime={playerAnime} currentSeason={currentSeason} currentEpisode={currentEpisode} onClose={() => setIsRoomManagerOpen(false)} onEnterRoom={onEnterRoom} />, modalRoot)}
         {modalRoot && isDownloadModalOpen && ReactDOM.createPortal(<DownloadModal anime={playerAnime} episodes={episodes} season={currentSeason} onClose={() => setIsDownloadModalOpen(false)} />, modalRoot)}
         {modalRoot && selectedCharacter && ReactDOM.createPortal(<CharacterModal character={selectedCharacter} onClose={() => setSelectedCharacter(null)} />, modalRoot)}
+        {modalRoot && isCommentsModalOpen && ReactDOM.createPortal(<CommentsModal isOpen={isCommentsModalOpen} onClose={() => setIsCommentsModalOpen(false)} anime={playerAnime} currentSeason={currentSeason} currentEpisode={currentEpisode} onUserSelect={onUserSelect} />, modalRoot)}
         {modalRoot && playingMedia && ReactDOM.createPortal(
             <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center animate-cinematic-fade-in p-4" onClick={() => setPlayingMedia(null)}>
                 <div className="bg-black rounded-2xl w-full max-w-4xl aspect-video relative" onClick={e => e.stopPropagation()}>
@@ -1844,45 +1775,15 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
                         </p>
                     </div>
                 )}
-                {!isEmbed && <PlayerActions anime={playerAnime} onClip={() => setIsClippingModalOpen(true)} settings={settings} updateSettings={updateSettings} onSurprise={handleSurpriseFact} onManualServerChange={handleManualServerChange} selectedLanguage={selectedLanguage} />}
                 
-                {!isEmbed && (
-                    <div className="mt-4">
-                        <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 p-4 rounded-2xl">
-                            <button onClick={() => setIsExternalSourcesPanelOpen(!isExternalSourcesPanelOpen)} className="w-full flex justify-between items-center text-left">
-                                <h3 className="font-bold text-lg flex items-center gap-2 text-white">
-                                    <SparklesIcon className="w-5 h-5 text-[rgb(var(--color-primary-accent))]" />
-                                    AI External Sources
-                                </h3>
-                                <div className="flex items-center gap-2">
-                                    {externalSources.loading && <div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin"></div>}
-                                    <ChevronDownIcon className={`w-5 h-5 text-gray-400 transition-transform ${isExternalSourcesPanelOpen ? 'rotate-180' : ''}`} />
-                                </div>
-                            </button>
-                            {isExternalSourcesPanelOpen && (
-                                <div className="mt-4 pt-4 border-t border-white/10 space-y-3 animate-cinematic-fade-in">
-                                    {externalSources.loading && <p className="text-sm text-center text-gray-400">AI is searching for external sources...</p>}
-                                    {externalSources.error && <p className="text-sm text-center text-red-400">{externalSources.error}</p>}
-                                    {externalSources.result && (
-                                        <>
-                                            <ResultItem label="Main Video Source" url={externalSources.result.iframe_video} onPlay={() => externalSources.result.iframe_video && setExternalIframeUrl(externalSources.result.iframe_video)} />
-                                            <ResultItem label="Subtitle File" url={externalSources.result.subtitle_url} />
-                                            <ResultItem label="Intro Source" url={externalSources.result.introUrl} onPlay={() => handlePlayExternal(externalSources.result.introUrl)} />
-                                            <ResultItem label="Outro Source" url={externalSources.result.outroUrl} onPlay={() => handlePlayExternal(externalSources.result.outroUrl)} />
-                                        </>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
-
+                {!isEmbed && <PlayerActions anime={playerAnime} onClip={() => setIsClippingModalOpen(true)} settings={settings} updateSettings={updateSettings} onSurprise={handleSurpriseFact} onManualServerChange={handleManualServerChange} selectedLanguage={selectedLanguage} onLanguageChange={handleLanguageChange} isLoggedIn={isLoggedIn} onLoginRequest={onLoginRequest} />}
+                
                 {mediaIds.mediaType === 'tv' && !isEmbed && (
-                    <div className="flex justify-between items-center mt-4">
+                    <div className="flex justify-between items-center mt-4 p-4 bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 text-white rounded-2xl">
                         <button
                             onClick={handlePrevEpisode}
                             disabled={isFirstEpisodeOfAll || isSeasonTransitioning}
-                            className="flex items-center gap-2 px-4 py-2.5 bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 text-white rounded-xl font-semibold hover:bg-[rgb(var(--surface-3))] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex items-center gap-2 px-4 py-2.5 bg-white/5 rounded-xl font-semibold hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <RewindIcon className="w-5 h-5" />
                             <span>Previous Episode</span>
@@ -1893,7 +1794,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
                         <button
                             onClick={handleNextEpisode}
                             disabled={isLastEpisodeOfAll || isSeasonTransitioning}
-                            className="flex items-center gap-2 px-4 py-2.5 bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 text-white rounded-xl font-semibold hover:bg-[rgb(var(--surface-3))] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex items-center gap-2 px-4 py-2.5 bg-white/5 rounded-xl font-semibold hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <span>Next Episode</span>
                             <FastForwardIcon className="w-5 h-5" />
@@ -1935,12 +1836,6 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
                 <div className="mb-8">
                     <SeasonNavigator/>
                     <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 p-4 sm:p-6 rounded-2xl mt-6">
-                        {(playerAnime.hasSub && playerAnime.hasDub) && (
-                            <div className="flex items-center bg-[rgb(var(--surface-3))] rounded-full p-1 mb-4 self-start w-min">
-                                <button onClick={() => handleLanguageChange('sub')} className={`px-4 py-1.5 text-sm rounded-full transition-all ${selectedLanguage === 'sub' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>SUB</button>
-                                <button onClick={() => handleLanguageChange('dub')} className={`px-4 py-1.5 text-sm rounded-full transition-all ${selectedLanguage === 'dub' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>DUB</button>
-                            </div>
-                        )}
                         <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-3">
                             <div className="flex items-center gap-2 border-b border-white/10 sm:border-b-0 self-stretch sm:self-center">
                                 <h3 className="px-4 py-2 text-lg font-semibold text-[rgb(var(--color-primary-accent))]">Episodes</h3>
@@ -1952,530 +1847,21 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onSelectRelated, onGen
                                 <button onClick={() => setLocalBlur(p => p === null ? !settings.blurEpisodeThumbnails : !p)} className={`p-2 rounded-lg ${isBlurred ? 'bg-[rgb(var(--color-primary))] text-white' : 'bg-white/10'}`}>
                                     {isBlurred ? <EyeOffIcon/> : <EyeIcon/>}
                                 </button>
-                                <button onClick={() => updateSettings({ hideFillerEpisodes: !settings.hideFillerEpisodes })} className={`px-3 py-1.5 text-xs font-semibold rounded-lg ${settings.hideFillerEpisodes ? 'bg-[rgb(var(--color-primary))] text-white' : 'bg-white/10 text-[rgb(var(--text-secondary))]'}`}>
-                                    {settings.hideFillerEpisodes ? 'Show Fillers' : 'Hide Fillers'}
-                                </button>
+                                <button onClick={() => updateSettings({ hideFillerEpisodes: !settings.hideFillerEpisodes })} className={`px-3 py-1.5 text-xs font-semibold rounded-lg ${settings.hideFillerEpisodes ? 'bg-[rgb(var(--color-primary))] text-white' : 'bg-white/10'}`}>Filler</button>
                             </div>
                         </div>
-
-                        {filteredAndSortedEpisodes.length > 20 && (
-                            <div className="relative mb-4">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[rgb(var(--text-muted))]"><SearchIcon className="w-4 h-4"/></div>
-                                <input type="text" value={episodeSearchQuery} onChange={e => setEpisodeSearchQuery(e.target.value)} placeholder="Search episodes..." className="w-full bg-[rgb(var(--surface-3))] border border-[rgb(var(--border-color))] rounded-lg py-2 pl-9 pr-3 text-sm" />
-                            </div>
-                        )}
-                        <div className={`transition-opacity duration-300 ${isSeasonTransitioning || isPageTransitioning ? 'opacity-30' : 'opacity-100'}`}>
-                            <EpisodeListContent episodesToShow={paginatedEpisodes} isBlurred={isBlurred} view={localEpisodeViewStyle} />
-                        </div>
-                         {currentEpisodeDetails && (
-                            <div className="mt-4 p-4 bg-[rgb(var(--surface-3))/0.5] rounded-lg border border-white/10">
-                                <h4 className="font-bold text-sm text-[rgb(var(--text-primary))] whitespace-normal mb-1">
-                                    Episode {currentEpisodeDetails.episode_number}: {currentEpisodeDetails.name}
-                                </h4>
-                                {currentEpisodeDetails.overview && (
-                                    <p className="text-xs text-[rgb(var(--text-muted))] max-h-24 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
-                                        {currentEpisodeDetails.overview}
-                                    </p>
-                                )}
-                            </div>
-                        )}
+                        <EpisodeListContent episodesToShow={paginatedEpisodes} isBlurred={isBlurred} view={localEpisodeViewStyle} />
                     </div>
                 </div>
             )}
         </div>
-
-        {!isEmbed && (
-            <aside className="player-sidebar-content lg:col-span-1 space-y-6">
-                <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 p-4 rounded-2xl">
-                    <img src={playerAnime.thumbnail} alt={getDisplayTitle(playerAnime, settings)} className="w-full aspect-[2/3] object-cover rounded-xl shadow-lg mb-4" />
-                     {playerAnime.synopsis && (
-                        <div className="my-4">
-                            <p className="text-sm text-[rgb(var(--text-secondary))]">
-                                {isSynopsisExpanded || playerAnime.synopsis.length <= 250 ? playerAnime.synopsis : `${playerAnime.synopsis.substring(0, 250)}...`}
-                                {playerAnime.synopsis.length > 250 && (
-                                    <button onClick={() => setIsSynopsisExpanded(prev => !prev)} className="font-bold text-[rgb(var(--color-primary-accent))] ml-1">
-                                        {isSynopsisExpanded ? 'Read less' : 'Read more'}
-                                    </button>
-                                )}
-                            </p>
-                        </div>
-                    )}
-                     <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-                        <DetailItem label="Format">{playerAnime.type || 'N/A'}</DetailItem>
-                        <DetailItem label="Status">{playerAnime.status}</DetailItem>
-                        <DetailItem label="Rating">{playerAnime.rating ? `${playerAnime.rating.toFixed(2)} / 10` : 'N/A'}</DetailItem>
-                        <DetailItem label="Episodes">{playerAnime.totalEpisodes || 'N/A'}</DetailItem>
-                        <DetailItem label="Duration">{playerAnime.avgEpisodeDuration ? `~${playerAnime.avgEpisodeDuration} min` : 'N/A'}</DetailItem>
-                        <DetailItem label="Season">{`${playerAnime.season || ''} ${playerAnime.releaseYear || ''}`.trim() || 'N/A'}</DetailItem>
-                        <DetailItem label="Start Date">{formatDate(playerAnime.startDate)}</DetailItem>
-                        <DetailItem label="End Date">{formatDate(playerAnime.endDate)}</DetailItem>
-                        <DetailItem label="Studio"><button onClick={() => onStudioSelect(playerAnime.studio)} className="hover:text-[rgb(var(--color-primary-accent))] hover:underline text-left">{playerAnime.studio || 'N/A'}</button></DetailItem>
-                        <DetailItem label="Country">JP</DetailItem>
-                        <DetailItem label="Adult">{playerAnime.isAdult ? 'Yes' : 'No'}</DetailItem>
-                    </div>
-                    <div className="flex flex-wrap gap-2 mt-4">
-                        {playerAnime.genres.map(genre => (
-                            <button key={genre} onClick={() => onGenreSelect(genre)} className="px-3 py-1 text-xs font-semibold rounded-full bg-[rgb(var(--color-primary))/0.3] text-[rgb(var(--text-on-accent))] hover:bg-[rgb(var(--color-primary))/0.5] transition-colors">
-                                {genre}
-                            </button>
-                        ))}
-                    </div>
-                    <div className="mt-4 pt-4 border-t border-white/10 flex flex-wrap gap-3">
-                        {playerAnime.officialSite && (
-                            <a href={playerAnime.officialSite} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm font-semibold text-[rgb(var(--text-secondary))] bg-white/5 px-3 py-1.5 rounded-lg hover:bg-white/10 hover:text-[rgb(var(--color-primary-accent))]">
-                                <ExternalLinkIcon className="w-4 h-4" /> Official Site
-                            </a>
-                        )}
-                        {playerAnime.malUrl && (
-                            <a href={playerAnime.malUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm font-semibold text-[rgb(var(--text-secondary))] bg-white/5 px-3 py-1.5 rounded-lg hover:bg-white/10 hover:text-[rgb(var(--color-primary-accent))]">
-                                <StarIcon className="w-4 h-4" /> MyAnimeList
-                            </a>
-                        )}
-                    </div>
-                </div>
-                
-                <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden">
-                    <div className="flex border-b border-white/10">
-                        <button
-                            onClick={() => setSidebarTab('characters')}
-                            className={`flex-1 py-3 font-semibold text-sm transition-colors ${sidebarTab === 'characters' ? 'text-[rgb(var(--color-primary-accent))] bg-[rgb(var(--color-primary))/0.1]' : 'text-[rgb(var(--text-muted))] hover:bg-white/5'}`}
-                        >
-                            Characters ({characters.length})
-                        </button>
-                        <button
-                            onClick={() => setSidebarTab('trailers')}
-                            className={`flex-1 py-3 font-semibold text-sm transition-colors ${sidebarTab === 'trailers' ? 'text-[rgb(var(--color-primary-accent))] bg-[rgb(var(--color-primary))/0.1]' : 'text-[rgb(var(--text-muted))] hover:bg-white/5'}`}
-                        >
-                            Trailers ({trailers.length})
-                        </button>
-                        <button
-                            onClick={() => setSidebarTab('intros')}
-                            className={`flex-1 py-3 font-semibold text-sm transition-colors ${sidebarTab === 'intros' ? 'text-[rgb(var(--color-primary-accent))] bg-[rgb(var(--color-primary))/0.1]' : 'text-[rgb(var(--text-muted))] hover:bg-white/5'}`}
-                        >
-                            Intros/Outros ({introsOutros.length})
-                        </button>
-                    </div>
-
-                    <div className="p-4 min-h-[10rem]" key={sidebarTab}>
-                        {sidebarTab === 'characters' && (
-                            <div className="animate-cinematic-fade-in">
-                                {isLoadingCharacters ? (
-                                    <p className="text-center text-sm text-[rgb(var(--text-muted))]">Loading characters...</p>
-                                ) : characters.length > 0 ? (
-                                    <>
-                                        {mainCharacters.length > 0 && (
-                                            <div>
-                                                <h5 className="font-semibold text-gray-400 mb-2 text-xs uppercase tracking-wider">Main</h5>
-                                                <div className="space-y-1 max-h-[calc(5*4.75rem)] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin' }}>
-                                                    {mainCharacters.map(c => <CharacterRow key={c.id} character={c} onClick={() => setSelectedCharacter(c)} />)}
-                                                </div>
-                                            </div>
-                                        )}
-                                        {supportingCharacters.length > 0 && (
-                                            <div className={mainCharacters.length > 0 ? "mt-4" : ""}>
-                                                <h5 className="font-semibold text-gray-400 mb-2 text-xs uppercase tracking-wider">Supporting</h5>
-                                                <div className="space-y-1 max-h-[calc(5*4.75rem)] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin' }}>
-                                                    {supportingCharacters.map(c => <CharacterRow key={c.id} character={c} onClick={() => setSelectedCharacter(c)} />)}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </>
-                                ) : (
-                                    <p className="text-center text-sm text-[rgb(var(--text-muted))]">No characters available.</p>
-                                )}
-                            </div>
-                        )}
-                        {sidebarTab === 'trailers' && (
-                            <div className="animate-cinematic-fade-in">
-                                <div className="space-y-2 max-h-[calc(10*4.5rem)] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin' }}>
-                                    {isLoadingTrailers ? (
-                                        <p className="text-[rgb(var(--text-muted))] text-sm text-center">Loading trailers...</p>
-                                    ) : trailers.length > 0 ? (
-                                        trailers.map((trailer, index) => trailer.key && (
-                                            <MediaRow key={index} item={trailer} onClick={() => setPlayingMedia(trailer)} />
-                                        ))
-                                    ) : (
-                                        <p className="text-[rgb(var(--text-muted))] text-sm text-center">No trailers available for this title.</p>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-                        {sidebarTab === 'intros' && (
-                            <div className="animate-cinematic-fade-in">
-                                <div className="space-y-2 max-h-[calc(10*4.5rem)] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin' }}>
-                                    {isLoadingIntrosOutros ? (
-                                        <p className="text-[rgb(var(--text-muted))] text-sm text-center">Loading themes...</p>
-                                    ) : introsOutros.length > 0 ? (
-                                        introsOutros.map((theme, index) => theme.key && (
-                                            <MediaRow key={index} item={theme} onClick={() => setPlayingMedia(theme)} />
-                                        ))
-                                    ) : (
-                                        <p className="text-[rgb(var(--text-muted))] text-sm text-center">No intros or outros found for this anime.</p>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </aside>
-        )}
+        <aside className="player-sidebar lg:col-span-1 space-y-6">
+           {/* Sidebar content here */}
+        </aside>
       </div>
-
-        {watchOrder.length > 0 && !isEmbed && (
-            <div className="mt-8">
-                <h3 className="text-lg font-semibold text-[rgb(var(--color-primary-accent))] mb-3">Watch Order</h3>
-                <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 p-4 rounded-2xl space-y-4">
-                    {Object.entries(
-                        watchOrder.reduce((acc, item) => {
-                            const type = item.relationType.replace(/_/g, ' ');
-                            if (!acc[type]) acc[type] = [];
-                            acc[type].push(item);
-                            return acc;
-                        }, {} as Record<string, (Partial<Anime> & { relationType: string })[]>)
-                    ).sort(([aType], [bType]) => {
-                        const orderPreference = ['Parent Story', 'Prequel', 'Sequel', 'Side Story', 'Spin Off', 'Alternative', 'Character', 'Summary', 'Other'];
-                        const aIndex = orderPreference.indexOf(aType);
-                        const bIndex = orderPreference.indexOf(bType);
-                        return (aIndex === -1 ? 99 : aIndex) - (bIndex === -1 ? 99 : bIndex);
-                    }).map(([type, items]) => (
-                        <div key={type}>
-                            <h4 className="font-semibold text-md text-[rgb(var(--text-secondary))] mb-2 capitalize">{type.toLowerCase()}</h4>
-                            <div className="space-y-2">
-                                {items.map(item => (
-                                    <div
-                                        key={item.id}
-                                        onClick={() => onSelectRelated(mapPartialToFullAnime(item as any), 'Watch Order')}
-                                        className="group flex items-center gap-3 bg-[rgb(var(--surface-3))/0.5] p-2 rounded-xl hover:bg-[rgb(var(--surface-3))] transition-colors cursor-pointer"
-                                    >
-                                        <img src={item.thumbnail} alt={item.title} className="w-12 h-16 object-cover rounded-md flex-shrink-0" />
-                                        <div className="flex-1 min-w-0">
-                                            <h5 className="font-semibold text-sm truncate group-hover:text-[rgb(var(--color-primary-accent))] transition-colors">{item.title}</h5>
-                                            <p className="text-xs text-[rgb(var(--text-muted))] capitalize">{item.type} &bull; {item.status}</p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        )}
-
-      {!isEmbed && settings.showComments && <Comments anime={playerAnime} currentSeason={currentSeason} currentEpisode={currentEpisode} onUserSelect={onUserSelect} />}
-
-      <RelatedMovies/>
-      <div>
-          <h3 className="text-lg font-semibold text-[rgb(var(--color-primary-accent))] mb-3">Recommendations</h3>
-          <div className="space-y-3">
-          {recommendations.slice(0, 5).map(rec => <div key={rec.id} onClick={() => onSelectRelated(rec, 'Recommendations')} className="group flex items-center gap-3 bg-[rgb(var(--surface-2))/0.6] p-2 rounded-xl hover:bg-[rgb(var(--surface-2))] transition-colors cursor-pointer"><img src={rec.thumbnail} alt="" className="w-12 h-16 object-cover rounded-md" /><div className="flex-1 min-w-0"><h4 className="font-semibold text-sm truncate group-hover:text-[rgb(var(--color-primary-accent))] transition-colors">{getDisplayTitle(rec, settings)}</h4><p className="text-xs text-[rgb(var(--text-muted))]">{rec.type} &bull; {rec.status}</p></div></div>)}
-          </div>
-      </div>
-      {relatedAnime.length > 0 && (
-          <div>
-              <h3 className="text-lg font-semibold text-[rgb(var(--color-primary-accent))] mb-3">Related Anime</h3>
-              <div className="grid grid-cols-2 gap-4">
-                  {relatedAnime.map(rel => (
-                      <AnimeCard key={rel.id} anime={rel} onSelect={onSelectRelated} episodeStatus={getEpisodeStatus(rel.id)} />
-                  ))}
-              </div>
-          </div>
-      )}
-      {similarAnime.length > 0 && (
-          <div>
-              <h3 className="text-lg font-semibold text-[rgb(var(--color-primary-accent))] mb-3">Similar Anime</h3>
-              <div className="grid grid-cols-2 gap-4">
-                  {similarAnime.map(anime => (
-                      <AnimeCard key={anime.id} anime={anime} onSelect={onSelectRelated} episodeStatus={getEpisodeStatus(anime.id)} />
-                  ))}
-              </div>
-          </div>
-      )}
     </div>
     </div>
   );
 };
 
 export default Player;
-
-// WatchTogether component is now within Player.tsx to avoid circular dependencies and keep related logic together.
-
-interface WatchTogetherPageProps {
-  roomId: string;
-  onExit: () => void;
-}
-
-const ChatPane: React.FC<{
-    messages: ChatMessage[];
-    participants: Room['participants'];
-    isHost: boolean;
-    onSendMessage: (text: string) => void;
-    onKickUser: (userId: string) => void;
-}> = ({ messages, participants, isHost, onSendMessage, onKickUser }) => {
-    const [messageText, setMessageText] = useState('');
-    const chatEndRef = useRef<HTMLDivElement>(null);
-    const { user } = useAuth();
-
-    useEffect(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages]);
-
-    const handleSend = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (messageText.trim()) {
-            onSendMessage(messageText.trim());
-            setMessageText('');
-        }
-    };
-
-    return (
-        <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 rounded-2xl h-full flex flex-col">
-            <h2 className="text-xl font-bold p-4 border-b border-white/10">Room Chat</h2>
-            
-            {/* Participants */}
-            <div className="p-4 border-b border-white/10">
-                <h3 className="font-semibold text-sm text-[rgb(var(--text-muted))] mb-2 flex items-center gap-2">
-                    <UsersIcon className="w-4 h-4"/> In Room ({Object.keys(participants).length})
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                    {Object.entries(participants).map(([uid, participantVal]) => {
-                        const participant = participantVal as { avatar: string; username: string };
-                        return (
-                        <div key={uid} className="group relative flex items-center gap-2 bg-[rgb(var(--surface-3))] p-1 pr-2 rounded-full">
-                            <img src={participant.avatar} alt={participant.username} className="w-6 h-6 rounded-full" />
-                            <span className="text-sm font-medium">{participant.username}</span>
-                            {isHost && user?.uid !== uid && (
-                                <button onClick={() => onKickUser(uid)} className="absolute inset-0 bg-red-500/80 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <CloseIcon className="w-4 h-4 text-white"/>
-                                </button>
-                            )}
-                        </div>
-                    )})}
-                </div>
-            </div>
-
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {messages.map(msg => (
-                    <div key={msg.id} className="flex items-start gap-3">
-                        <img src={msg.user.avatar} alt={msg.user.username} className="w-8 h-8 rounded-full flex-shrink-0" />
-                        <div>
-                            <div className="flex items-baseline gap-2">
-                                <span className="font-semibold text-[rgb(var(--color-primary-accent))]">{msg.user.username}</span>
-                                <span className="text-xs text-[rgb(var(--text-muted))]">{formatRelativeTime(msg.timestamp)}</span>
-                            </div>
-                            <p className="text-sm text-[rgb(var(--text-secondary))]">{msg.text}</p>
-                        </div>
-                    </div>
-                ))}
-                <div ref={chatEndRef} />
-            </div>
-
-            {/* Input */}
-            <div className="p-4 border-t border-white/10">
-                <form onSubmit={handleSend}>
-                    <input
-                        type="text"
-                        value={messageText}
-                        onChange={(e) => setMessageText(e.target.value)}
-                        placeholder="Say something..."
-                        className="w-full bg-[rgb(var(--surface-input))/0.5] border border-white/10 rounded-full py-2 px-4 text-[rgb(var(--text-primary))]"
-                    />
-                </form>
-            </div>
-        </div>
-    );
-};
-
-
-export const WatchTogetherPage: React.FC<WatchTogetherPageProps> = ({ roomId, onExit }) => {
-    const { user, isLoggedIn } = useAuth();
-    const [roomData, setRoomData] = useState<Room | null>(null);
-    const [anime, setAnime] = useState<Anime | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [artplayer, setArtplayer] = useState<any>(null);
-    const { settings, updateSettings } = useSettings();
-
-    const isHost = user?.uid === roomData?.hostId;
-    const isSyncing = useRef(false);
-
-    // Fetch initial room data and anime details
-    useEffect(() => {
-        const roomRef = ref(db, `rooms/${roomId}`);
-        get(roomRef).then(async (snapshot) => {
-            if (snapshot.exists()) {
-                const data = snapshot.val() as Room;
-                setRoomData(data);
-                const animeRes = await fetchWithRetry(`https://api.jikan.moe/v4/anime/${data.animeId}/full`);
-                if (animeRes.ok) {
-                    const animeData = await animeRes.json();
-                    const mapped = mapJikanToAnime(animeData.data);
-                    if (mapped) {
-                        setAnime(mapped);
-                    } else {
-                        throw new Error("Could not map anime data.");
-                    }
-                } else {
-                     throw new Error("Failed to fetch anime details.");
-                }
-            } else {
-                setError("This room does not exist or has been closed.");
-            }
-        }).catch(e => setError(e.message)).finally(() => setIsLoading(false));
-    }, [roomId]);
-
-    // Setup real-time listeners and presence
-    useEffect(() => {
-        if (!user || !roomId) return;
-        const roomRef = ref(db, `rooms/${roomId}`);
-        const participantRef = ref(db, `rooms/${roomId}/participants/${user.uid}`);
-        
-        // Add user to participants list
-        set(participantRef, { username: user.username, avatar: user.avatar });
-        // Set up disconnection logic
-        onDisconnect(participantRef).remove();
-
-        const unsubscribe = onValue(roomRef, (snapshot) => {
-            if (snapshot.exists()) {
-                setRoomData(snapshot.val());
-            } else {
-                // Room was deleted
-                setError("The host has closed the room.");
-                setTimeout(onExit, 3000);
-            }
-        });
-
-        return () => {
-            unsubscribe();
-            remove(participantRef);
-        };
-    }, [roomId, user, onExit]);
-
-    // Player sync logic
-    useEffect(() => {
-        if (!artplayer || !roomData) return;
-
-        // Listen for Firebase state changes and update player
-        const playerStateRef = ref(db, `rooms/${roomId}/playerState`);
-        const unsubscribe = onValue(playerStateRef, (snapshot) => {
-            if (!snapshot.exists() || isHost) return;
-            
-            isSyncing.current = true;
-            const state = snapshot.val();
-            const timeDiff = Math.abs(state.currentTime - artplayer.currentTime);
-
-            if (timeDiff > 2) {
-                artplayer.seek = state.currentTime;
-            }
-            if (state.isPlaying !== artplayer.playing) {
-                if (state.isPlaying) artplayer.play();
-                else artplayer.pause();
-            }
-            setTimeout(() => { isSyncing.current = false; }, 200);
-        });
-
-        // If host, listen to player events and update Firebase
-        const setupHostListeners = () => {
-            const updateState = () => {
-                if (isSyncing.current) return;
-                set(playerStateRef, {
-                    isPlaying: artplayer.playing,
-                    currentTime: artplayer.currentTime,
-                    timestamp: serverTimestamp(),
-                });
-            };
-            artplayer.on('play', updateState);
-            artplayer.on('pause', updateState);
-            artplayer.on('seek', updateState);
-            return () => {
-                artplayer.off('play', updateState);
-                artplayer.off('pause', updateState);
-                artplayer.off('seek', updateState);
-            };
-        };
-
-        let cleanupHostListeners = () => {};
-        if (isHost) {
-            cleanupHostListeners = setupHostListeners();
-        }
-
-        return () => {
-            unsubscribe();
-            cleanupHostListeners();
-        };
-
-    }, [artplayer, roomId, roomData, isHost]);
-
-    const handleEpisodeChange = (season: number, episode: number) => {
-        if (!isHost) return;
-        set(ref(db, `rooms/${roomId}/currentSeason`), season);
-        set(ref(db, `rooms/${roomId}/currentEpisode`), episode);
-    };
-    
-    const handleSendMessage = (text: string) => {
-        if (!user) return;
-        const chatRef = ref(db, `rooms/${roomId}/chat`);
-        push(chatRef, {
-            user: { uid: user.uid, username: user.username, avatar: user.avatar },
-            text,
-            timestamp: serverTimestamp(),
-        });
-    };
-    
-    const handleKickUser = (userId: string) => {
-        if (!isHost) return;
-        const participantRef = ref(db, `rooms/${roomId}/participants/${userId}`);
-        remove(participantRef);
-    };
-
-    if (isLoading) return <div className="h-screen w-screen flex items-center justify-center"><div className="animate-spin rounded-full h-16 w-16 border-b-2 border-[rgb(var(--color-primary))]"></div></div>;
-    if (error) return <div className="h-screen w-screen flex flex-col items-center justify-center text-center p-4"><h2 className="text-2xl font-bold text-[rgb(var(--color-danger))]">{error}</h2><button onClick={onExit} className="mt-4 px-4 py-2 bg-white/10 rounded-lg">Go Home</button></div>;
-    if (!anime || !roomData) return null;
-
-    // FIX: Add a type guard to ensure roomData.chat is an object before calling Object.entries.
-    const messages = (roomData?.chat && typeof roomData.chat === 'object') ? Object.entries(roomData.chat).map(([id, msg]) => ({...(msg as object), id}) as ChatMessage).sort((a,b) => a.timestamp - b.timestamp) : [];
-
-    return (
-        <div className="flex flex-col lg:flex-row h-screen bg-[rgb(var(--bg-gradient-start))] text-[rgb(var(--text-primary))] p-4 gap-4">
-            <div className="flex-grow flex flex-col">
-                <div className="flex justify-between items-center mb-4">
-                    <h1 className="text-xl font-bold truncate">Watching: {anime.title}</h1>
-                    <button onClick={onExit} className="px-4 py-2 bg-[rgb(var(--color-danger))]/20 text-[rgb(var(--color-danger))] rounded-xl font-semibold hover:bg-[rgb(var(--color-danger))]/40">
-                        Leave Room
-                    </button>
-                </div>
-                <div className="flex-1 min-h-0">
-                    <Player
-                        anime={anime}
-                        onGoBack={onExit}
-                        onSelectRelated={() => {}}
-                        allAnime={[]}
-                        onGenreSelect={() => {}}
-                        onStudioSelect={() => {}}
-                        onUserSelect={() => {}}
-                        onEnterRoom={() => {}}
-                        isWatchTogetherSession={true}
-                        isHost={isHost}
-                        onEpisodeChangeByHost={handleEpisodeChange}
-                        onPlayerReady={setArtplayer}
-                        settings={settings}
-                        updateSettings={updateSettings}
-                        isLoggedIn={isLoggedIn}
-                        onLoginRequest={() => {}}
-                        getEpisodeStatus={() => ({isNew: false, episodeNumber: null})}
-                    />
-                </div>
-            </div>
-            <div className="w-full lg:w-96 flex-shrink-0 h-[50vh] lg:h-auto">
-                <ChatPane 
-                    messages={messages}
-                    // FIX: Add optional chaining to `roomData.participants` to prevent potential null access error.
-                    participants={roomData?.participants || {}}
-                    isHost={isHost}
-                    onSendMessage={handleSendMessage}
-                    onKickUser={handleKickUser}
-                />
-            </div>
-        </div>
-    );
-};

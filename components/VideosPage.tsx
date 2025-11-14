@@ -259,7 +259,7 @@ const VideosPage: React.FC<VideosPageProps> = ({ onGoBack, onAnimeSelect }) => {
               <ChevronLeftIcon className="w-6 h-6" /><span>Back</span>
           </button>
           
-          <h1 className="text-3xl font-bold text-[rgb(var(--text-primary))] mb-2" style={{ textShadow: '0 0 8px rgb(var(--shadow-color) / 0.5)' }}>Trailers & Intros/Outros</h1>
+          <h1 className="text-3xl font-bold text-[rgb(var(--text-primary))] mb-2" style={{ textShadow: `0 0 8px rgb(var(--shadow-color) / 0.5)` }}>Trailers & Intros/Outros</h1>
           <p className="text-[rgb(var(--text-muted))] mb-6">Discover the latest promotional videos and theme songs.</p>
           
           <div className="bg-yellow-500/10 border border-yellow-500/30 text-yellow-300 text-sm rounded-xl p-4 mb-8 flex items-center justify-center gap-3" role="alert">
@@ -268,8 +268,14 @@ const VideosPage: React.FC<VideosPageProps> = ({ onGoBack, onAnimeSelect }) => {
           </div>
 
           <div className="flex justify-center border-b border-white/10 mb-8">
-              <button onClick={() => handleTabChange('trailers')} className={`px-6 py-3 text-lg font-semibold transition-colors ${activeTab === 'trailers' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>Trailers</button>
-              <button onClick={() => handleTabChange('intros')} className={`px-6 py-3 text-lg font-semibold transition-colors ${activeTab === 'intros' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>Intros & Outros</button>
+              <button onClick={() => handleTabChange('trailers')} className={`flex items-center gap-2 px-6 py-3 text-lg font-semibold transition-colors ${activeTab === 'trailers' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>
+                Trailers
+                <span className="text-xs font-bold text-yellow-400 bg-yellow-400/20 px-1.5 py-0.5 rounded-sm ml-1 align-middle">SOON</span>
+              </button>
+              <button onClick={() => handleTabChange('intros')} className={`flex items-center gap-2 px-6 py-3 text-lg font-semibold transition-colors ${activeTab === 'intros' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>
+                Intros & Outros
+                <span className="text-xs font-bold text-yellow-400 bg-yellow-400/20 px-1.5 py-0.5 rounded-sm ml-1 align-middle">SOON</span>
+              </button>
           </div>
 
           <div key={activeTab} className="animate-cinematic-fade-in">

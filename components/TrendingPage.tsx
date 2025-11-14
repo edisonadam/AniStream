@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { Anime } from '../types';
-import { mapJikanToAnime, fetchWithRetry } from '../api';
+import { mapConsumetTrendingToAnime, fetchWithRetry } from '../api';
 import AnimeCardSkeleton from './AnimeCardSkeleton';
 import AnimeCard from './AnimeCard';
 import { useSettings } from '../hooks/useSettings';
@@ -8,9 +8,10 @@ import { useSettings } from '../hooks/useSettings';
 interface TrendingPageProps {
   onAnimeSelect: (anime: Anime) => void;
   getEpisodeStatus: (animeId: number) => { isNew: boolean; episodeNumber: number | null };
+  onLoginRequest: (reason: string) => void;
 }
 
-const TrendingPage: React.FC<TrendingPageProps> = ({ onAnimeSelect, getEpisodeStatus }) => {
+const TrendingPage: React.FC<TrendingPageProps> = ({ onAnimeSelect, getEpisodeStatus, onLoginRequest }) => {
     const [trending, setTrending] = useState<Anime[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -21,11 +22,13 @@ const TrendingPage: React.FC<TrendingPageProps> = ({ onAnimeSelect, getEpisodeSt
             setIsLoading(true);
             setError(null);
             try {
-                const sfwQuery = settings.restrictAdultContent ? '&sfw' : '';
-                const res = await fetchWithRetry(`https://api.jikan.moe/v4/seasons/now?limit=25${sfwQuery}`);
-                if (!res.ok) throw new Error('Failed to fetch trending anime for the current season.');
+                // Using Consumet API for more accurate "trending today" data.
+                const res = await fetchWithRetry(`https://api.consumet.org/anime/gogoanime/trending?page=1&perPage=25`);
+                if (!res.ok) throw new Error('Failed to fetch trending anime from provider.');
                 const data = await res.json();
-                let mapped = data.data.map(mapJikanToAnime).filter(Boolean);
+                let mapped = data.results.map(mapConsumetTrendingToAnime).filter(Boolean);
+                
+                // Consumet doesn't have a built-in SFW filter, so we filter manually if needed.
                 if (settings.restrictAdultContent) {
                     mapped = mapped.filter((a: Anime) => !a.isAdult);
                 }
@@ -42,7 +45,7 @@ const TrendingPage: React.FC<TrendingPageProps> = ({ onAnimeSelect, getEpisodeSt
     return (
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-subtle-fade-in-up">
             <h1 className="text-3xl font-bold text-[rgb(var(--text-primary))] mb-8" style={{ textShadow: `0 0 8px rgb(var(--shadow-color) / 0.5)` }}>
-                Trending This Season
+                Trending Today
             </h1>
             {isLoading ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
@@ -54,7 +57,7 @@ const TrendingPage: React.FC<TrendingPageProps> = ({ onAnimeSelect, getEpisodeSt
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
                     {trending.map((anime, index) => (
                         <div key={anime.id} className="animate-subtle-fade-in-up" style={{ animationDelay: `${index * 30}ms` }}>
-                            <AnimeCard anime={anime} onSelect={onAnimeSelect} episodeStatus={getEpisodeStatus(anime.id)} />
+                            <AnimeCard anime={anime} onSelect={onAnimeSelect} episodeStatus={getEpisodeStatus(anime.id)} onLoginRequest={onLoginRequest} />
                         </div>
                     ))}
                 </div>

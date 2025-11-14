@@ -7,7 +7,7 @@ interface AlphabeticalBrowseProps {
 
 const AlphabeticalBrowse: React.FC<AlphabeticalBrowseProps> = ({ onLetterSelect, selectedLetter }) => {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-  const numbers = '0-9';
+  const numbers = '#'; // Changed from 0-9 as Jikan API does not support number ranges
 
   const Button: React.FC<{ char: string }> = ({ char }) => {
     const isSelected = selectedLetter?.toLowerCase() === char.toLowerCase();

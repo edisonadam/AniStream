@@ -25,17 +25,15 @@ export interface Anime {
   isAdult: boolean;
   officialSite?: string;
   malUrl?: string;
-  anilistUrl?: string;
   startDate?: string;
   endDate?: string | null;
   season?: string;
-  nextAiringEpisode?: {
-    at: number; // timestamp
-    episode: number;
-  }
   rank?: number;
   views?: number;
   likes?: number;
+  popularity?: number;
+  source?: string;
+  members?: number;
 }
 
 export interface Manga {
@@ -123,8 +121,7 @@ export type Theme = 'light' | 'dark';
 export type ColorPreset = 'abyssal-blue' | 'violet-fusion' | 'cyber-cyan' | 'sunset-orange' | 'rainbow-shift';
 export type EpisodeViewStyle = 'compact' | 'grid' | 'horizontal';
 export type DefaultLanguage = 'sub' | 'dub' | 'ssub';
-// FIX: Add 'magazines' to Page type
-export type Page = 'home' | 'player' | 'profile' | 'club-detail' | 'trending' | 'schedule' | 'history' | 'news' | 'manga' | 'beginners' | 'search' | 'community' | 'comment-meter' | 'currency' | 'about' | 'rules' | 'donation' | 'watch-together' | 'og-image-generator' | 'top-100' | 'notifications' | 'how-to-use' | 'videos' | 'new-episodes' | 'details' | 'leaderboards' | 'shop' | 'downloads' | 'magazines';
+export type Page = 'home' | 'player' | 'profile' | 'club-detail' | 'trending' | 'schedule' | 'history' | 'news' | 'manga' | 'beginners' | 'search' | 'community' | 'comment-meter' | 'currency' | 'about' | 'rules' | 'donation' | 'watch-together' | 'og-image-generator' | 'top-100' | 'notifications' | 'how-to-use' | 'videos' | 'new-episodes' | 'details' | 'leaderboards' | 'shop' | 'downloads' | 'queue' | 'errors';
 export type ToastType = 'success' | 'warning' | 'error' | 'info' | 'favorite' | 'unfavorite';
 
 export type WatchlistStatus = 'Watching' | 'Completed' | 'On-Hold' | 'Dropped' | 'Plan to Watch';
@@ -148,7 +145,7 @@ export interface Settings {
   anilistUsername: string;
   anilistToken: string;
   autoSyncAniList: boolean;
-  showWatchHistoryOnHome: boolean;
+  showViewHistoryOnHome: boolean;
   showComments: boolean;
   defaultLanguage: DefaultLanguage;
   loadMoreMode: 'auto' | 'manual';
@@ -159,8 +156,8 @@ export interface Settings {
   playerFocusMode: 'overlay' | 'fullscreen';
   forceDesktopMode: boolean;
   emailNotifications: boolean;
-  inAppToastAlerts: boolean;
-  malSyncAlerts: boolean;
+  inAppToastAlerts: true;
+  malSyncAlerts: true;
   autoMarkAsRead: boolean;
   homepageTrailer: boolean;
   autoPlay: boolean;
@@ -191,6 +188,7 @@ export interface Settings {
 }
 
 export interface WatchProgressInfo {
+  canonicalId: string;
   animeId: number;
   currentSeason: number;
   currentEpisode: number;

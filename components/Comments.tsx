@@ -2,8 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import type { Comment as CommentType, Anime, User } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { useProfileData } from '../hooks/useProfileData';
-import { MessageCircleIcon, UserPlusIcon, CheckIcon, ThumbsUpIcon } from './icons/Icons';
-import { formatRelativeTime } from '../utils';
+import { MessageCircleIcon, UserPlusIcon, CheckIcon, ThumbsUpIcon, ArrowTopRightOnSquareIcon } from './icons/Icons';
+import { formatRelativeTime, getCanonicalId } from '../utils';
 import { db } from '../firebase';
 import { ref, onValue, push, serverTimestamp, runTransaction } from 'firebase/database';
 
@@ -12,14 +12,16 @@ interface CommentsProps {
   currentSeason?: number;
   currentEpisode?: number;
   onUserSelect: (user: User) => void;
+  isModalMode?: boolean;
+  onOpenInModal?: () => void;
 }
 
 type SortOrder = 'newest' | 'oldest' | 'top';
 
-const Spoiler: React.FC<{ content: string }> = ({ content }) => {
+const Spoiler: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [isRevealed, setIsRevealed] = useState(false);
     return isRevealed ? (
-        <p className="text-[rgb(var(--text-secondary))] whitespace-pre-wrap mt-1">{content}</p>
+        <div className="text-[rgb(var(--text-secondary))] whitespace-pre-wrap mt-1">{children}</div>
     ) : (
         <button onClick={() => setIsRevealed(true)} className="w-full text-left p-3 bg-[rgb(var(--surface-3))] rounded-lg text-[rgb(var(--text-muted))] hover:bg-[rgb(var(--surface-4))] transition-colors">
             This comment contains spoilers. Click to reveal.
@@ -28,12 +30,13 @@ const Spoiler: React.FC<{ content: string }> = ({ content }) => {
 };
 
 const CommentForm: React.FC<{
+  user: User;
   onSubmit: (text: string, isSpoiler: boolean) => void;
   cta: string;
   placeholder: string;
   onCancel?: () => void;
   autoFocus?: boolean;
-}> = ({ onSubmit, cta, placeholder, onCancel, autoFocus = false }) => {
+}> = ({ user, onSubmit, cta, placeholder, onCancel, autoFocus = false }) => {
   const [text, setText] = useState('');
   const [isSpoiler, setIsSpoiler] = useState(false);
 
@@ -46,36 +49,39 @@ const CommentForm: React.FC<{
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder={placeholder}
-        className="w-full bg-[rgb(var(--surface-input))/0.2] border border-white/10 rounded-2xl p-3 text-[rgb(var(--text-primary))] focus:ring-2 focus:ring-[rgb(var(--border-focus))] focus:border-[rgb(var(--border-focus))] transition-all"
-        rows={2}
-        autoFocus={autoFocus}
-      ></textarea>
-      <div className="flex justify-between items-center gap-2 mt-2">
-        <label className="flex items-center gap-2 text-sm text-[rgb(var(--text-muted))] cursor-pointer">
-            <input type="checkbox" checked={isSpoiler} onChange={e => setIsSpoiler(e.target.checked)} className="h-4 w-4 rounded bg-gray-700 border-gray-600 text-[rgb(var(--color-primary))]" />
-            Mark as spoiler
-        </label>
-        <div className="flex items-center gap-2">
-            {onCancel && (
-                <button type="button" onClick={onCancel} className="px-4 py-2 bg-white/10 text-[rgb(var(--text-secondary))] rounded-full font-semibold hover:bg-white/20 transition-colors text-sm">
-                    Cancel
+    <div className="flex items-start gap-4">
+        <img src={user.avatar} alt={user.username} className="w-10 h-10 rounded-full flex-shrink-0 mt-1" />
+        <form onSubmit={handleSubmit} className="flex-1">
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder={placeholder}
+            className="w-full bg-[rgb(var(--surface-input))/0.2] border border-white/10 rounded-2xl p-3 text-[rgb(var(--text-primary))] focus:ring-2 focus:ring-[rgb(var(--border-focus))] focus:border-[rgb(var(--border-focus))] transition-all"
+            rows={2}
+            autoFocus={autoFocus}
+          ></textarea>
+          <div className="flex justify-between items-center gap-2 mt-2">
+            <label className="flex items-center gap-2 text-sm text-[rgb(var(--text-muted))] cursor-pointer">
+                <input type="checkbox" checked={isSpoiler} onChange={e => setIsSpoiler(e.target.checked)} className="h-4 w-4 rounded bg-gray-700 border-gray-600 text-[rgb(var(--color-primary))]" />
+                Mark as spoiler
+            </label>
+            <div className="flex items-center gap-2">
+                {onCancel && (
+                    <button type="button" onClick={onCancel} className="px-4 py-2 bg-white/10 text-[rgb(var(--text-secondary))] rounded-full font-semibold hover:bg-white/20 transition-colors text-sm">
+                        Cancel
+                    </button>
+                )}
+                <button type="submit" className="px-4 py-2 bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))] rounded-full font-semibold hover:bg-[rgb(var(--color-primary-hover))] transition-colors text-sm">
+                    {cta}
                 </button>
-            )}
-            <button type="submit" className="px-4 py-2 bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))] rounded-full font-semibold hover:bg-[rgb(var(--color-primary-hover))] transition-colors text-sm">
-                {cta}
-            </button>
-        </div>
-      </div>
-    </form>
+            </div>
+          </div>
+        </form>
+    </div>
   )
 }
 
-const Comments: React.FC<CommentsProps> = ({ anime, currentSeason, currentEpisode, onUserSelect }) => {
+const Comments: React.FC<CommentsProps> = ({ anime, currentSeason, currentEpisode, onUserSelect, isModalMode = false, onOpenInModal }) => {
   const { isLoggedIn, user } = useAuth();
   const { addFriend, isFriend, addNotification, addAniTokens, isUserBlocked } = useProfileData();
   const [comments, setComments] = useState<CommentType[]>([]);
@@ -84,9 +90,10 @@ const Comments: React.FC<CommentsProps> = ({ anime, currentSeason, currentEpisod
   const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
   
   const currentEpisodeIdentifier = `s${currentSeason}e${currentEpisode}`;
+  const canonicalId = useMemo(() => getCanonicalId(anime), [anime]);
 
   useEffect(() => {
-    const commentsRef = ref(db, `comments/${anime.id}`);
+    const commentsRef = ref(db, `comments/${encodeURIComponent(canonicalId)}`);
     const unsubscribe = onValue(commentsRef, (snapshot) => {
         const data = snapshot.val();
         if (data) {
@@ -101,11 +108,11 @@ const Comments: React.FC<CommentsProps> = ({ anime, currentSeason, currentEpisod
     });
 
     return () => unsubscribe();
-  }, [anime.id]);
+  }, [canonicalId]);
 
   const handleAddComment = (text: string, isSpoiler: boolean) => {
     if (!user) return;
-    const commentsRef = ref(db, `comments/${anime.id}`);
+    const commentsRef = ref(db, `comments/${encodeURIComponent(canonicalId)}`);
     const newComment: Omit<CommentType, 'id'> = {
       animeId: anime.id,
       episodeIdentifier: commentScope === 'episode' ? currentEpisodeIdentifier : undefined,
@@ -141,7 +148,7 @@ const Comments: React.FC<CommentsProps> = ({ anime, currentSeason, currentEpisod
   }, [comments, commentScope, currentEpisodeIdentifier, sortOrder, isUserBlocked]);
   
   const handleLike = (commentId: string) => {
-    const commentLikesRef = ref(db, `comments/${anime.id}/${commentId}/likes`);
+    const commentLikesRef = ref(db, `comments/${encodeURIComponent(canonicalId)}/${commentId}/likes`);
     runTransaction(commentLikesRef, (currentLikes) => {
         return (currentLikes || 0) + 1;
     });
@@ -165,9 +172,29 @@ const Comments: React.FC<CommentsProps> = ({ anime, currentSeason, currentEpisod
     <div>
       <h3 className="text-2xl font-bold mb-6 text-[rgb(var(--text-primary))]">Comments</h3>
       <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 p-6 rounded-2xl">
+        {/* Comment controls */}
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
+            <div className="flex items-center bg-[rgb(var(--surface-3))] rounded-full p-1">
+                <button onClick={() => setCommentScope('episode')} className={`px-3 py-1 text-sm rounded-full transition-all ${commentScope === 'episode' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>This Episode</button>
+                <button onClick={() => setCommentScope('all')} className={`px-3 py-1 text-sm rounded-full transition-all ${commentScope === 'all' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>All Comments</button>
+            </div>
+            <div className="flex items-center gap-2">
+                 <div className="flex items-center bg-[rgb(var(--surface-3))] rounded-full p-1">
+                    {(['newest', 'oldest', 'top'] as SortOrder[]).map(sort => (
+                        <button key={sort} onClick={() => setSortOrder(sort)} className={`px-3 py-1 text-xs sm:text-sm rounded-full capitalize transition-all ${sortOrder === sort ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>{sort}</button>
+                    ))}
+                </div>
+                {!isModalMode && onOpenInModal && (
+                    <button onClick={onOpenInModal} title="View in full page" className="p-2 bg-[rgb(var(--surface-3))] rounded-full text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))] transition-colors">
+                        <ArrowTopRightOnSquareIcon className="w-5 h-5" />
+                    </button>
+                )}
+            </div>
+        </div>
+
         {isLoggedIn && user ? (
           <div className="mb-6">
-            <CommentForm onSubmit={handleAddComment} cta="Post Comment" placeholder="Add a public comment..." />
+            <CommentForm user={user} onSubmit={handleAddComment} cta="Post Comment" placeholder="Add a public comment..." />
           </div>
         ) : (
           <div className="text-center p-4 mb-6 bg-[rgb(var(--surface-3))] rounded-xl">
@@ -175,19 +202,6 @@ const Comments: React.FC<CommentsProps> = ({ anime, currentSeason, currentEpisod
           </div>
         )}
         
-        {/* Comment controls */}
-        <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
-            <div className="flex items-center bg-[rgb(var(--surface-3))] rounded-full p-1">
-                <button onClick={() => setCommentScope('episode')} className={`px-3 py-1 text-sm rounded-full transition-all ${commentScope === 'episode' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>This Episode</button>
-                <button onClick={() => setCommentScope('all')} className={`px-3 py-1 text-sm rounded-full transition-all ${commentScope === 'all' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>All Comments</button>
-            </div>
-             <div className="flex items-center bg-[rgb(var(--surface-3))] rounded-full p-1">
-                {(['newest', 'oldest', 'top'] as SortOrder[]).map(sort => (
-                    <button key={sort} onClick={() => setSortOrder(sort)} className={`px-3 py-1 text-xs sm:text-sm rounded-full capitalize transition-all ${sortOrder === sort ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`}>{sort}</button>
-                ))}
-            </div>
-        </div>
-
         {filteredComments.length > 0 ? (
           <div className="space-y-6">
             {filteredComments.map(comment => (
@@ -199,7 +213,9 @@ const Comments: React.FC<CommentsProps> = ({ anime, currentSeason, currentEpisod
                     <span className="text-xs text-[rgb(var(--text-muted))]">{formatRelativeTime(comment.timestamp)}</span>
                   </div>
                   {comment.isSpoiler ? (
-                    <Spoiler content={comment.text} />
+                    <Spoiler>
+                        <p className="text-[rgb(var(--text-secondary))] whitespace-pre-wrap mt-1">{comment.text}</p>
+                    </Spoiler>
                   ) : (
                     <p className="text-[rgb(var(--text-secondary))] whitespace-pre-wrap mt-1">{comment.text}</p>
                   )}
@@ -216,9 +232,10 @@ const Comments: React.FC<CommentsProps> = ({ anime, currentSeason, currentEpisod
                         )
                     )}
                   </div>
-                   {replyingTo === comment.id && (
+                   {replyingTo === comment.id && user && (
                     <div className="mt-4">
                         <CommentForm 
+                            user={user}
                             onSubmit={(text, isSpoiler) => { /* Reply logic to be implemented */ setReplyingTo(null); }}
                             cta="Post Reply"
                             placeholder={`Replying to ${comment.user.username}...`}

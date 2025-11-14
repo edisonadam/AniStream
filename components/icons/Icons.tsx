@@ -61,6 +61,7 @@ export const MailIcon = createIcon(<><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9
 export const QuestionMarkCircleIcon = createIcon(<><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></>);
 export const DownloadIcon = createIcon(<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />);
 export const AnnouncementIcon = createIcon(<path d="M15.536 8.464a5 5 0 010 7.072M18.364 5.636a9 9 0 010 12.728M12 18h.01M12 6h.01M4 12H2m10 6a2 2 0 11-4 0 2 2 0 014 0zm8-12v12" />);
+export const ShoppingCartIcon = createIcon(<><circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" /><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6" /></>);
 export const PlusIcon = createIcon(<path d="M12 5v14M5 12h14" />);
 export const CheckIcon = createIcon(<path d="M20 6L9 17l-5-5" />);
 export const DotsVerticalIcon = createIcon(<><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" /></>);
@@ -68,7 +69,7 @@ export const ChevronLeftIcon = createIcon(<path d="M15 18l-6-6 6-6" />);
 export const ChevronRightIcon = createIcon(<path d="M9 18l6-6-6-6" />);
 export const ViewGridIcon = createIcon(<><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /></>);
 export const ViewListIcon = createIcon(<><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></>);
-export const ViewCarouselIcon = createIcon(<><rect x="2" y="3" width="20" height="18" rx="2" /><path d="M12 3v18" /></>);
+export const ViewCarouselIcon = createIcon(<><rect x="2" y="7" width="20" height="10" rx="2" ry="2"/><rect x="4" y="9" width="4" height="6" rx="1"/><rect x="10" y="9" width="4" height="6" rx="1"/><rect x="16" y="9" width="4" height="6" rx="1"/></>);
 export const RewindIcon = createIcon(<><polygon points="11 19 2 12 11 5 11 19" /><polygon points="22 19 13 12 22 5 22 19" /></>);
 export const FastForwardIcon = createIcon(<><polygon points="13 19 22 12 13 5 13 19" /><polygon points="2 19 11 12 2 5 2 19" /></>);
 export const ShareIcon = createIcon(<path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" />);

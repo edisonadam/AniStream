@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { HamburgerIcon, SearchIcon, BellIcon, UserIcon, CloseIcon, BookmarkIcon, LogoutIcon, UsersIcon, MessageCircleIcon, LevelUpIcon, HeartIcon, RefreshCwIcon, SettingsIcon, FilmIcon } from './icons/Icons';
+import { HamburgerIcon, SearchIcon, BellIcon, UserIcon, CloseIcon, BookmarkIcon, LogoutIcon, UsersIcon, MessageCircleIcon, LevelUpIcon, HeartIcon, RefreshCwIcon, SettingsIcon, FilmIcon, ViewListIcon } from './icons/Icons';
 import { useAuth } from '../hooks/useAuth';
 import type { Notification, Anime, Page, NotificationType } from '../types';
 import Logo from './Logo';
@@ -13,6 +13,7 @@ interface HeaderProps {
   onLoginClick: () => void;
   onSearchClick: () => void;
   onShowWatchlist: () => void;
+  onShowQueue: () => void;
   onNavigate: (page: Page) => void;
   onGoHome: () => void;
   onNotificationClick: (notification: Notification) => void;
@@ -41,7 +42,7 @@ const NotificationIcon: React.FC<{ type: NotificationType }> = ({ type }) => {
     }
 }
 
-const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClick, onShowWatchlist, onNavigate, onGoHome, onNotificationClick, trendingAnime = [], onTrendingAnimeClick = (_) => {} }) => {
+const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClick, onShowWatchlist, onShowQueue, onNavigate, onGoHome, onNotificationClick, trendingAnime = [], onTrendingAnimeClick = (_) => {} }) => {
   const { isLoggedIn, user, logout } = useAuth();
   const { notifications, markNotificationsAsRead, clearAllNotifications, aniTokens } = useProfileData();
   const { settings } = useSettings();
@@ -80,6 +81,11 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
     setIsProfileOpen(false);
   }
 
+  const handleQueueLink = () => {
+    onShowQueue();
+    setIsProfileOpen(false);
+  }
+
   const handleNotificationItemClick = (notification: Notification) => {
     if (notification.animeId) {
         onNotificationClick(notification);
@@ -93,9 +99,9 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
         <div className="flex items-center justify-between h-20">
           {/* Left Section */}
           <div className="flex items-center space-x-4">
-            <button onClick={onMenuClick} className="text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] transition-colors" aria-label="Open menu"><HamburgerIcon /></button>
+            <button onClick={onMenuClick} className="lg:hidden text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] transition-colors" aria-label="Open menu"><HamburgerIcon /></button>
             <Logo onClick={onGoHome} />
-            <nav className="hidden lg:flex items-center space-x-6 ml-6">
+            <nav className="hidden md:flex items-center space-x-6 ml-6">
                 <button onClick={onGoHome} className="font-semibold text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] transition-colors duration-300">Home</button>
                 <NavLink page="manga" onNavigate={onNavigate}>Manga</NavLink>
                 <NavLink page="trending" onNavigate={onNavigate}>Trending</NavLink>
@@ -105,7 +111,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
           </div>
           
           {/* Center Section: Search Bar (Desktop) */}
-          <div className="hidden lg:flex flex-1 justify-center px-8">
+          <div className="hidden sm:flex flex-1 justify-center px-8">
              <div
                 onClick={onSearchClick}
                 className="relative w-full max-w-md group cursor-text"
@@ -121,10 +127,13 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
 
           {/* Right Section */}
           <div className="flex items-center space-x-2 sm:space-x-4">
-            <button onClick={onSearchClick} className="lg:hidden p-2.5 rounded-full text-[rgb(var(--text-secondary))] bg-white/5 hover:text-[rgb(var(--color-primary-accent))] hover:bg-white/10 transition-all" aria-label="Search"><SearchIcon /></button>
+            <button onClick={onSearchClick} className="sm:hidden p-2.5 rounded-full text-[rgb(var(--text-secondary))] bg-white/5 hover:text-[rgb(var(--color-primary-accent))] hover:bg-white/10 transition-all" aria-label="Search"><SearchIcon /></button>
             
             {isLoggedIn && user ? (
               <>
+                <button onClick={onShowQueue} className="p-2.5 rounded-full text-[rgb(var(--text-secondary))] bg-white/5 hover:text-[rgb(var(--color-primary-accent))] hover:bg-white/10 transition-all" aria-label="View queue">
+                    <ViewListIcon />
+                </button>
                 <div className="relative" ref={notificationRef}>
                   <button onClick={handleNotificationToggle} className="p-2.5 rounded-full text-[rgb(var(--text-secondary))] bg-white/5 hover:text-[rgb(var(--color-primary-accent))] hover:bg-white/10 transition-all" aria-label="View notifications">
                     <BellIcon />

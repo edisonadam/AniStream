@@ -7,11 +7,12 @@ import { ChevronLeftIcon } from './icons/Icons';
 
 interface HistoryPageProps {
   onGoBack: () => void;
-  onAnimeSelect: (anime: Anime) => void;
+  // FIX: Renamed prop to onSelectAnime for consistency.
+  onSelectAnime: (anime: Anime) => void;
   allAnime: Anime[];
 }
 
-const HistoryPage: React.FC<HistoryPageProps> = ({ onGoBack, onAnimeSelect, allAnime }) => {
+const HistoryPage: React.FC<HistoryPageProps> = ({ onGoBack, onSelectAnime, allAnime }) => {
     const { watchProgressList, clearProgress } = useWatchProgress();
     const { settings } = useSettings();
     
@@ -33,7 +34,7 @@ const HistoryPage: React.FC<HistoryPageProps> = ({ onGoBack, onAnimeSelect, allA
             </button>
             <div className="flex justify-between items-center mb-8">
                 <h1 className="text-3xl font-bold text-[rgb(var(--text-primary))]" style={{ textShadow: `0 0 8px rgb(var(--shadow-color) / 0.5)` }}>
-                    Viewing History
+                    View History
                 </h1>
                 {historyWithDetails.length > 0 && (
                      <button 
@@ -54,7 +55,7 @@ const HistoryPage: React.FC<HistoryPageProps> = ({ onGoBack, onAnimeSelect, allA
                     {historyWithDetails.map(({ anime, progressInfo }) => (
                         <div 
                             key={anime.id}
-                            onClick={() => onAnimeSelect(anime)}
+                            onClick={() => onSelectAnime(anime)}
                             className="group flex items-center gap-4 bg-[rgb(var(--surface-2))/0.5] p-3 rounded-xl hover:bg-[rgb(var(--surface-2))] transition-colors cursor-pointer"
                         >
                             <img src={anime.thumbnail} alt={getDisplayTitle(anime, settings)} className="w-16 h-24 object-cover rounded-md flex-shrink-0" />

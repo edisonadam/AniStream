@@ -1,44 +1,35 @@
+
+
 import React, { useState, useLayoutEffect, useRef, useCallback } from 'react';
 import type { Anime, WatchlistStatus } from '../types';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { useAuth } from '../hooks/useAuth';
-import { PlusIcon, CheckIcon, DotsVerticalIcon, StarIcon } from './icons/Icons';
+import { PlusIcon, CheckIcon, DotsVerticalIcon, StarIcon, ViewListIcon } from './icons/Icons';
 import { useSettings } from '../hooks/useSettings';
-import { getDisplayTitle } from '../utils';
+import { getDisplayTitle, formatDuration } from '../utils';
 import { WATCHLIST_STATUSES } from '../constants';
 import { updateAnilistEntry, fetchWithRetry } from '../api';
 import { useWatchProgress } from '../hooks/useWatchProgress';
 import { useToast } from '../hooks/useToast';
+import { useQueue } from '../hooks/useQueue';
 
 interface AnimeCardProps {
   anime: Anime;
   onSelect: (anime: Anime) => void;
   episodeStatus: { isNew: boolean; episodeNumber: number | null };
+  onLoginRequest: (reason: string) => void;
 }
 
-const formatDuration = (minutes: number | null): string => {
-  if (minutes === null || minutes <= 0) {
-    return '';
-  }
-  if (minutes < 60) {
-    return `${minutes}m`;
-  }
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  if (remainingMinutes === 0) {
-    return `${hours}h`;
-  }
-  return `${hours}h ${remainingMinutes}m`;
-};
-
-const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect, episodeStatus }) => {
+const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect, episodeStatus, onLoginRequest }) => {
   const { addToWatchlist, removeFromWatchlist, isInWatchlist, updateWatchlistStatus, getWatchlistStatus } = useWatchlist();
   const { isLoggedIn } = useAuth();
   const { settings } = useSettings();
   const { getWatchProgress } = useWatchProgress();
   const { addToast } = useToast();
+  const { addToQueue, isInQueue } = useQueue();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const inWatchlist = isInWatchlist(anime.id);
+  const inQueue = isInQueue(anime.id);
   const currentStatus = getWatchlistStatus(anime.id);
 
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -129,13 +120,19 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect, episodeStatus })
         if (status === 'Completed') {
             progress = anime.totalEpisodes || undefined;
         } else if (status === 'Watching') {
-            const watchProgress = getWatchProgress(anime.id);
+            const watchProgress = getWatchProgress(anime);
             // Rough estimation of episodes watched from percentage
             const currentEpisode = watchProgress ? Math.floor((watchProgress.progress / 100) * (anime.totalEpisodes || 1)) : 0;
             progress = currentEpisode > 0 ? currentEpisode : 1;
         }
         updateAnilistEntry(anime.id, settings.anilistToken, { status, progress });
     }
+  };
+  
+  const handleAddToQueue = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    addToQueue(anime);
+    setIsMenuOpen(false);
   };
 
   const handleRemoveFromWatchlist = (e: React.MouseEvent) => {
@@ -147,7 +144,7 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect, episodeStatus })
   const handleMenuToggle = (e: React.MouseEvent) => {
       e.stopPropagation();
       if (!isLoggedIn) {
-        addToast('Login required to manage watchlist', 'info');
+        onLoginRequest('You need to be logged in to manage your lists.');
         return;
       }
       setIsMenuOpen(prev => !prev);
@@ -155,12 +152,9 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect, episodeStatus })
  
   const subDubLabel = anime.hasSub && anime.hasDub ? 'SUB / DUB' : anime.hasSub ? 'SUB' : anime.hasDub ? 'DUB' : null;
   
-  const hasBadgeInfo = anime.seasons_count != null || anime.episodes_count != null;
-  const badgeTextParts: string[] = [];
-  if (anime.seasons_count != null) badgeTextParts.push(`Season ${anime.seasons_count}`);
-  if (anime.episodes_count != null) badgeTextParts.push(`${anime.episodes_count} Ep`);
-  const badgeText = badgeTextParts.join(' • ');
-  const tooltipText = `Seasons: ${anime.seasons_count ?? 'Unknown'} — Episodes: ${anime.episodes_count ?? 'Unknown'}`;
+  const totalEpisodes = anime.totalEpisodes || anime.episodes_count;
+  const releasedEpisodes = episodeNumber;
+  const shouldShowReleasedBadge = (anime.status === 'Ongoing' || anime.status === 'Upcoming');
 
   return (
     <div className="anime-card-touch-target group relative isolate overflow-hidden rounded-xl shadow-lg cursor-pointer transform transition-all duration-300 hover:shadow-2xl hover:shadow-[rgb(var(--shadow-color))/0.4] hover:scale-105"
@@ -224,33 +218,19 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect, episodeStatus })
           )}
       </div>
       
-      {/* Movie Duration Badge (bottom-left) */}
-      {anime.type === 'Movie' && anime.runtime ? (
-        <span className="absolute bottom-2 left-2 px-2 py-0.5 text-xs font-bold rounded-full bg-black/60 text-white backdrop-blur-sm z-10">{formatDuration(anime.runtime)}</span>
-      ) : null}
-      
       {/* Bottom-Right Badge Container (Episode Info) */}
       <div className="absolute bottom-14 right-2 z-20 flex flex-row-reverse items-center gap-1.5">
-          {hasBadgeInfo && (
-              <div
-                className="inline-flex items-center rounded-full bg-black/60 px-2 py-0.5 text-xs font-semibold text-white backdrop-blur-sm"
-                title={tooltipText}
-                tabIndex={0}
-                role="status"
-                aria-label={tooltipText}
-              >
-                {badgeText}
-              </div>
-          )}
-          {anime.avgEpisodeDuration && (
+          {anime.type === 'Movie' && anime.runtime ? (
+            <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/60 text-white backdrop-blur-sm">{formatDuration(anime.runtime)}</span>
+          ) : anime.avgEpisodeDuration ? (
             <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/60 text-white backdrop-blur-sm">~{anime.avgEpisodeDuration}m</span>
-          )}
-          {anime.status === 'Ongoing' && episodeNumber && (anime.totalEpisodes || anime.episodes_count) ? (
+          ) : null}
+          {shouldShowReleasedBadge && (totalEpisodes || releasedEpisodes) ? (
             <div
                 className="inline-flex items-center rounded-full bg-cyan-500/20 px-2 py-0.5 text-xs font-semibold text-cyan-400 backdrop-blur-sm"
-                title={`Episode ${episodeNumber} of ${anime.totalEpisodes || anime.episodes_count} released`}
+                title={`${releasedEpisodes || 0} of ${totalEpisodes || '?'} episodes released`}
             >
-                Ep {episodeNumber} / {anime.totalEpisodes || anime.episodes_count}
+                {releasedEpisodes || 0} / {totalEpisodes || '?'} Episodes Released
             </div>
           ) : null}
       </div>
@@ -262,7 +242,12 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect, episodeStatus })
                 <DotsVerticalIcon />
             </button>
             {isLoggedIn && isMenuOpen && (
-                <div className="absolute top-full right-0 mt-1 bg-[rgb(var(--surface-2))] rounded-lg shadow-lg p-1 z-10 w-44">
+                <div className="absolute top-full right-0 mt-1 bg-[rgb(var(--surface-2))] rounded-lg shadow-lg p-1 z-10 w-48">
+                    <button onClick={handleAddToQueue} disabled={inQueue} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] rounded-md disabled:opacity-50 disabled:cursor-not-allowed">
+                        {inQueue ? <CheckIcon className="w-4 h-4 text-green-400"/> : <ViewListIcon className="w-4 h-4"/>}
+                        <span>{inQueue ? 'In Queue' : 'Add to Queue'}</span>
+                    </button>
+                    <div className="h-px bg-white/10 my-1"></div>
                     {WATCHLIST_STATUSES.map(status => (
                         <button key={status} onClick={(e) => handleWatchlistClick(e, status)} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] rounded-md">
                            {currentStatus === status ? <CheckIcon className="w-4 h-4 text-[rgb(var(--color-primary-accent))]"/> : <span className="w-4 h-4"></span>}

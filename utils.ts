@@ -32,6 +32,30 @@ export const getFranchiseTitle = (title: string): string => {
 };
 
 /**
+ * Generates a canonical ID for an anime season to group different entries together.
+ * @param anime The anime object.
+ * @returns A canonical string ID (e.g., 'jujutsu-kaisen-s2').
+ */
+export const getCanonicalId = (anime: Anime): string => {
+    if (!anime || !anime.title) return `mal-${anime.id}`;
+    // Treat non-TV series as unique entries to avoid incorrect grouping
+    if (anime.type && ['Movie', 'OVA', 'Special', 'ONA'].includes(anime.type)) {
+      return `mal-${anime.id}`;
+    }
+    const franchise = getFranchiseTitle(anime.title);
+    // Regex to find season number (e.g., "Season 2", "S2", "2nd Season", "Part 2")
+    const seasonMatch = anime.title.match(/(?:season|s|part|cour|saison|temporada)\s*(\d+)/i) || anime.title.match(/(\d+)(?:st|nd|rd|th)\s*season/i);
+    // Default to season 1 if no number is found
+    const season = seasonMatch ? seasonMatch[1] : '1';
+    
+    // Create a URL-friendly slug
+    const franchiseSlug = franchise.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+    return `${franchiseSlug}-s${season}`;
+};
+
+
+/**
  * Filters a list of anime to only include one entry per franchise.
  * It prioritizes keeping the entry that appears first in the original list.
  * @param animeList The list of anime to filter.
@@ -151,12 +175,22 @@ export const mapPartialToFullAnime = (partial: Partial<Anime> & { id: number; ti
     };
 };
 
-// FIX: Add formatDuration function to be used globally.
+/**
+ * Formats a duration in minutes into a human-readable string (e.g., "1h 45m").
+ * @param minutes The duration in minutes.
+ * @returns A formatted string, or 'N/A' if the input is invalid.
+ */
 export const formatDuration = (minutes: number | null): string => {
-  if (minutes === null || minutes <= 0) return 'N/A';
-  if (minutes < 60) return `${minutes} min`;
+  if (minutes === null || minutes <= 0) {
+    return 'N/A';
+  }
+  if (minutes < 60) {
+    return `${minutes}m`;
+  }
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
-  if (remainingMinutes === 0) return `${hours}h`;
+  if (remainingMinutes === 0) {
+    return `${hours}h`;
+  }
   return `${hours}h ${remainingMinutes}m`;
 };

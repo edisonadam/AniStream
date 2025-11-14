@@ -26,10 +26,23 @@ const Logo: React.FC<LogoProps> = ({ onClick, className }) => {
       window.removeEventListener('touchmove', handleInteraction);
     };
   }, []);
+  
+  const handleClick = () => {
+    // First, call the passed onClick function (e.g., to navigate home).
+    onClick();
+    
+    // Then, after a short delay, remove focus from the button.
+    // This allows the :active state to show but prevents a sticky :focus state.
+    if (buttonRef.current) {
+        setTimeout(() => {
+            buttonRef.current?.blur();
+        }, 300);
+    }
+  };
 
   return (
     <>
-      <button ref={buttonRef} onClick={onClick} className={`logo-button ${className || ''}`} aria-label="Go to homepage">
+      <button ref={buttonRef} onClick={handleClick} className={`logo-button ${className || ''}`} aria-label="Go to homepage">
         ANISTREAM
       </button>
       <style>{`

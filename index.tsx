@@ -11,6 +11,7 @@ import { FloatingPlayerProvider } from './contexts/FloatingPlayerContext';
 import { FavoritesProvider } from './contexts/FavoritesContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { NotificationPrefsProvider } from './contexts/NotificationPrefsContext';
+import { QueueProvider } from './contexts/QueueContext';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -33,7 +34,9 @@ const AppWrapper = () => {
                   <ProfileDataProvider>
                     <ShortcutsProvider>
                       <FloatingPlayerProvider>
-                        <App />
+                        <QueueProvider>
+                          <App />
+                        </QueueProvider>
                       </FloatingPlayerProvider>
                     </ShortcutsProvider>
                   </ProfileDataProvider>

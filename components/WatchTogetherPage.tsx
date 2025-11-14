@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { ref, onValue, set, push, serverTimestamp, onDisconnect, remove, get } from 'firebase/database';
 import { db } from '../firebase';
 import { useAuth } from '../hooks/useAuth';
@@ -147,7 +147,10 @@ const WatchTogetherPage: React.FC<WatchTogetherPageProps> = ({ roomId, onExit })
 
         const unsubscribe = onValue(roomRef, (snapshot) => {
             if (snapshot.exists()) {
-                setRoomData(snapshot.val());
+                const data = snapshot.val();
+                if (data && typeof data === 'object') {
+                    setRoomData(data as Room);
+                }
             } else {
                 // Room was deleted
                 setError("The host has closed the room.");
@@ -242,8 +245,20 @@ const WatchTogetherPage: React.FC<WatchTogetherPageProps> = ({ roomId, onExit })
     if (error) return <div className="h-screen w-screen flex flex-col items-center justify-center text-center p-4"><h2 className="text-2xl font-bold text-[rgb(var(--color-danger))]">{error}</h2><button onClick={onExit} className="mt-4 px-4 py-2 bg-white/10 rounded-lg">Go Home</button></div>;
     if (!anime || !roomData) return null;
 
-    // FIX: Add a type guard to ensure roomData.chat is an object before calling Object.entries.
-    const messages = (roomData?.chat && typeof roomData.chat === 'object') ? Object.entries(roomData.chat).map(([id, msg]) => ({...(msg as object), id}) as ChatMessage).sort((a,b) => a.timestamp - b.timestamp) : [];
+    // FIX: The original type predicate was invalid, causing TypeScript to infer 'unknown' and fail on the `.map()` call. The predicate has been corrected to use `ChatMessage`, and destructuring in the filter's type guard has been removed to align with best practices.
+    const messages = useMemo(() => {
+        const chatData = roomData?.chat;
+        if (chatData && typeof chatData === 'object') {
+            return Object.entries(chatData)
+                .filter((entry): entry is [string, ChatMessage] => {
+                    const msg = entry[1];
+                    return Boolean(msg && typeof msg === 'object' && msg !== null && 'user' in msg && 'text' in msg && 'timestamp' in msg);
+                })
+                .map(([id, msg]) => ({ ...msg, id }))
+                .sort((a, b) => a.timestamp - b.timestamp);
+        }
+        return [];
+    }, [roomData?.chat]);
 
     return (
         <div className="flex flex-col lg:flex-row h-screen bg-[rgb(var(--bg-gradient-start))] text-[rgb(var(--text-primary))] p-4 gap-4">
@@ -279,7 +294,6 @@ const WatchTogetherPage: React.FC<WatchTogetherPageProps> = ({ roomId, onExit })
             <div className="w-full lg:w-96 flex-shrink-0 h-[50vh] lg:h-auto">
                 <ChatPane 
                     messages={messages}
-                    // FIX: Add optional chaining to `roomData.participants` to prevent potential null access error.
                     participants={roomData?.participants || {}}
                     isHost={isHost}
                     onSendMessage={handleSendMessage}

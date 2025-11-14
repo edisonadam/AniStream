@@ -4,12 +4,14 @@ import { useWatchProgress } from '../hooks/useWatchProgress';
 import { useAuth } from '../hooks/useAuth';
 import { useSettings } from '../hooks/useSettings';
 import { getDisplayTitle } from '../utils';
+import AnimeCard from './AnimeCard';
 
 interface ContinueWatchingProps {
-    onShowWatchHistory: () => void;
+    onShowHistory: () => void;
     onSelectAnime: (anime: Anime) => void;
     allAnime: Anime[];
     getEpisodeStatus: (animeId: number) => { isNew: boolean; episodeNumber: number | null };
+    onLoginRequest: (reason: string) => void;
 }
 
 interface ContinueWatchingCardProps {
@@ -55,7 +57,7 @@ const ContinueWatchingCard: React.FC<ContinueWatchingCardProps> = ({ anime, prog
     );
 }
 
-const ContinueWatching: React.FC<ContinueWatchingProps> = ({ onShowWatchHistory, onSelectAnime, allAnime, getEpisodeStatus }) => {
+const ContinueWatching: React.FC<ContinueWatchingProps> = ({ onShowHistory, onSelectAnime, allAnime, getEpisodeStatus, onLoginRequest }) => {
     const { isLoggedIn } = useAuth();
     const { watchProgressList } = useWatchProgress();
 
@@ -86,21 +88,22 @@ const ContinueWatching: React.FC<ContinueWatchingProps> = ({ onShowWatchHistory,
         <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="flex justify-between items-center mb-6">
                  <h2 className="text-2xl sm:text-3xl font-bold text-[rgb(var(--text-primary))]" style={{ textShadow: `0 0 8px rgb(var(--shadow-color) / 0.5)` }}>
-                    Watch History
+                    View History
                 </h2>
-                <button onClick={onShowWatchHistory} className="px-4 py-2 bg-[rgb(var(--surface-2))/0.7] rounded-lg text-sm font-semibold text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] hover:bg-[rgb(var(--surface-3))] transition-colors">
-                    View Watch History
+                <button onClick={onShowHistory} className="px-4 py-2 bg-[rgb(var(--surface-2))/0.7] rounded-lg text-sm font-semibold text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] hover:bg-[rgb(var(--surface-3))] transition-colors">
+                    View All History
                 </button>
             </div>
             <div className="flex gap-4 md:gap-6 overflow-x-auto pb-4 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8" style={{ scrollbarWidth: 'thin' }}>
                 {watchableItems.map(({ anime, progressInfo }) => (
-                    <ContinueWatchingCard 
-                        key={anime.id} 
-                        anime={anime} 
-                        progressInfo={progressInfo}
-                        onSelect={() => onSelectAnime(anime)}
-                        episodeStatus={getEpisodeStatus(anime.id)}
-                    />
+                    <div key={anime.id} className="flex-shrink-0 w-48">
+                        <AnimeCard
+                            anime={anime}
+                            onSelect={() => onSelectAnime(anime)}
+                            episodeStatus={getEpisodeStatus(anime.id)}
+                            onLoginRequest={onLoginRequest}
+                        />
+                    </div>
                 ))}
             </div>
         </section>

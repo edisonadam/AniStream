@@ -1,14 +1,16 @@
+
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import type { Anime, WatchlistStatus, VideoServer, Settings, DefaultLanguage } from '../types';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { useFavorites } from '../hooks/useFavorites';
-import { useWatchProgress } from '../hooks/useWatchProgress';
 import { useToast } from '../hooks/useToast';
 import { updateMalEntry } from '../api';
 import { VIDEO_SERVERS, WATCHLIST_STATUSES } from '../constants';
-import { HeartIcon, HeartIconSolid, CheckIcon, ChevronDownIcon, PlusCircleIcon, ScissorsIcon, FlagIcon, BellIcon, LightbulbIcon, LightbulbOffIcon, AnnouncementIcon, CaptionsIcon, SparklesIcon } from './icons/Icons';
+import { HeartIcon, HeartIconSolid, CheckIcon, ChevronDownIcon, ScissorsIcon, FlagIcon, BellIcon, SparklesIcon, MessageCircleIcon, BookmarkIcon, CloseIcon, LightbulbIcon, LightbulbOffIcon, ViewListIcon } from './icons/Icons';
 import { useNotificationPrefs } from '../hooks/useNotificationPrefs';
+import { useQueue } from '../hooks/useQueue';
 
 interface PlayerActionsProps {
   anime: Anime;
@@ -18,287 +20,182 @@ interface PlayerActionsProps {
   onSurprise: () => void;
   onManualServerChange: (server: VideoServer) => void;
   selectedLanguage: DefaultLanguage;
-  onSubmitSubtitles: () => void;
+  onLanguageChange: (lang: DefaultLanguage) => void;
+  isLoggedIn: boolean;
+  onLoginRequest: (reason: string) => void;
 }
 
-const PlayerActions: React.FC<PlayerActionsProps> = ({ anime, onClip, settings, updateSettings, onSurprise, onManualServerChange, selectedLanguage, onSubmitSubtitles }) => {
-    const { addToWatchlist, removeFromWatchlist, updateWatchlistStatus, getWatchlistStatus } = useWatchlist();
+const ActionButton: React.FC<{ icon: React.ReactNode, label: string, onClick: (e: React.MouseEvent) => void, buttonRef?: React.Ref<HTMLButtonElement>, isActive?: boolean, isDanger?: boolean }> = ({ icon, label, onClick, buttonRef, isActive, isDanger }) => (
+    <button
+        ref={buttonRef}
+        onClick={onClick}
+        title={label}
+        aria-label={label}
+        className={`p-3 rounded-full transition-colors ${isActive ? 'bg-[rgb(var(--color-primary))] text-white' : isDanger ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20' : 'bg-white/10 text-white hover:bg-white/20'}`}
+    >
+        {icon}
+    </button>
+);
+
+const Toggle: React.FC<{ label: string, icon?: React.ReactNode, checked: boolean, onChange: () => void }> = ({ label, icon, checked, onChange }) => (
+    <label className="flex items-center gap-2 cursor-pointer font-semibold text-[rgb(var(--text-secondary))]">
+        {icon}
+        <span>{label}</span>
+        <input
+            type="checkbox"
+            checked={checked}
+            onChange={onChange}
+            className="h-4 w-4 rounded bg-gray-700 border-gray-600 text-[rgb(var(--color-primary))] focus:ring-2 focus:ring-offset-0 focus:ring-offset-[rgb(var(--surface-3))] focus:ring-[rgb(var(--color-primary))]"
+        />
+    </label>
+);
+
+const PlayerActions: React.FC<PlayerActionsProps> = ({ anime, onClip, settings, updateSettings, onSurprise, onManualServerChange, selectedLanguage, onLanguageChange, isLoggedIn, onLoginRequest }) => {
     const { addFavorite, removeFavorite, isFavorite } = useFavorites();
-    const { getWatchProgress, updateProgress } = useWatchProgress();
+    const { addToWatchlist, removeFromWatchlist, updateWatchlistStatus, isInWatchlist, getWatchlistStatus } = useWatchlist();
     const { addToast } = useToast();
     const { getPrefsForAnime, updatePref } = useNotificationPrefs();
+    const { addToQueue, removeFromQueue, isInQueue } = useQueue();
 
-    const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
     const [isNotifyMenuOpen, setIsNotifyMenuOpen] = useState(false);
+    const [isWatchlistMenuOpen, setIsWatchlistMenuOpen] = useState(false);
     
-    const watchlistButtonRef = useRef<HTMLButtonElement>(null);
     const notifyButtonRef = useRef<HTMLButtonElement>(null);
+    const watchlistButtonRef = useRef<HTMLButtonElement>(null);
 
-    const statusDropdownRef = useRef<HTMLDivElement>(null);
-    const notifyDropdownRef = useRef<HTMLDivElement>(null);
+    const notificationPrefs = getPrefsForAnime(anime.id);
+    const isFavorited = isFavorite(anime.id);
+    const inWatchlist = isInWatchlist(anime.id);
+    const currentStatus = getWatchlistStatus(anime.id);
+    const inQueue = isInQueue(anime.id);
 
-    const [statusDropdownPosition, setStatusDropdownPosition] = useState<{ top: number; left: number; width: number } | null>(null);
-    const [notifyDropdownPosition, setNotifyDropdownPosition] = useState<{ top: number; left: number } | null>(null);
-    
     const availableServers = useMemo(() => {
         return VIDEO_SERVERS.filter(s => s.type === selectedLanguage);
     }, [selectedLanguage]);
 
-    const notificationPrefs = getPrefsForAnime(anime.id);
-    const currentStatus = getWatchlistStatus(anime.id);
-    const isFavorited = isFavorite(anime.id);
-    const progressInfo = getWatchProgress(anime.id);
-
-    useEffect(() => {
-        if (isStatusMenuOpen && watchlistButtonRef.current) {
-            const rect = watchlistButtonRef.current.getBoundingClientRect();
-            setStatusDropdownPosition({
-                top: rect.bottom + 8,
-                left: rect.left,
-                width: rect.width,
-            });
-        }
-        if (isNotifyMenuOpen && notifyButtonRef.current) {
-            const rect = notifyButtonRef.current.getBoundingClientRect();
-            setNotifyDropdownPosition({
-                top: rect.bottom + 8,
-                left: rect.right - 200, // Align right, approximate width
-            });
-        }
-    }, [isStatusMenuOpen, isNotifyMenuOpen]);
-
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (isStatusMenuOpen && statusDropdownRef.current && !statusDropdownRef.current.contains(event.target as Node) && watchlistButtonRef.current && !watchlistButtonRef.current.contains(event.target as Node)) {
-                setIsStatusMenuOpen(false);
-            }
-            if (isNotifyMenuOpen && notifyDropdownRef.current && !notifyDropdownRef.current.contains(event.target as Node) && notifyButtonRef.current && !notifyButtonRef.current.contains(event.target as Node)) {
-                setIsNotifyMenuOpen(false);
-            }
+            const target = event.target as Node;
+            if (isNotifyMenuOpen && notifyButtonRef.current && !notifyButtonRef.current.contains(target)) setIsNotifyMenuOpen(false);
+            if (isWatchlistMenuOpen && watchlistButtonRef.current && !watchlistButtonRef.current.contains(target)) setIsWatchlistMenuOpen(false);
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [isStatusMenuOpen, isNotifyMenuOpen]);
+    }, [isNotifyMenuOpen, isWatchlistMenuOpen]);
 
-    const handleStatusChange = (status: WatchlistStatus) => {
-        if (currentStatus) {
+    const handleAuthenticatedAction = (action: () => void, reason: string) => {
+        if (!isLoggedIn) {
+            onLoginRequest(reason);
+        } else {
+            action();
+        }
+    };
+
+    const handleFavoriteToggle = () => handleAuthenticatedAction(() => isFavorited ? removeFavorite(anime.id, anime.title) : addFavorite(anime.id, anime.title), "Please log in to manage your favorites.");
+    
+    const handleWatchlistAction = (status: WatchlistStatus) => handleAuthenticatedAction(() => {
+        if (inWatchlist) {
             updateWatchlistStatus(anime.id, status, anime.title);
         } else {
             addToWatchlist(anime, status);
         }
-        addToast(`Status updated to: ${status}`, 'success');
-        setIsStatusMenuOpen(false);
+        setIsWatchlistMenuOpen(false);
+    }, "Please log in to manage your watchlist.");
 
-        if (settings.autoSyncMal && settings.malUsername) {
-            updateMalEntry(anime.id, settings.malUsername, { status });
-            addToast('Syncing with MyAnimeList...', 'info');
-        }
-    };
-
-    const handleRemoveFromList = () => {
+    const handleRemoveFromWatchlist = () => handleAuthenticatedAction(() => {
         removeFromWatchlist(anime.id, anime.title);
-        addToast('Removed from watchlist.', 'info');
-        setIsStatusMenuOpen(false);
-        if (settings.autoSyncMal && settings.malUsername) {
-            addToast('Syncing removal with MyAnimeList...', 'info');
-        }
-    };
-
-    const handleFavoriteToggle = () => {
-        if (isFavorited) {
-            removeFavorite(anime.id, anime.title);
-        } else {
-            addFavorite(anime.id, anime.title);
-        }
-         if (settings.autoSyncMal && settings.malUsername) {
-            updateMalEntry(anime.id, settings.malUsername, { isFavorite: !isFavorited });
-            addToast('Syncing favorite status with MyAnimeList...', 'info');
-        }
-    };
+        setIsWatchlistMenuOpen(false);
+    }, "Please log in to manage your watchlist.");
     
-    const handleIncrementProgress = () => {
-        if (!progressInfo || !anime.totalEpisodes) return;
-        const nextEpisode = progressInfo.currentEpisode + 1;
-        if (nextEpisode > anime.totalEpisodes) return;
-        
-        const newProgressPercent = (nextEpisode / anime.totalEpisodes) * 100;
-        updateProgress(anime.id, progressInfo.currentSeason, nextEpisode, newProgressPercent);
-        addToast(`Marked Episode ${nextEpisode} as watched.`, 'success');
+    const handleQueueToggle = () => handleAuthenticatedAction(() => {
+        inQueue ? removeFromQueue(anime.id) : addToQueue(anime);
+    }, "Please log in to manage your queue.");
 
-        if (settings.autoSyncMal && settings.malUsername) {
-            updateMalEntry(anime.id, settings.malUsername, { progress: nextEpisode });
-        }
-    };
+    const handleReport = () => { addToast("Thank you for your report. A moderator will review it shortly.", 'info'); };
+    const scrollToComments = () => { document.getElementById('comments-section')?.scrollIntoView({ behavior: 'smooth' }); };
 
-    const handleMarkAsFinished = () => {
-        if (!progressInfo || !anime.totalEpisodes) return;
-        updateProgress(anime.id, progressInfo.currentSeason, anime.totalEpisodes, 100);
-        handleStatusChange('Completed');
-        addToast('🎉 Series completed!', 'success');
-    };
+    const NotifyDropdownMenu = (
+        <div className="absolute top-full right-0 mt-2 bg-[rgb(var(--surface-2))] border border-white/10 rounded-xl shadow-lg p-2 z-[70] w-48 animate-subtle-fade-in-up space-y-1">
+            <label className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] rounded-md cursor-pointer"><input type="checkbox" checked={notificationPrefs.newEpisode} onChange={() => updatePref(anime.id, { newEpisode: !notificationPrefs.newEpisode })} className="h-4 w-4 rounded bg-gray-700 border-gray-600 text-[rgb(var(--color-primary))]" /> New Episodes</label>
+            <label className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] rounded-md cursor-pointer"><input type="checkbox" checked={notificationPrefs.newDub} onChange={() => updatePref(anime.id, { newDub: !notificationPrefs.newDub })} className="h-4 w-4 rounded bg-gray-700 border-gray-600 text-[rgb(var(--color-primary))]" /> New Dubs</label>
+        </div>
+    );
     
-    const handleReport = () => {
-        addToast("Thank you for your report. A moderator will review it shortly.", 'info');
-    }
-
-    const handleSubtitleEditor = () => {
-        addToast("Subtitle Editor is coming soon!", 'info');
-    };
-
-    const isLastEpisode = progressInfo && anime.totalEpisodes && progressInfo.currentEpisode === anime.totalEpisodes;
-    const progressPercent = progressInfo && anime.totalEpisodes ? (progressInfo.currentEpisode / anime.totalEpisodes) * 100 : 0;
-    
-    const StatusDropdownMenu = (
-        <div
-            ref={statusDropdownRef}
-            style={{ position: 'fixed', top: `${statusDropdownPosition?.top}px`, left: `${statusDropdownPosition?.left}px`, width: `${statusDropdownPosition?.width}px` }}
-            className="bg-[rgb(var(--surface-2))] border border-white/10 rounded-xl shadow-lg p-2 z-[70] animate-subtle-fade-in-up"
-            onClick={(e) => e.stopPropagation()}
-        >
+    const WatchlistDropdownMenu = (
+        <div className="absolute top-full right-0 mt-2 bg-[rgb(var(--surface-2))] border border-white/10 rounded-xl shadow-lg p-2 z-[70] w-56 animate-subtle-fade-in-up space-y-1">
             {WATCHLIST_STATUSES.map(status => (
-                <button key={status} onClick={() => handleStatusChange(status)} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] rounded-md">
+                <button key={status} onClick={() => handleWatchlistAction(status)} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] rounded-md">
                    {currentStatus === status ? <CheckIcon className="w-4 h-4 text-[rgb(var(--color-primary-accent))]"/> : <span className="w-4 h-4"></span>}
                    <span>{status}</span>
                 </button>
             ))}
-            {currentStatus && (
+            {inWatchlist && (
                 <>
                     <div className="h-px bg-white/10 my-1"></div>
-                    <button onClick={handleRemoveFromList} className="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-red-500/20 rounded-md">Remove from List</button>
+                    <button onClick={handleRemoveFromWatchlist} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-red-400 hover:bg-red-500/20 rounded-md">
+                        <CloseIcon className="w-4 h-4"/>
+                        <span>Remove from List</span>
+                    </button>
                 </>
             )}
         </div>
     );
 
-    const NotifyDropdownMenu = (
-        <div
-            ref={notifyDropdownRef}
-            style={{ position: 'fixed', top: `${notifyDropdownPosition?.top}px`, left: `${notifyDropdownPosition?.left}px`, width: '200px' }}
-            className="bg-[rgb(var(--surface-2))] border border-white/10 rounded-xl shadow-lg p-2 z-[70] animate-subtle-fade-in-up space-y-1"
-            onClick={(e) => e.stopPropagation()}
-        >
-            <label className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] rounded-md cursor-pointer">
-                <input type="checkbox" checked={notificationPrefs.newEpisode} onChange={() => updatePref(anime.id, { newEpisode: !notificationPrefs.newEpisode })} className="h-4 w-4 rounded bg-gray-700 border-gray-600 text-[rgb(var(--color-primary))]" />
-                New Episodes
-            </label>
-            <label className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] rounded-md cursor-pointer">
-                <input type="checkbox" checked={notificationPrefs.newDub} onChange={() => updatePref(anime.id, { newDub: !notificationPrefs.newDub })} className="h-4 w-4 rounded bg-gray-700 border-gray-600 text-[rgb(var(--color-primary))]" />
-                New Dubs
-            </label>
-        </div>
-    );
-
     return (
         <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 p-4 rounded-2xl space-y-4 mt-4">
-            <div className="flex flex-col sm:flex-row gap-3 justify-between items-center">
-                <div>
-                    <button 
-                        ref={watchlistButtonRef}
-                        onClick={() => setIsStatusMenuOpen(prev => !prev)}
-                        className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-3 bg-[rgb(var(--color-primary))] text-white rounded-xl font-bold hover:bg-[rgb(var(--color-primary-hover))] transition-transform duration-300 hover:scale-105 shadow-lg shadow-[rgb(var(--shadow-color))/0.4]"
-                    >
-                        <span>{currentStatus || 'Add to Watchlist'}</span>
-                        <ChevronDownIcon className={`w-5 h-5 transition-transform ${isStatusMenuOpen ? 'rotate-180' : ''}`} />
-                    </button>
-                    {isStatusMenuOpen && statusDropdownPosition && ReactDOM.createPortal(
-                        StatusDropdownMenu,
-                        document.getElementById('dropdown-root')!
-                    )}
+            
+            <div className="relative w-full max-w-xs mx-auto">
+                <button ref={watchlistButtonRef} onClick={() => handleAuthenticatedAction(() => setIsWatchlistMenuOpen(p => !p), "Log in to manage your watchlist")} className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-[rgb(var(--color-primary))] text-white rounded-full font-bold hover:bg-[rgb(var(--color-primary-hover))] transition-all duration-300 transform hover:scale-105 shadow-lg shadow-[rgb(var(--shadow-color))/0.4]">
+                    <span>{currentStatus || 'Add to Watchlist'}</span>
+                    <ChevronDownIcon className={`w-5 h-5 transition-transform ${isWatchlistMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {isWatchlistMenuOpen && WatchlistDropdownMenu}
+            </div>
+            
+            <div className="flex justify-center gap-2 sm:gap-3 flex-wrap">
+                <ActionButton icon={isFavorited ? <HeartIconSolid className="text-red-400" /> : <HeartIcon />} label={isFavorited ? "Unfavorite" : "Favorite"} onClick={handleFavoriteToggle} />
+                <div className="relative">
+                    <ActionButton buttonRef={notifyButtonRef} icon={<BellIcon />} label="Notify" onClick={() => handleAuthenticatedAction(() => setIsNotifyMenuOpen(p => !p), "Log in to manage notifications")} />
+                    {isNotifyMenuOpen && NotifyDropdownMenu}
                 </div>
-                <div className="flex gap-3">
-                    <button
-                        onClick={handleFavoriteToggle}
-                        className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold transition-all duration-300 transform hover:scale-105 shadow-lg ${isFavorited ? 'bg-red-500 text-white shadow-red-500/40' : 'bg-white/10 text-white hover:bg-white/20'}`}
-                        aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
-                    >
-                        {isFavorited ? <HeartIconSolid className="w-6 h-6"/> : <HeartIcon className="w-6 h-6"/>}
-                        <span className="hidden sm:inline">Favorite</span>
-                    </button>
-                    <div className="relative">
-                        <button
-                            ref={notifyButtonRef}
-                            onClick={() => setIsNotifyMenuOpen(p => !p)}
-                            className="flex items-center justify-center p-3 rounded-xl font-bold transition-colors bg-white/10 text-white hover:bg-white/20"
-                            aria-label="Notification Settings"
-                        >
-                            <BellIcon className="w-6 h-6" />
-                        </button>
-                        {isNotifyMenuOpen && notifyDropdownPosition && ReactDOM.createPortal(
-                            NotifyDropdownMenu,
-                            document.getElementById('dropdown-root')!
-                        )}
-                    </div>
-                     <button onClick={onClip} className="flex items-center justify-center gap-2 px-4 py-3 bg-white/10 text-white rounded-xl hover:bg-white/20 font-bold" aria-label="Create clip">
-                        <ScissorsIcon className="w-6 h-6"/>
-                        <span className="hidden sm:inline">Clip</span>
-                    </button>
-                    <button onClick={onSubmitSubtitles} className="flex items-center justify-center gap-2 px-4 py-3 bg-white/10 text-white rounded-xl hover:bg-white/20 font-bold" aria-label="Submit Subtitles">
-                        <CaptionsIcon className="w-6 h-6"/>
-                        <span className="hidden sm:inline">Subtitles</span>
-                    </button>
-                    <button onClick={onSurprise} className="flex items-center justify-center gap-2 px-4 py-3 bg-white/10 text-white rounded-xl hover:bg-white/20 font-bold" aria-label="Get a surprise fact">
-                        <AnnouncementIcon className="w-6 h-6"/>
-                        <span className="hidden sm:inline">Surprise Me!</span>
-                    </button>
-                     <button onClick={handleReport} className="flex items-center justify-center gap-2 px-4 py-3 bg-white/10 text-white rounded-xl hover:bg-white/20 font-bold" aria-label="Report issue">
-                        <FlagIcon className="w-6 h-6"/>
-                        <span className="hidden sm:inline">Report</span>
-                    </button>
-                </div>
+                <ActionButton icon={<ScissorsIcon />} label="Clip" onClick={onClip} />
+                <ActionButton icon={<MessageCircleIcon />} label="Comments" onClick={scrollToComments} />
+                <ActionButton icon={<SparklesIcon />} label="Surprise Me!" onClick={onSurprise} />
+                <ActionButton icon={<FlagIcon />} label="Report" onClick={handleReport} isDanger />
             </div>
 
-            {progressInfo && anime.totalEpisodes && (
-                <div className="pt-4 border-t border-white/10">
-                    <div className="flex justify-between items-center text-sm font-semibold text-[rgb(var(--text-secondary))] mb-1">
-                        <span>Progress</span>
-                        <span>Ep {progressInfo.currentEpisode} / {anime.totalEpisodes}</span>
+            <button onClick={handleQueueToggle} className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-[rgb(var(--surface-4))] text-[rgb(var(--text-secondary))] rounded-xl font-bold hover:bg-[rgb(var(--surface-3))]">
+                <ViewListIcon className="w-6 h-6"/> {inQueue ? 'In Queue' : 'Add to Queue'}
+            </button>
+            
+            <div className="pt-3 border-t border-white/10 space-y-4">
+                <div className="flex flex-wrap justify-center items-center gap-x-6 gap-y-3 text-sm">
+                    <div className="flex items-center gap-2">
+                        <span className="font-semibold text-[rgb(var(--text-secondary))]">Type:</span>
+                         <div className="flex items-center bg-[rgb(var(--surface-3))] rounded-full p-1">
+                            <button onClick={() => onLanguageChange('sub')} className={`px-3 py-1 text-xs rounded-full ${selectedLanguage === 'sub' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-white'}`}>SUB</button>
+                            <button onClick={() => onLanguageChange('dub')} className={`px-3 py-1 text-xs rounded-full ${selectedLanguage === 'dub' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-white'}`}>DUB</button>
+                            <button onClick={() => onLanguageChange('ssub')} className={`px-3 py-1 text-xs rounded-full ${selectedLanguage === 'ssub' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold shadow-md' : 'text-[rgb(var(--text-muted))] hover:text-white'}`}>S-SUB</button>
+                        </div>
                     </div>
                     <div className="flex items-center gap-2">
-                        <div className="w-full bg-[rgb(var(--surface-3))] rounded-full h-2">
-                            <div className="bg-[rgb(var(--color-primary))] h-2 rounded-full" style={{ width: `${progressPercent}%` }}></div>
-                        </div>
-                        {isLastEpisode ? (
-                            <button onClick={handleMarkAsFinished} className="flex-shrink-0 px-3 py-1 bg-green-500 text-white rounded-full text-xs font-bold hover:bg-green-600 transition-colors">
-                                🎉 Mark as Finished
-                            </button>
-                        ) : (
-                            <button onClick={handleIncrementProgress} className="flex-shrink-0 text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] transition-colors" title={`Mark Episode ${progressInfo.currentEpisode + 1} as watched`}>
-                                <PlusCircleIcon />
-                            </button>
-                        )}
+                        <span className="font-semibold text-[rgb(var(--text-secondary))]">Server:</span>
+                        <select value={settings.videoServer} onChange={e => onManualServerChange(e.target.value as VideoServer)} className="bg-[rgb(var(--surface-input))] border border-[rgb(var(--border-color))] rounded-lg px-3 py-1.5 text-xs text-[rgb(var(--text-primary))]">
+                            {availableServers.map(server => (<option key={server.id} value={server.id}>{server.name}</option>))}
+                        </select>
                     </div>
                 </div>
-            )}
-            
-            <div className="pt-4 border-t border-white/10 flex flex-col sm:flex-row gap-4 items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <label htmlFor="server-select" className="text-sm font-semibold text-[rgb(var(--text-secondary))]">Server:</label>
-                    <select
-                        id="server-select"
-                        value={settings.videoServer}
-                        onChange={(e) => onManualServerChange(e.target.value as VideoServer)}
-                        className="bg-[rgb(var(--surface-input))/0.5] border border-white/10 rounded-lg px-2 py-1 text-sm"
-                    >
-                        {availableServers.map(s => <option key={s.id + s.type} value={s.id}>{s.name}</option>)}
-                    </select>
+
+                <div className="flex flex-wrap justify-center items-center gap-x-8 gap-y-3 text-sm">
+                     <ActionButton
+                        icon={settings.lightsOffMode ? <LightbulbOffIcon /> : <LightbulbIcon />}
+                        label="Lights Off"
+                        onClick={() => updateSettings({ lightsOffMode: !settings.lightsOffMode })}
+                        isActive={settings.lightsOffMode}
+                    />
+                    <Toggle label="Auto Skip" checked={settings.autoSkip} onChange={() => updateSettings({ autoSkip: !settings.autoSkip })} />
+                    <Toggle label="Auto Next" checked={settings.autoPlay} onChange={() => updateSettings({ autoPlay: !settings.autoPlay })} />
                 </div>
-                 <div className="flex items-center gap-3">
-                    <button
-                        onClick={() => addToast("Lights Off feature is coming soon!", "info")}
-                        className="p-2.5 rounded-full hover:bg-white/10 transition-colors"
-                        title="Lights Off Mode (Coming Soon)"
-                    >
-                        <LightbulbOffIcon className="w-5 h-5 text-gray-300" />
-                    </button>
-                    <label className="flex items-center gap-2 text-sm text-[rgb(var(--text-secondary))] cursor-pointer">
-                        <input type="checkbox" checked={settings.autoSkip} onChange={() => updateSettings({ autoSkip: !settings.autoSkip })} className="h-4 w-4 rounded bg-gray-700 border-gray-600 text-[rgb(var(--color-primary))]" />
-                        Auto Skip
-                    </label>
-                    <label className="flex items-center gap-2 text-sm text-[rgb(var(--text-secondary))] cursor-pointer">
-                        <input type="checkbox" checked={settings.autoPlay} onChange={() => updateSettings({ autoPlay: !settings.autoPlay })} className="h-4 w-4 rounded bg-gray-700 border-gray-600 text-[rgb(var(--color-primary))]" />
-                        Auto Next
-                    </label>
-                 </div>
             </div>
         </div>
     );

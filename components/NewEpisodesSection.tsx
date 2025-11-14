@@ -10,9 +10,10 @@ interface NewEpisodesSectionProps {
   getEpisodeStatus: (animeId: number) => { isNew: boolean; episodeNumber: number | null };
   isLoading: boolean;
   onViewAll: () => void;
+  onLoginRequest: (reason: string) => void;
 }
 
-const NewEpisodesSection: React.FC<NewEpisodesSectionProps> = ({ onAnimeSelect, newEpisodeAnime, getEpisodeStatus, isLoading, onViewAll }) => {
+const NewEpisodesSection: React.FC<NewEpisodesSectionProps> = ({ onAnimeSelect, newEpisodeAnime, getEpisodeStatus, isLoading, onViewAll, onLoginRequest }) => {
     const { settings } = useSettings();
 
     if (!settings.showNewEpisodeBadges) return null;
@@ -50,7 +51,8 @@ const NewEpisodesSection: React.FC<NewEpisodesSectionProps> = ({ onAnimeSelect, 
                         <AnimeCard 
                             anime={anime} 
                             onSelect={onAnimeSelect} 
-                            episodeStatus={getEpisodeStatus(anime.id)} 
+                            episodeStatus={getEpisodeStatus(anime.id)}
+                            onLoginRequest={onLoginRequest}
                         />
                     </div>
                 ))}
