@@ -1,8 +1,8 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import type { Anime, NewsPromo } from '../types';
 import { fetchWithRetry } from '../api';
-import { PlayIcon, ChevronLeftIcon, CloseIcon, ExclamationTriangleIcon } from './icons/Icons';
+import { PlayIcon, ChevronLeftIcon, CloseIcon, ExclamationTriangleIcon, SearchIcon } from './icons/Icons';
 
 interface VideosPageProps {
   onGoBack: () => void;
@@ -24,11 +24,13 @@ const VideosPage: React.FC<VideosPageProps> = ({ onGoBack, onAnimeSelect }) => {
   
   const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
   const [activeTab, setActiveTab] = useState<ActiveTab>('trailers');
+  const [searchQuery, setSearchQuery] = useState('');
   
   const handleTabChange = (tab: ActiveTab) => {
     if (tab !== activeTab) {
         setActiveTab(tab);
         setSortOrder('newest'); // Reset sort order on tab change for consistency
+        setSearchQuery(''); // Reset search
     }
   };
 
@@ -167,6 +169,16 @@ const VideosPage: React.FC<VideosPageProps> = ({ onGoBack, onAnimeSelect }) => {
     });
   };
 
+  const filteredTrailers = useMemo(() => {
+      if (!searchQuery) return trailers;
+      return trailers.filter(t => t.entry.title.toLowerCase().includes(searchQuery.toLowerCase()) || t.title.toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [trailers, searchQuery]);
+
+  const filteredIntros = useMemo(() => {
+      if (!searchQuery) return introsOutros;
+      return introsOutros.filter(t => t.anime_name.toLowerCase().includes(searchQuery.toLowerCase()) || t.song_title.toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [introsOutros, searchQuery]);
+
   const CardSkeleton: React.FC = () => (
     <div className="bg-[rgb(var(--surface-2))] rounded-2xl animate-pulse">
       <div className="aspect-video w-full bg-[rgb(var(--surface-3))] rounded-t-2xl"></div>
@@ -214,30 +226,40 @@ const VideosPage: React.FC<VideosPageProps> = ({ onGoBack, onAnimeSelect }) => {
           <h1 className="text-3xl font-bold text-[rgb(var(--text-primary))] mb-2" style={{ textShadow: `0 0 8px rgb(var(--shadow-color) / 0.5)` }}>Trailers & Intros/Outros</h1>
           <p className="text-[rgb(var(--text-muted))] mb-6">Discover the latest promotional videos and theme songs.</p>
           
-          <div className="flex justify-center border-b border-white/10 mb-8">
-              <button onClick={() => handleTabChange('trailers')} className={`flex items-center gap-2 px-6 py-3 text-lg font-semibold transition-colors ${activeTab === 'trailers' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>
-                Trailers
-              </button>
-              <button onClick={() => handleTabChange('intros')} className={`flex items-center gap-2 px-6 py-3 text-lg font-semibold transition-colors ${activeTab === 'intros' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>
-                Intros & Outros
-              </button>
+          <div className="flex flex-col sm:flex-row justify-between items-center border-b border-white/10 mb-8 gap-4 pb-4 sm:pb-0">
+              <div className="flex justify-center gap-6">
+                  <button onClick={() => handleTabChange('trailers')} className={`flex items-center gap-2 py-3 text-lg font-semibold transition-colors border-b-2 ${activeTab === 'trailers' ? 'text-[rgb(var(--color-primary-accent))] border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))] border-transparent hover:text-white'}`}>
+                    Trailers
+                  </button>
+                  <button onClick={() => handleTabChange('intros')} className={`flex items-center gap-2 py-3 text-lg font-semibold transition-colors border-b-2 ${activeTab === 'intros' ? 'text-[rgb(var(--color-primary-accent))] border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))] border-transparent hover:text-white'}`}>
+                    Intros & Outros
+                  </button>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto items-center">
+                  <div className="relative w-full sm:w-64">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[rgb(var(--text-muted))]"><SearchIcon className="w-4 h-4"/></div>
+                        <input 
+                            type="text" 
+                            value={searchQuery} 
+                            onChange={(e) => setSearchQuery(e.target.value)} 
+                            placeholder={`Search ${activeTab}...`} 
+                            className="w-full bg-[rgb(var(--surface-input))/0.2] border border-white/10 rounded-lg py-2 pl-9 pr-4 text-sm text-[rgb(var(--text-primary))] focus:ring-1 focus:ring-[rgb(var(--border-focus))]"
+                        />
+                  </div>
+                  <div className="flex items-center bg-[rgb(var(--surface-3))] rounded-full p-1">
+                        <button onClick={() => setSortOrder('newest')} className={`px-3 py-1 text-sm rounded-full ${sortOrder === 'newest' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold' : 'text-[rgb(var(--text-muted))]'}`}>Newest</button>
+                        <button onClick={() => setSortOrder('trending')} className={`px-3 py-1 text-sm rounded-full ${sortOrder === 'trending' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold' : 'text-[rgb(var(--text-muted))]'}`}>Trending</button>
+                  </div>
+              </div>
           </div>
 
           <div key={activeTab} className="animate-cinematic-fade-in">
-              {(activeTab === 'trailers' || activeTab === 'intros') && (
-                <div className="flex justify-end mb-6">
-                    <div className="flex items-center bg-[rgb(var(--surface-3))] rounded-full p-1">
-                        <button onClick={() => setSortOrder('newest')} className={`px-3 py-1 text-sm rounded-full ${sortOrder === 'newest' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold' : 'text-[rgb(var(--text-muted))]'}`}>Newest</button>
-                        <button onClick={() => setSortOrder('trending')} className={`px-3 py-1 text-sm rounded-full ${sortOrder === 'trending' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--text-primary))] font-semibold' : 'text-[rgb(var(--text-muted))]'}`}>Trending</button>
-                    </div>
-                </div>
-              )}
-
               {activeTab === 'trailers' && (
                   <>
                     {error && <p className="col-span-full text-center text-red-500">{error}</p>}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {isLoadingTrailers ? Array.from({ length: 9 }).map((_, i) => <CardSkeleton key={i} />) : trailers.map(promo => {
+                        {isLoadingTrailers ? Array.from({ length: 9 }).map((_, i) => <CardSkeleton key={i} />) : filteredTrailers.length > 0 ? filteredTrailers.map(promo => {
                             const youtubeId = promo.trailer?.youtube_id;
                             if (!youtubeId) return null;
                             return (
@@ -250,7 +272,9 @@ const VideosPage: React.FC<VideosPageProps> = ({ onGoBack, onAnimeSelect }) => {
                                     <div className="p-4"><p className="text-sm text-[rgb(var(--text-muted))] mb-1 truncate">{promo.title}</p><button onClick={() => handleAnimeClick(promo)} className="font-bold text-[rgb(var(--text-primary))] hover:text-[rgb(var(--color-primary-accent))] text-left truncate w-full">{promo.entry.title}</button></div>
                                 </div>
                             );
-                        }).filter(Boolean)}
+                        }).filter(Boolean) : (
+                            <p className="col-span-full text-center py-12 text-[rgb(var(--text-muted))]">No trailers found.</p>
+                        )}
                     </div>
                   </>
               )}
@@ -258,7 +282,7 @@ const VideosPage: React.FC<VideosPageProps> = ({ onGoBack, onAnimeSelect }) => {
                   <>
                     {error && <p className="col-span-full text-center text-red-500">{error}</p>}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {isLoadingIntrosOutros ? Array.from({ length: 9 }).map((_, i) => <CardSkeleton key={i} />) : introsOutros.length > 0 ? introsOutros.map(theme => <IntroOutroCard key={theme.id} theme={theme} />) : <p className="col-span-full text-center py-12 text-[rgb(var(--text-muted))]">No intros or outros found for this selection.</p>}
+                        {isLoadingIntrosOutros ? Array.from({ length: 9 }).map((_, i) => <CardSkeleton key={i} />) : filteredIntros.length > 0 ? filteredIntros.map(theme => <IntroOutroCard key={theme.id} theme={theme} />) : <p className="col-span-full text-center py-12 text-[rgb(var(--text-muted))]">No intros or outros found for this selection.</p>}
                     </div>
                   </>
               )}

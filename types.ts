@@ -1,3 +1,4 @@
+
 import type { ColorPreset as OriginalColorPreset } from './types';
 
 export interface Anime {
@@ -121,7 +122,7 @@ export type Theme = 'light' | 'dark';
 export type ColorPreset = 'abyssal-blue' | 'violet-fusion' | 'cyber-cyan' | 'sunset-orange' | 'rainbow-shift';
 export type EpisodeViewStyle = 'compact' | 'grid' | 'horizontal';
 export type DefaultLanguage = 'sub' | 'dub' | 'ssub';
-export type Page = 'home' | 'player' | 'profile' | 'club-detail' | 'trending' | 'schedule' | 'history' | 'news' | 'manga' | 'beginners' | 'search' | 'community' | 'comment-meter' | 'currency' | 'about' | 'rules' | 'donation' | 'watch-together' | 'og-image-generator' | 'top-100' | 'notifications' | 'how-to-use' | 'videos' | 'new-episodes' | 'details' | 'leaderboards' | 'shop' | 'downloads' | 'queue';
+export type Page = 'home' | 'player' | 'profile' | 'club-detail' | 'trending' | 'schedule' | 'history' | 'news' | 'manga' | 'beginners' | 'search' | 'community' | 'comment-meter' | 'currency' | 'about' | 'rules' | 'donation' | 'watch-together' | 'og-image-generator' | 'top-100' | 'notifications' | 'how-to-use' | 'videos' | 'new-episodes' | 'details' | 'leaderboards' | 'shop' | 'downloads' | 'queue' | 'voice-actor';
 export type ToastType = 'success' | 'warning' | 'error' | 'info' | 'favorite' | 'unfavorite';
 
 export type WatchlistStatus = 'Watching' | 'Completed' | 'On-Hold' | 'Dropped' | 'Plan to Watch';
@@ -335,14 +336,30 @@ export interface ChatMessage {
   timestamp: number;
 }
 
+export interface RoomParticipant {
+    username: string;
+    avatar: string;
+    isMicOn?: boolean;
+    isCamOn?: boolean;
+}
+
 export interface Room {
+  id?: string;
   hostId: string;
+  hostUsername?: string;
+  roomName?: string;
   animeId: number;
+  animeTitle?: string; // For listing
+  animeImage?: string; // For listing
   currentSeason: number;
   currentEpisode: number;
   playerState: PlayerState;
-  participants: Record<string, { username: string; avatar: string }>;
+  participants: Record<string, RoomParticipant>;
   chat: Record<string, ChatMessage>;
+  isPublic: boolean;
+  allowCamera: boolean;
+  allowMicrophone: boolean;
+  createdAt: number;
 }
 
 // Keyboard Shortcuts

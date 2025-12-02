@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import type { Filter, Settings, Page } from '../types';
-import { CloseIcon, UsersIcon, BookOpenIcon, GiftIcon, MoonIcon, SunIcon, HomeIcon, TrendingUpIcon, CalendarIcon, HistoryIcon, InfoIcon, AcademicCapIcon, EyeIcon, EyeOffIcon, MessageCircleIcon, TrophyIcon, ChevronDownIcon, ClipboardIcon, ShieldCheckIcon, HeartIcon, NewspaperIcon, StarIcon, MailIcon, QuestionMarkCircleIcon, FilmIcon, DownloadIcon, ShoppingCartIcon } from './icons/Icons';
+import { CloseIcon, UsersIcon, BookOpenIcon, GiftIcon, MoonIcon, SunIcon, HomeIcon, TrendingUpIcon, CalendarIcon, HistoryIcon, InfoIcon, AcademicCapIcon, EyeIcon, EyeOffIcon, MessageCircleIcon, TrophyIcon, ChevronDownIcon, ClipboardIcon, ShieldCheckIcon, HeartIcon, NewspaperIcon, StarIcon, MailIcon, QuestionMarkCircleIcon, FilmIcon, DownloadIcon, ShoppingCartIcon, MicrophoneIcon, RefreshCwIcon, DevicePhoneMobileIcon } from './icons/Icons';
 import Logo from './Logo';
 import { ANIME_TYPES, ANIME_STATUSES, YEAR_OPTIONS, LANGUAGE_OPTIONS, STUDIO_OPTIONS, GENRES, TAG_OPTIONS } from '../constants';
 
@@ -269,33 +269,37 @@ const Sidebar: React.FC<SidebarProps> = ({
               <SideButton icon={<TrendingUpIcon />} label="Trending" onClick={() => handleNavigation('trending')} />
               <SideButton icon={<StarIcon />} label="Top 100" onClick={() => handleNavigation('top-100')} />
               <SideButton icon={<CalendarIcon />} label="Schedule" onClick={() => handleNavigation('schedule')} />
+              <SideButton icon={<NewspaperIcon />} label="New Episodes" onClick={() => handleNavigation('new-episodes')} />
             </SidebarSection>
             
             <SidebarSection title="Explore">
               <SideButton icon={<BookOpenIcon />} label="Manga & Mags" onClick={() => handleNavigation('manga')} />
-              <SideButton icon={<NewspaperIcon />} label="New Episodes" onClick={() => handleNavigation('new-episodes')} />
               <SideButton icon={<MessageCircleIcon />} label="Community Hub" onClick={() => handleNavigation('community')} />
-              <SideButton icon={<UsersIcon />} label="Watch2Gether" onClick={() => { onClose(); onLoginClick("Log in to start a room"); }} />
+              <SideButton icon={<UsersIcon />} label="Watch2Gether" onClick={() => handleNavigation('watch-together')} />
+              <SideButton icon={<MicrophoneIcon />} label="Voice Actors" onClick={() => handleNavigation('voice-actor')} />
               <SideButton icon={<TrophyIcon />} label="Leaderboards" onClick={() => handleNavigation('leaderboards')} />
-              <SideButton icon={<ShoppingCartIcon />} label="Shop" onClick={() => handleNavigation('shop')} />
             </SidebarSection>
             
-            <SidebarSection title="Tools & Info">
+            <SidebarSection title="Library">
                 <SideButton icon={<HistoryIcon />} label="History" onClick={() => handleNavigation('history')} />
                 <SideButton icon={<DownloadIcon />} label="Downloads" onClick={() => handleNavigation('downloads')} />
+                <SideButton icon={<ShoppingCartIcon />} label="Shop" onClick={() => handleNavigation('shop')} />
+            </SidebarSection>
+
+            <SidebarSection title="Tools & Info">
+                <SideButton icon={<FilmIcon />} label="Trailers & Intros" onClick={() => handleNavigation('videos')} />
                 <SideButton icon={<AcademicCapIcon />} label="For Beginners" onClick={() => handleNavigation('beginners')} />
                 <SideButton icon={<GiftIcon />} label="Surprise Me!" onClick={handleSurprise} />
-                <SideButton icon={<InfoIcon />} label="Updates & Logs" onClick={() => handleNavigation('news')} />
-                <SideButton icon={<FilmIcon />} label="Trailers & Intros" onClick={() => handleNavigation('videos')} />
+                <SideButton icon={<ClipboardIcon />} label="Updates & Logs" onClick={() => handleNavigation('news')} />
             </SidebarSection>
 
             <SidebarSection title="App">
                 <SideButton icon={<InfoIcon />} label="About Us" onClick={() => handleNavigation('about')} />
-                <SideButton icon={<ClipboardIcon />} label="Rules" onClick={() => handleNavigation('rules')} />
+                <SideButton icon={<ShieldCheckIcon />} label="Rules" onClick={() => handleNavigation('rules')} />
                 <SideButton icon={<QuestionMarkCircleIcon />} label="How to Use" onClick={() => handleNavigation('how-to-use')} />
                 <SideButton icon={<MailIcon />} label="Feedback" onClick={() => { window.location.href = 'mailto:edisonadam160@gmail.com?subject=ANISTREAM Feedback'; onClose(); }} />
                 <SideButton icon={<HeartIcon />} label="Donation" onClick={() => handleNavigation('donation')} />
-                {installPrompt && <SideButton icon={<DownloadIcon />} label="Install App" onClick={handleInstall} />}
+                {installPrompt && <SideButton icon={<DevicePhoneMobileIcon />} label="Install App" onClick={handleInstall} />}
             </SidebarSection>
        
           <FilterSection title="Genres" isOpen={openSections.has('Genres')} onToggle={() => toggleSection('Genres')} sectionRef={(el) => { sectionRefs.current['Genres'] = el; }}>

@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { ChevronLeftIcon, VerifiedIcon, LevelUpIcon } from './icons/Icons';
+import React, { useState } from 'react';
+import { ChevronLeftIcon, VerifiedIcon, LevelUpIcon, SearchIcon } from './icons/Icons';
 import { LEVEL_DATA } from '../constants';
 
 interface LeaderboardsPageProps {
@@ -8,14 +8,18 @@ interface LeaderboardsPageProps {
 }
 
 const LeaderboardsPage: React.FC<LeaderboardsPageProps> = ({ onGoBack }) => {
+  const [searchQuery, setSearchQuery] = useState('');
+
   // Mock data since we can't query all users in this demo
-  const mockUsers = Array.from({ length: 10 }).map((_, i) => ({
+  const mockUsers = Array.from({ length: 50 }).map((_, i) => ({
       id: i,
       username: `User_${Math.floor(Math.random() * 10000)}`,
       avatar: `https://api.dicebear.com/8.x/bottts-neutral/svg?seed=${i}`,
       aniTokens: Math.floor(Math.random() * 500000) + 10000,
       isVerified: i < 3,
   })).sort((a, b) => b.aniTokens - a.aniTokens);
+
+  const filteredUsers = mockUsers.filter(u => u.username.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-subtle-fade-in-up">
@@ -30,18 +34,28 @@ const LeaderboardsPage: React.FC<LeaderboardsPageProps> = ({ onGoBack }) => {
       </div>
 
       <div className="max-w-4xl mx-auto bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden">
-          <div className="p-6 border-b border-white/10 flex justify-between items-center">
+          <div className="p-6 border-b border-white/10 flex flex-col sm:flex-row justify-between items-center gap-4">
               <h2 className="text-xl font-bold flex items-center gap-2"><LevelUpIcon className="w-6 h-6 text-yellow-400"/> Top AniToken Holders</h2>
-              <span className="text-xs text-[rgb(var(--text-muted))]">Updated daily</span>
+              <div className="relative w-full sm:w-64">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[rgb(var(--text-muted))]"><SearchIcon className="w-4 h-4"/></div>
+                  <input 
+                      type="text" 
+                      value={searchQuery} 
+                      onChange={(e) => setSearchQuery(e.target.value)} 
+                      placeholder="Search users..." 
+                      className="w-full bg-[rgb(var(--surface-input))/0.2] border border-white/10 rounded-lg py-2 pl-9 pr-4 text-sm text-[rgb(var(--text-primary))] focus:ring-1 focus:ring-[rgb(var(--border-focus))]"
+                  />
+              </div>
           </div>
           <div>
-              {mockUsers.map((user, index) => {
+              {filteredUsers.length > 0 ? filteredUsers.slice(0, 20).map((user, index) => {
                   const level = Math.floor(user.aniTokens / 60000);
                   const rankColor = index === 0 ? 'text-yellow-400' : index === 1 ? 'text-gray-300' : index === 2 ? 'text-amber-600' : 'text-[rgb(var(--text-muted))]';
-                  
+                  const displayIndex = mockUsers.indexOf(user) + 1; // Show true rank
+
                   return (
                       <div key={user.id} className="flex items-center gap-4 p-4 border-b border-white/5 hover:bg-[rgb(var(--surface-3))] transition-colors">
-                          <span className={`text-2xl font-bold w-8 text-center ${rankColor}`}>{index + 1}</span>
+                          <span className={`text-2xl font-bold w-12 text-center ${rankColor}`}>{displayIndex}</span>
                           <div className="relative">
                               <img src={user.avatar} alt={user.username} className="w-12 h-12 rounded-full" />
                               {user.isVerified && <VerifiedIcon className="w-4 h-4 text-blue-400 absolute -bottom-1 -right-1" />}
@@ -56,7 +70,9 @@ const LeaderboardsPage: React.FC<LeaderboardsPageProps> = ({ onGoBack }) => {
                           </div>
                       </div>
                   );
-              })}
+              }) : (
+                  <div className="p-8 text-center text-[rgb(var(--text-muted))]">No users found.</div>
+              )}
           </div>
       </div>
     </div>

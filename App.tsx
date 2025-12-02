@@ -39,7 +39,7 @@ import AboutPage from './components/AboutPage';
 import RulesPage from './components/RulesPage';
 import DonationPage from './components/DonationPage';
 import AlphabeticalBrowse from './components/AlphabeticalBrowse';
-import WatchTogetherPage from './components/WatchTogetherPage';
+import WatchTogetherPage, { RoomList } from './components/WatchTogetherPage';
 import OGImageGenerator from './components/OGImageGenerator';
 import ShortcutsHelpModal from './components/ShortcutsHelpModal';
 import FloatingPlayer from './components/FloatingPlayer';
@@ -63,6 +63,7 @@ import { useProfileData } from './hooks/useProfileData';
 import LeaderboardsPage from './components/LeaderboardsPage';
 import ShopPage from './components/ShopPage';
 import DownloadsPage from './components/DownloadsPage';
+import VoiceActorPage from './components/VoiceActorPage';
 
 const ANIME_PAGE_SIZE = 25;
 
@@ -71,6 +72,7 @@ const App: React.FC = () => {
     const [selectedAnime, setSelectedAnime] = useState<Anime | null>(null);
     const [selectedClub, setSelectedClub] = useState<Club | null>(null);
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
+    const [selectedVoiceActorId, setSelectedVoiceActorId] = useState<number | null>(null);
     const [isUserDetailModalOpen, setIsUserDetailModalOpen] = useState(false);
     const [watchTogetherRoomId, setWatchTogetherRoomId] = useState<string | null>(null);
     const [isShortcutsHelpOpen, setIsShortcutsHelpOpen] = useState(false);
@@ -487,6 +489,7 @@ const App: React.FC = () => {
         setPage('home');
         setSelectedAnime(null);
         setSelectedClub(null);
+        setSelectedVoiceActorId(null);
         setWatchTogetherRoomId(null);
         window.history.pushState({}, '', window.location.pathname);
         setIsSidebarOpen(false);
@@ -495,7 +498,7 @@ const App: React.FC = () => {
     const navigateTo = useCallback((newPage: Page) => {
         if (page === newPage) { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
         setIsPageLoading(true);
-        if (!['player', 'details'].includes(page)) { homePageScrollPosition.current = window.scrollY; }
+        if (!['player', 'details', 'voice-actor'].includes(page)) { homePageScrollPosition.current = window.scrollY; }
         setPage(newPage);
         window.scrollTo(0, 0);
         window.history.pushState({}, '', `?page=${newPage}`);
@@ -547,12 +550,21 @@ const App: React.FC = () => {
             handleDetailSelect(anime, source);
         }
     }, [page, recentEpisodes, seenNewEpisodes, handleWatchNow, handleDetailSelect]);
+
+    const handleVoiceActorSelect = useCallback((id: number) => {
+        if (page !== 'voice-actor') {
+            pageBeforePlayerRef.current = { page, filters, source: 'Voice Actor' };
+        }
+        setSelectedVoiceActorId(id);
+        setPage('voice-actor');
+    }, [page, filters]);
     
     const renderPage = () => {
         if (watchTogetherRoomId) return <WatchTogetherPage roomId={watchTogetherRoomId} onExit={() => setWatchTogetherRoomId(null)} />;
         switch (page) {
             case 'player': return selectedAnime && <Player anime={selectedAnime} allAnime={allAnime} onGoBack={() => setPage(pageBeforePlayerRef.current.page)} onGoHome={goHome} onSelectRelated={handleAnimeSelect} onGenreSelect={(g) => { setFilters({ ...filters, genres: [g] }); setPage('home'); }} onStudioSelect={(s) => { setFilters({ ...filters, studios: [s] }); setPage('home'); }} onUserSelect={(u) => { setSelectedUser(u); setIsUserDetailModalOpen(true); }} onEnterRoom={setWatchTogetherRoomId} breadcrumbsData={pageBeforePlayerRef.current} settings={settings} updateSettings={updateSettings} isLoggedIn={isLoggedIn} onLoginRequest={handleLoginRequest} getEpisodeStatus={getEpisodeStatusCallback} />;
-            case 'details': return selectedAnime && <AnimeDetailPage anime={selectedAnime} onGoBack={() => setPage(pageBeforePlayerRef.current.page)} onGoHome={goHome} onWatchNow={handleWatchNow} onGenreSelect={(g) => { setFilters({ ...filters, genres: [g] }); setPage('home'); }} onStudioSelect={(s) => { setFilters({ ...filters, studios: [s] }); setPage('home'); }} onLoginRequest={handleLoginRequest} breadcrumbsData={pageBeforePlayerRef.current} getEpisodeStatus={getEpisodeStatusCallback} onSelectRelated={handleAnimeSelect} />;
+            case 'details': return selectedAnime && <AnimeDetailPage anime={selectedAnime} onGoBack={() => setPage(pageBeforePlayerRef.current.page)} onGoHome={goHome} onWatchNow={handleWatchNow} onGenreSelect={(g) => { setFilters({ ...filters, genres: [g] }); setPage('home'); }} onStudioSelect={(s) => { setFilters({ ...filters, studios: [s] }); setPage('home'); }} onLoginRequest={handleLoginRequest} breadcrumbsData={pageBeforePlayerRef.current} getEpisodeStatus={getEpisodeStatusCallback} onSelectRelated={handleAnimeSelect} onVoiceActorSelect={handleVoiceActorSelect} />;
+            case 'voice-actor': return selectedVoiceActorId && <VoiceActorPage voiceActorId={selectedVoiceActorId} onGoBack={() => setPage(pageBeforePlayerRef.current.page)} onAnimeSelect={handleAnimeSelect} />;
             case 'profile': return <ProfilePage onGoBack={() => setPage('home')} allAnime={allAnime} onSelectAnime={handleAnimeSelect} getEpisodeStatus={getEpisodeStatusCallback} onNavigate={navigateTo} />;
             case 'club-detail': return selectedClub && <ClubDetailPage club={selectedClub} onGoBack={() => setPage('community')} onSelectAnime={handleAnimeSelect} getEpisodeStatus={getEpisodeStatusCallback} />;
             case 'trending': return <TrendingPage onAnimeSelect={handleAnimeSelect} getEpisodeStatus={getEpisodeStatusCallback} onLoginRequest={handleLoginRequest} />;
@@ -575,6 +587,7 @@ const App: React.FC = () => {
             case 'leaderboards': return <LeaderboardsPage onGoBack={() => setPage('home')} />;
             case 'shop': return <ShopPage onGoBack={() => setPage('home')} onLoginRequest={handleLoginRequest} />;
             case 'downloads': return <DownloadsPage onGoBack={() => setPage('home')} />;
+            case 'watch-together': return <RoomList onJoin={setWatchTogetherRoomId} onBack={() => setPage('home')} />;
             case 'home':
             default: return (
                 <>

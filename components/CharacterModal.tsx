@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import type { Character, VoiceActor } from '../types';
 import { CloseIcon } from './icons/Icons';
@@ -6,9 +7,10 @@ import { fetchWithRetry } from '../api';
 interface CharacterModalProps {
   character: Character;
   onClose: () => void;
+  onVoiceActorSelect?: (id: number) => void;
 }
 
-const CharacterModal: React.FC<CharacterModalProps> = ({ character, onClose }) => {
+const CharacterModal: React.FC<CharacterModalProps> = ({ character, onClose, onVoiceActorSelect }) => {
   const [fullCharacter, setFullCharacter] = useState<Character | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -129,13 +131,20 @@ const CharacterModal: React.FC<CharacterModalProps> = ({ character, onClose }) =
             <h4 className="text-xl font-semibold text-[rgb(var(--color-primary-accent))] mb-4">Voice Actors</h4>
             <div className="flex gap-4 overflow-x-auto pb-4 -mx-6 px-6" style={{ scrollbarWidth: 'thin' }}>
               {displayCharacter.voiceActors.map(va => (
-                <div key={va.id} className="flex-shrink-0 w-28 text-center group">
+                <button 
+                    key={va.id} 
+                    onClick={() => {
+                        onClose();
+                        if (onVoiceActorSelect) onVoiceActorSelect(va.id);
+                    }}
+                    className="flex-shrink-0 w-28 text-center group focus:outline-none"
+                >
                   <div className="aspect-[2/3] w-full rounded-lg overflow-hidden shadow-md transform transition-transform duration-300 group-hover:scale-105">
                     <img loading="lazy" src={va.image} alt={va.name} className="w-full h-full object-cover" />
                   </div>
-                  <p className="mt-2 text-sm font-semibold text-[rgb(var(--text-primary))] truncate">{va.name}</p>
+                  <p className="mt-2 text-sm font-semibold text-[rgb(var(--text-primary))] truncate group-hover:text-[rgb(var(--color-primary-accent))]">{va.name}</p>
                   <p className="text-xs text-[rgb(var(--text-muted))]">{va.language}</p>
-                </div>
+                </button>
               ))}
             </div>
           </div>

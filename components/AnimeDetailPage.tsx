@@ -24,6 +24,7 @@ interface AnimeDetailPageProps {
     breadcrumbsData?: { page: Page; filters: Filter; source?: string };
     getEpisodeStatus: (animeId: number) => { isNew: boolean; episodeNumber: number | null };
     onSelectRelated: (anime: Anime, source?: string) => void;
+    onVoiceActorSelect?: (id: number) => void;
 }
 
 const StatItem: React.FC<{ label: string; value: string | number | null | undefined }> = ({ label, value }) => (
@@ -33,7 +34,7 @@ const StatItem: React.FC<{ label: string; value: string | number | null | undefi
     </div>
 );
 
-const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ anime, onGoBack, onGoHome, onWatchNow, onGenreSelect, onStudioSelect, onLoginRequest, breadcrumbsData, getEpisodeStatus, onSelectRelated }) => {
+const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ anime, onGoBack, onGoHome, onWatchNow, onGenreSelect, onStudioSelect, onLoginRequest, breadcrumbsData, getEpisodeStatus, onSelectRelated, onVoiceActorSelect }) => {
     const { settings } = useSettings();
     const { addToWatchlist, isInWatchlist } = useWatchlist();
     const { addFavorite, removeFavorite, isFavorite } = useFavorites();
@@ -193,30 +194,42 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ anime, onGoBack, onGo
     const CharacterGridItem: React.FC<{ character: Character }> = ({ character }) => {
         const va = character.voiceActors?.find(v => v.language === 'Japanese');
         return (
-            <button onClick={() => setSelectedCharacter(character)} className="bg-[rgb(var(--surface-3))/0.5] p-2 rounded-lg text-left transition-all duration-300 hover:scale-105 hover:bg-[rgb(var(--surface-3))] focus:outline-none focus:ring-2 focus:ring-[rgb(var(--color-primary))] group overflow-hidden">
+            <div className="bg-[rgb(var(--surface-3))/0.5] p-2 rounded-lg text-left transition-all duration-300 hover:bg-[rgb(var(--surface-3))] group overflow-hidden">
                 <div className="flex gap-3">
-                    <img src={character.image} alt={character.name} className="w-16 h-24 object-cover rounded-md flex-shrink-0" />
+                    <button onClick={() => setSelectedCharacter(character)} className="flex-shrink-0 transition-transform hover:scale-105">
+                        <img src={character.image} alt={character.name} className="w-16 h-24 object-cover rounded-md" />
+                    </button>
                     <div className="flex flex-col justify-between py-1 min-w-0 flex-1">
                         <div>
-                            <p className="text-xs font-bold truncate text-[rgb(var(--text-primary))] group-hover:text-[rgb(var(--color-primary-accent))]">{character.name}</p>
+                            <button onClick={() => setSelectedCharacter(character)} className="text-xs font-bold truncate text-[rgb(var(--text-primary))] hover:text-[rgb(var(--color-primary-accent))] text-left w-full">{character.name}</button>
                             <p className="text-[10px] text-[rgb(var(--text-muted))]">{character.role}</p>
                         </div>
                         {va && (
                             <div className="mt-1 pt-1 border-t border-white/10 flex items-center gap-2">
-                                <img src={va.image} alt={va.name} className="w-6 h-6 rounded-full object-cover" />
-                                <p className="text-[10px] text-[rgb(var(--text-secondary))] truncate">{va.name}</p>
+                                <button 
+                                    onClick={() => onVoiceActorSelect && onVoiceActorSelect(va.id)} 
+                                    className="flex-shrink-0"
+                                >
+                                    <img src={va.image} alt={va.name} className="w-6 h-6 rounded-full object-cover transition-transform hover:scale-110" />
+                                </button>
+                                <button 
+                                    onClick={() => onVoiceActorSelect && onVoiceActorSelect(va.id)}
+                                    className="text-[10px] text-[rgb(var(--text-secondary))] truncate hover:text-[rgb(var(--color-primary-accent))] text-left"
+                                >
+                                    {va.name}
+                                </button>
                             </div>
                         )}
                     </div>
                 </div>
-            </button>
+            </div>
         );
     };
 
     return (
         <div className="animate-subtle-fade-in-up">
             {modalRoot && selectedCharacter && ReactDOM.createPortal(
-                <CharacterModal character={selectedCharacter} onClose={() => setSelectedCharacter(null)} />,
+                <CharacterModal character={selectedCharacter} onClose={() => setSelectedCharacter(null)} onVoiceActorSelect={onVoiceActorSelect} />,
                 modalRoot
             )}
             <div className="relative h-64 md:h-80 w-full">
