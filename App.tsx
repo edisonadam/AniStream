@@ -64,6 +64,7 @@ import LeaderboardsPage from './components/LeaderboardsPage';
 import ShopPage from './components/ShopPage';
 import DownloadsPage from './components/DownloadsPage';
 import VoiceActorPage from './components/VoiceActorPage';
+import PermissionInfoModal from './components/PermissionInfoModal';
 
 const ANIME_PAGE_SIZE = 25;
 
@@ -633,6 +634,7 @@ const App: React.FC = () => {
         <div>
             <LoadingBar isLoading={isPageLoading || isCarouselLoading || isGridLoading} />
             <Toaster />
+            <PermissionInfoModal />
             {isShortcutsHelpOpen && <ShortcutsHelpModal onClose={() => setIsShortcutsHelpOpen(false)} />}
             
             {!isEmbedMode && (
