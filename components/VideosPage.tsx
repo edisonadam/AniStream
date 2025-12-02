@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import type { Anime, NewsPromo } from '../types';
 import { fetchWithRetry } from '../api';
@@ -40,7 +41,7 @@ const VideosPage: React.FC<VideosPageProps> = ({ onGoBack, onAnimeSelect }) => {
       setTrailers([]);
       try {
         const url = sortOrder === 'trending'
-          ? 'https://api.jikan.moe/v4/seasons/now?limit=25' // Changed from 'upcoming' to 'now' for better results
+          ? 'https://api.jikan.moe/v4/seasons/now?limit=25'
           : 'https://api.jikan.moe/v4/watch/promos?limit=50';
         
         const res = await fetchWithRetry(url);
@@ -78,111 +79,62 @@ const VideosPage: React.FC<VideosPageProps> = ({ onGoBack, onAnimeSelect }) => {
             setIntrosOutros([]);
 
             try {
-                let parsedThemes: any[] = [];
+                // Using AnimeThemes API
+                const url = `https://api.animethemes.moe/animetheme?sort=-created_at&page[size]=24&include=song,anime,animethemeentries.videos`;
+                const res = await fetchWithRetry(url);
                 
-                if (sortOrder === 'newest') {
-                    const res = await fetchWithRetry(`https://api.animethemes.moe/animetheme?sort=-created_at&page[size]=50&include=song,anime,animethemeentries.videos`);
-                    if (!res.ok) throw new Error('Failed to fetch newest intros/outros from AnimeThemes.');
-                    const themesData = await res.json();
+                if (!res.ok) throw new Error('Failed to fetch newest intros/outros from AnimeThemes.');
+                const themesData = await res.json();
+                
+                // AnimeThemes uses a JSON:API structure, need to map included resources manually
+                const includedMap = new Map<string, Map<string, any>>();
+                (themesData.included || []).forEach((item: any) => {
+                    if (!includedMap.has(item.type)) includedMap.set(item.type, new Map());
+                    includedMap.get(item.type)!.set(item.id, item);
+                });
+                const findIncluded = (type: string, id: string) => includedMap.get(type)?.get(id);
+
+                const parsedThemes = (themesData.data || []).map((theme: any) => {
+                    const animeRel = theme.relationships.anime.data;
+                    const songRel = theme.relationships.song.data;
+                    const entriesRel = theme.relationships.animethemeentries.data;
+
+                    if (!animeRel || !songRel || !entriesRel || entriesRel.length === 0) return null;
                     
-                    const includedMap = new Map<string, Map<string, any>>();
-                    (themesData.included || []).forEach((item: any) => {
-                        if (!includedMap.has(item.type)) includedMap.set(item.type, new Map());
-                        includedMap.get(item.type)!.set(item.id, item);
-                    });
-                    const findIncluded = (type: string, id: string) => includedMap.get(type)?.get(id);
+                    const anime = findIncluded('anime', animeRel.id);
+                    const song = findIncluded('song', songRel.id);
+                    const entry = findIncluded('animethemeentry', entriesRel[0].id);
+                    if (!anime || !song || !entry) return null;
 
-                    parsedThemes = (themesData.data || []).map((theme: any) => {
-                        const animeRel = theme.relationships.anime.data;
-                        const songRel = theme.relationships.song.data;
-                        const entriesRel = theme.relationships.animethemeentries.data;
+                    const videosRel = entry.relationships.videos.data;
+                    if (!videosRel || videosRel.length === 0) return null;
 
-                        if (!animeRel || !songRel || !entriesRel || entriesRel.length === 0) return null;
-                        
-                        const anime = findIncluded('anime', animeRel.id);
-                        const song = findIncluded('song', songRel.id);
-                        const entry = findIncluded('animethemeentry', entriesRel[0].id);
-                        if (!anime || !song || !entry) return null;
+                    // Prefer NC (creditless) videos
+                    const videos = videosRel.map((v_rel: any) => findIncluded('video', v_rel.id)).filter(Boolean);
+                    const bestVideo = videos.find((v: any) => v.attributes.tags?.includes('NC')) || videos[0];
 
-                        const videosRel = entry.relationships.videos.data;
-                        if (!videosRel || videosRel.length === 0) return null;
-
-                        const videos = videosRel.map((v_rel: any) => findIncluded('video', v_rel.id)).filter(Boolean);
-                        const bestVideo = videos.find((v: any) => v.attributes.tags?.includes('NC')) || videos[0];
-
-                        if (!bestVideo) return null;
-                        
-                        const malResource = anime.attributes.resources?.find((r: any) => r.site === 'MyAnimeList');
-
-                        return {
-                            id: theme.id,
-                            type: theme.attributes.type,
-                            sequence: theme.attributes.sequence,
-                            song_title: song.attributes.title,
-                            anime_name: anime.attributes.name,
-                            anime_mal_id: malResource?.external_id,
-                            anime_image: anime.attributes.images?.find((img: any) => img.facet === 'Large Cover')?.link || `https://api.dicebear.com/8.x/shapes/svg?seed=${anime.attributes.name}`,
-                            video_link: bestVideo.attributes.link,
-                            video_tags: bestVideo.attributes.tags,
-                        };
-                    }).filter(Boolean);
-
-                } else { // 'trending'
-                    const res = await fetchWithRetry(`https://api.animethemes.moe/anime?sort=-trending&page[size]=25&include=animethemes.song,animethemes.animethemeentries.videos`);
-                    if (!res.ok) throw new Error('Failed to fetch trending intros/outros from AnimeThemes.');
-                    const themesData = await res.json();
+                    if (!bestVideo) return null;
                     
-                    const includedMap = new Map<string, Map<string, any>>();
-                    (themesData.included || []).forEach((item: any) => {
-                        if (!includedMap.has(item.type)) includedMap.set(item.type, new Map());
-                        includedMap.get(item.type)!.set(item.id, item);
-                    });
-                    const findIncluded = (type: string, id: string) => includedMap.get(type)?.get(id);
+                    // Try to find MAL ID for linking
+                    const malResource = anime.attributes.resources?.find((r: any) => r.site === 'MyAnimeList');
 
-                    for (const anime of themesData.data) {
-                        const themesRels = anime.relationships.animethemes?.data;
-                        if (!themesRels) continue;
-
-                        for (const themeRel of themesRels) {
-                            const theme = findIncluded('animetheme', themeRel.id);
-                            if (!theme) continue;
-                            
-                            const songRel = theme.relationships.song.data;
-                            const entriesRel = theme.relationships.animethemeentries.data;
-                            if (!songRel || !entriesRel || entriesRel.length === 0) continue;
-
-                            const song = findIncluded('song', songRel.id);
-                            const entry = findIncluded('animethemeentry', entriesRel[0].id);
-                            if (!song || !entry) continue;
-
-                            const videosRel = entry.relationships.videos.data;
-                            if (!videosRel || videosRel.length === 0) continue;
-                            
-                            const videos = videosRel.map((v_rel: any) => findIncluded('video', v_rel.id)).filter(Boolean);
-                            const bestVideo = videos.find((v: any) => v.attributes.tags?.includes('NC')) || videos[0];
-
-                            if (!bestVideo) continue;
-
-                            const malResource = anime.attributes.resources?.find((r: any) => r.site === 'MyAnimeList');
-                            
-                            parsedThemes.push({
-                                id: theme.id,
-                                type: theme.attributes.type,
-                                sequence: theme.attributes.sequence,
-                                song_title: song.attributes.title,
-                                anime_name: anime.attributes.name,
-                                anime_mal_id: malResource?.external_id,
-                                anime_image: anime.attributes.images?.find((img: any) => img.facet === 'Large Cover')?.link || `https://api.dicebear.com/8.x/shapes/svg?seed=${anime.attributes.name}`,
-                                video_link: bestVideo.attributes.link,
-                                video_tags: bestVideo.attributes.tags,
-                            });
-                        }
-                    }
-                }
+                    return {
+                        id: theme.id,
+                        type: theme.attributes.type,
+                        sequence: theme.attributes.sequence,
+                        song_title: song.attributes.title,
+                        anime_name: anime.attributes.name,
+                        anime_mal_id: malResource?.external_id,
+                        anime_image: anime.attributes.images?.find((img: any) => img.facet === 'Large Cover')?.link || `https://api.dicebear.com/8.x/shapes/svg?seed=${anime.attributes.name}`,
+                        video_link: bestVideo.attributes.link,
+                        video_tags: bestVideo.attributes.tags,
+                    };
+                }).filter(Boolean);
                 
                 setIntrosOutros(parsedThemes);
 
             } catch (e) {
+                console.error(e);
                 setError(e instanceof Error ? e.message : 'An error occurred while fetching intros/outros.');
             } finally {
                 setIsLoadingIntrosOutros(false);
@@ -262,19 +214,12 @@ const VideosPage: React.FC<VideosPageProps> = ({ onGoBack, onAnimeSelect }) => {
           <h1 className="text-3xl font-bold text-[rgb(var(--text-primary))] mb-2" style={{ textShadow: `0 0 8px rgb(var(--shadow-color) / 0.5)` }}>Trailers & Intros/Outros</h1>
           <p className="text-[rgb(var(--text-muted))] mb-6">Discover the latest promotional videos and theme songs.</p>
           
-          <div className="bg-yellow-500/10 border border-yellow-500/30 text-yellow-300 text-sm rounded-xl p-4 mb-8 flex items-center justify-center gap-3" role="alert">
-            <ExclamationTriangleIcon className="w-5 h-5 flex-shrink-0" />
-            <p><strong className="font-semibold">Beta Feature:</strong> This page is under development. Content may be incomplete.</p>
-          </div>
-
           <div className="flex justify-center border-b border-white/10 mb-8">
               <button onClick={() => handleTabChange('trailers')} className={`flex items-center gap-2 px-6 py-3 text-lg font-semibold transition-colors ${activeTab === 'trailers' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>
                 Trailers
-                <span className="text-xs font-bold text-yellow-400 bg-yellow-400/20 px-1.5 py-0.5 rounded-sm ml-1 align-middle">SOON</span>
               </button>
               <button onClick={() => handleTabChange('intros')} className={`flex items-center gap-2 px-6 py-3 text-lg font-semibold transition-colors ${activeTab === 'intros' ? 'text-[rgb(var(--color-primary-accent))] border-b-2 border-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))]'}`}>
                 Intros & Outros
-                <span className="text-xs font-bold text-yellow-400 bg-yellow-400/20 px-1.5 py-0.5 rounded-sm ml-1 align-middle">SOON</span>
               </button>
           </div>
 

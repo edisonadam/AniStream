@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { Page } from '../types';
 
@@ -23,7 +24,7 @@ const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
         <button onClick={() => onNavigate('donation')} className="text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] transition-colors">Donate &lt;3</button>
       </div>
       <p className="text-gray-500 text-xs">
-        © {new Date().getFullYear()} website.com | Website Made by Miruro no Kuon v1.1.2
+        © {new Date().getFullYear()} ANISTREAM. All rights reserved.
       </p>
       <div className="mt-4">
          <button onClick={() => onNavigate('og-image-generator')} className="text-xs text-gray-600 hover:text-[rgb(var(--color-primary-accent))] transition-colors">[ Dev Tools ]</button>

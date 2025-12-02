@@ -60,6 +60,9 @@ import AnimeDetailPage from './components/AnimeDetailPage';
 import QueueOverlay from './components/QueueOverlay';
 import { useQueue } from './hooks/useQueue';
 import { useProfileData } from './hooks/useProfileData';
+import LeaderboardsPage from './components/LeaderboardsPage';
+import ShopPage from './components/ShopPage';
+import DownloadsPage from './components/DownloadsPage';
 
 const ANIME_PAGE_SIZE = 25;
 
@@ -550,7 +553,7 @@ const App: React.FC = () => {
         switch (page) {
             case 'player': return selectedAnime && <Player anime={selectedAnime} allAnime={allAnime} onGoBack={() => setPage(pageBeforePlayerRef.current.page)} onGoHome={goHome} onSelectRelated={handleAnimeSelect} onGenreSelect={(g) => { setFilters({ ...filters, genres: [g] }); setPage('home'); }} onStudioSelect={(s) => { setFilters({ ...filters, studios: [s] }); setPage('home'); }} onUserSelect={(u) => { setSelectedUser(u); setIsUserDetailModalOpen(true); }} onEnterRoom={setWatchTogetherRoomId} breadcrumbsData={pageBeforePlayerRef.current} settings={settings} updateSettings={updateSettings} isLoggedIn={isLoggedIn} onLoginRequest={handleLoginRequest} getEpisodeStatus={getEpisodeStatusCallback} />;
             case 'details': return selectedAnime && <AnimeDetailPage anime={selectedAnime} onGoBack={() => setPage(pageBeforePlayerRef.current.page)} onGoHome={goHome} onWatchNow={handleWatchNow} onGenreSelect={(g) => { setFilters({ ...filters, genres: [g] }); setPage('home'); }} onStudioSelect={(s) => { setFilters({ ...filters, studios: [s] }); setPage('home'); }} onLoginRequest={handleLoginRequest} breadcrumbsData={pageBeforePlayerRef.current} getEpisodeStatus={getEpisodeStatusCallback} onSelectRelated={handleAnimeSelect} />;
-            case 'profile': return <ProfilePage onGoBack={() => setPage('home')} allAnime={allAnime} onSelectAnime={handleAnimeSelect} getEpisodeStatus={getEpisodeStatusCallback} />;
+            case 'profile': return <ProfilePage onGoBack={() => setPage('home')} allAnime={allAnime} onSelectAnime={handleAnimeSelect} getEpisodeStatus={getEpisodeStatusCallback} onNavigate={navigateTo} />;
             case 'club-detail': return selectedClub && <ClubDetailPage club={selectedClub} onGoBack={() => setPage('community')} onSelectAnime={handleAnimeSelect} getEpisodeStatus={getEpisodeStatusCallback} />;
             case 'trending': return <TrendingPage onAnimeSelect={handleAnimeSelect} getEpisodeStatus={getEpisodeStatusCallback} onLoginRequest={handleLoginRequest} />;
             case 'schedule': return <SchedulePage onAnimeSelect={handleAnimeSelect} getEpisodeStatus={getEpisodeStatusCallback} onLoginRequest={handleLoginRequest} />;
@@ -569,6 +572,9 @@ const App: React.FC = () => {
             case 'how-to-use': return <HowToUsePage onGoBack={() => setPage('home')} />;
             case 'videos': return <VideosPage onGoBack={() => setPage('home')} onAnimeSelect={handleAnimeSelect} />;
             case 'new-episodes': return <NewEpisodesPage onAnimeSelect={handleAnimeSelect} getEpisodeStatus={getEpisodeStatusCallback} onLoginRequest={handleLoginRequest} onGoBack={() => setPage('home')} />;
+            case 'leaderboards': return <LeaderboardsPage onGoBack={() => setPage('home')} />;
+            case 'shop': return <ShopPage onGoBack={() => setPage('home')} />;
+            case 'downloads': return <DownloadsPage onGoBack={() => setPage('home')} />;
             case 'home':
             default: return (
                 <>

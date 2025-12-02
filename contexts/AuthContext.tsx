@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import { auth } from '../firebase';
 import { onAuthStateChanged, signOut, updateProfile, type User as FirebaseUser } from 'firebase/auth';
@@ -13,7 +14,7 @@ interface AuthContextType {
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const VERIFIED_USERS = ['Miruro', 'Admin', 'Kuon'];
+const VERIFIED_USERS = ['Admin'];
 
 export const mapFirebaseUserToAppUser = (firebaseUser: FirebaseUser): User => {
     const username = firebaseUser.displayName || 'Anonymous User';

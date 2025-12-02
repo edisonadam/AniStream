@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 type IconProps = {
@@ -62,6 +63,7 @@ export const QuestionMarkCircleIcon = createIcon(<><circle cx="12" cy="12" r="10
 export const DownloadIcon = createIcon(<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />);
 export const AnnouncementIcon = createIcon(<path d="M15.536 8.464a5 5 0 010 7.072M18.364 5.636a9 9 0 010 12.728M12 18h.01M12 6h.01M4 12H2m10 6a2 2 0 11-4 0 2 2 0 014 0zm8-12v12" />);
 export const ShoppingCartIcon = createIcon(<><circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" /><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6" /></>);
+export const TrophyIcon = createIcon(<path d="M8 21h8m-4-8v8m-8-8a6 6 0 1112 0v-3a6 6 0 11-12 0v3zm0-3h12" />);
 export const PlusIcon = createIcon(<path d="M12 5v14M5 12h14" />);
 export const CheckIcon = createIcon(<path d="M20 6L9 17l-5-5" />);
 export const DotsVerticalIcon = createIcon(<><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" /></>);

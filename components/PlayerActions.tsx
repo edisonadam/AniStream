@@ -7,7 +7,7 @@ import { useFavorites } from '../hooks/useFavorites';
 import { useToast } from '../hooks/useToast';
 import { updateMalEntry } from '../api';
 import { VIDEO_SERVERS, WATCHLIST_STATUSES } from '../constants';
-import { HeartIcon, HeartIconSolid, CheckIcon, ChevronDownIcon, ScissorsIcon, FlagIcon, BellIcon, SparklesIcon, MessageCircleIcon, BookmarkIcon, CloseIcon, LightbulbIcon, LightbulbOffIcon, ViewListIcon, HistoryIcon } from './icons/Icons';
+import { HeartIcon, HeartIconSolid, CheckIcon, ChevronDownIcon, ScissorsIcon, FlagIcon, BellIcon, SparklesIcon, MessageCircleIcon, BookmarkIcon, CloseIcon, LightbulbIcon, LightbulbOffIcon, ViewListIcon, HistoryIcon, UsersIcon } from './icons/Icons';
 import { useNotificationPrefs } from '../hooks/useNotificationPrefs';
 import { useQueue } from '../hooks/useQueue';
 
@@ -23,6 +23,7 @@ interface PlayerActionsProps {
   isLoggedIn: boolean;
   onLoginRequest: (reason: string) => void;
   onAddTimestamp: () => void;
+  onOpenRoomManager: () => void;
 }
 
 const ActionButton: React.FC<{ icon: React.ReactNode, label: string, onClick: (e: React.MouseEvent) => void, buttonRef?: React.Ref<HTMLButtonElement>, isActive?: boolean, isDanger?: boolean }> = ({ icon, label, onClick, buttonRef, isActive, isDanger }) => (
@@ -50,7 +51,7 @@ const Toggle: React.FC<{ label: string, icon?: React.ReactNode, checked: boolean
     </label>
 );
 
-const PlayerActions: React.FC<PlayerActionsProps> = ({ anime, onClip, settings, updateSettings, onSurprise, onManualServerChange, selectedLanguage, onLanguageChange, isLoggedIn, onLoginRequest, onAddTimestamp }) => {
+const PlayerActions: React.FC<PlayerActionsProps> = ({ anime, onClip, settings, updateSettings, onSurprise, onManualServerChange, selectedLanguage, onLanguageChange, isLoggedIn, onLoginRequest, onAddTimestamp, onOpenRoomManager }) => {
     const { addFavorite, removeFavorite, isFavorite } = useFavorites();
     const { addToWatchlist, removeFromWatchlist, updateWatchlistStatus, isInWatchlist, getWatchlistStatus } = useWatchlist();
     const { addToast } = useToast();
@@ -170,14 +171,14 @@ const PlayerActions: React.FC<PlayerActionsProps> = ({ anime, onClip, settings, 
                 </div>
                 <ActionButton icon={<HistoryIcon />} label="Add Timestamp" onClick={onAddTimestamp} />
                 <ActionButton icon={<ScissorsIcon />} label="Clip" onClick={onClip} />
+                <ActionButton icon={<UsersIcon />} label="Watch2Gether" onClick={() => handleAuthenticatedAction(onOpenRoomManager, "Log in to start a room")} />
                 <ActionButton icon={<MessageCircleIcon />} label="Comments" onClick={scrollToComments} />
                 <ActionButton icon={<SparklesIcon />} label="Surprise Me!" onClick={onSurprise} />
                 <ActionButton icon={<FlagIcon />} label="Report" onClick={handleReport} isDanger />
             </div>
 
             <button onClick={handleQueueToggle} className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-[rgb(var(--surface-4))] text-[rgb(var(--text-secondary))] rounded-xl font-bold hover:bg-[rgb(var(--surface-3))]">
-                <ViewListIcon className="w-6 h-6"/> {inQueue ? 'In Queue' : 'Add to Queue'}
-            </button>
+                <ViewListIcon className="w-6 h-6"/> {inQueue ? 'In Queue' : 'Add to Queue'}</button>
             
             <div className="pt-3 border-t border-white/10 space-y-4">
                 <div className="flex flex-wrap justify-center items-center gap-x-6 gap-y-3 text-sm">

@@ -190,6 +190,29 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ anime, onGoBack, onGo
         );
     };
 
+    const CharacterGridItem: React.FC<{ character: Character }> = ({ character }) => {
+        const va = character.voiceActors?.find(v => v.language === 'Japanese');
+        return (
+            <button onClick={() => setSelectedCharacter(character)} className="bg-[rgb(var(--surface-3))/0.5] p-2 rounded-lg text-left transition-all duration-300 hover:scale-105 hover:bg-[rgb(var(--surface-3))] focus:outline-none focus:ring-2 focus:ring-[rgb(var(--color-primary))] group overflow-hidden">
+                <div className="flex gap-3">
+                    <img src={character.image} alt={character.name} className="w-16 h-24 object-cover rounded-md flex-shrink-0" />
+                    <div className="flex flex-col justify-between py-1 min-w-0 flex-1">
+                        <div>
+                            <p className="text-xs font-bold truncate text-[rgb(var(--text-primary))] group-hover:text-[rgb(var(--color-primary-accent))]">{character.name}</p>
+                            <p className="text-[10px] text-[rgb(var(--text-muted))]">{character.role}</p>
+                        </div>
+                        {va && (
+                            <div className="mt-1 pt-1 border-t border-white/10 flex items-center gap-2">
+                                <img src={va.image} alt={va.name} className="w-6 h-6 rounded-full object-cover" />
+                                <p className="text-[10px] text-[rgb(var(--text-secondary))] truncate">{va.name}</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </button>
+        );
+    };
+
     return (
         <div className="animate-subtle-fade-in-up">
             {modalRoot && selectedCharacter && ReactDOM.createPortal(
@@ -307,16 +330,13 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ anime, onGoBack, onGo
 
                     {characters.length > 0 && (
                         <div>
-                            <h3 className="text-xl font-bold text-[rgb(var(--color-primary-accent))] mb-4">Characters</h3>
+                            <h3 className="text-xl font-bold text-[rgb(var(--color-primary-accent))] mb-4">Characters & Voice Actors</h3>
                             {mainCharacters.length > 0 && (
                                 <div className="mb-6">
                                     <h4 className="text-lg font-semibold text-[rgb(var(--text-secondary))] mb-3">Main</h4>
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                                         {mainCharacters.map(char => (
-                                            <button key={char.id} onClick={() => setSelectedCharacter(char)} className="bg-[rgb(var(--surface-3))/0.5] p-2 rounded-lg text-center transition-all duration-300 hover:scale-105 hover:bg-[rgb(var(--surface-3))] focus:outline-none focus:ring-2 focus:ring-[rgb(var(--color-primary))]">
-                                                <img src={char.image} alt={char.name} className="w-full aspect-[2/3] object-cover rounded-md" />
-                                                <p className="text-xs font-semibold mt-1 truncate">{char.name}</p>
-                                            </button>
+                                            <CharacterGridItem key={char.id} character={char} />
                                         ))}
                                     </div>
                                 </div>
@@ -324,12 +344,9 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ anime, onGoBack, onGo
                              {supportingCharacters.length > 0 && (
                                 <div>
                                     <h4 className="text-lg font-semibold text-[rgb(var(--text-secondary))] mb-3">Supporting</h4>
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                                         {supportingCharacters.map(char => (
-                                            <button key={char.id} onClick={() => setSelectedCharacter(char)} className="bg-[rgb(var(--surface-3))/0.5] p-2 rounded-lg text-center transition-all duration-300 hover:scale-105 hover:bg-[rgb(var(--surface-3))] focus:outline-none focus:ring-2 focus:ring-[rgb(var(--color-primary))]">
-                                                <img src={char.image} alt={char.name} className="w-full aspect-[2/3] object-cover rounded-md" />
-                                                <p className="text-xs font-semibold mt-1 truncate">{char.name}</p>
-                                            </button>
+                                            <CharacterGridItem key={char.id} character={char} />
                                         ))}
                                     </div>
                                 </div>

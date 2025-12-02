@@ -389,28 +389,28 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
     setStreamError(null);
     setVideoUrl(null);
 
-    try {
-        let absoluteEpisodeNumber = currentEpisode;
-        if (mediaIds.mediaType === 'tv' && seasons.length > 0) {
-            const sorted = [...seasons].sort((a, b) => a.season_number - b.season_number);
-            let episodeOffset = 0;
-            for (const season of sorted) {
-                if (season.season_number < currentSeason) {
-                    episodeOffset += season.episode_count;
-                } else {
-                    break;
-                }
+    let absoluteEpisodeNumber = currentEpisode;
+    if (mediaIds.mediaType === 'tv' && seasons.length > 0) {
+        const sorted = [...seasons].sort((a, b) => a.season_number - b.season_number);
+        let episodeOffset = 0;
+        for (const season of sorted) {
+            if (season.season_number < currentSeason) {
+                episodeOffset += season.episode_count;
+            } else {
+                break;
             }
-            absoluteEpisodeNumber += episodeOffset;
-        } else if (playerAnime.type !== 'Movie') {
-            absoluteEpisodeNumber = currentEpisode;
-        } else {
-            absoluteEpisodeNumber = 1;
         }
+        absoluteEpisodeNumber += episodeOffset;
+    } else if (playerAnime.type !== 'Movie') {
+        absoluteEpisodeNumber = currentEpisode;
+    } else {
+        absoluteEpisodeNumber = 1;
+    }
 
+    try {
         const serverSetting = settings.videoServer;
 
-        // Always use Consumet providers for a direct stream URL compatible with Artplayer
+        // Try direct stream fetch first (Artplayer compatible)
         let provider: 'gogoanime' | 'zoro' | 'animepahe' = 'zoro'; // Default provider
         if (serverSetting === 'gogoanime') {
             provider = 'gogoanime';
@@ -419,7 +419,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
         } else if (serverSetting === 'zoro') {
             provider = 'zoro';
         }
-        // Other servers like 'hop', 'izy' will use the default 'zoro' provider, which is a good fallback.
+        // Other servers like 'hop', 'izy', 'vidembed' etc will try 'zoro' first via this logic.
 
         const titleToSearch = playerAnime.title_english || playerAnime.title;
         const url = await fetchConsumetStreamUrl(titleToSearch, absoluteEpisodeNumber, provider);
@@ -430,9 +430,12 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
             throw new Error(`Could not retrieve a video source for the selected server: ${serverSetting}.`);
         }
     } catch (e) {
-        const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred while fetching video source.';
-        setStreamError(errorMessage);
-        console.error(e);
+        // Fallback to Embed Player if direct stream fails (server down/API error)
+        console.warn("Primary stream fetch failed, falling back to embed:", e);
+        // Use vidsrc.cc as a reliable fallback which accepts MAL ID and absolute episode number
+        const embedUrl = `https://vidsrc.cc/v2/embed/anime/${playerAnime.id}/${absoluteEpisodeNumber}`;
+        setExternalIframeUrl(embedUrl);
+        setStreamError(null); // Clear error since we are handling it with fallback
     } finally {
         setIsStreamLoading(false);
     }
@@ -1833,7 +1836,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
                     </div>
                 )}
                 
-                {!isEmbed && <PlayerActions anime={playerAnime} onClip={() => setIsClippingModalOpen(true)} settings={settings} updateSettings={updateSettings} onSurprise={handleSurpriseFact} onManualServerChange={handleManualServerChange} selectedLanguage={selectedLanguage} onLanguageChange={handleLanguageChange} isLoggedIn={isLoggedIn} onLoginRequest={onLoginRequest} onAddTimestamp={handleTimestamp} />}
+                {!isEmbed && <PlayerActions anime={playerAnime} onClip={() => setIsClippingModalOpen(true)} settings={settings} updateSettings={updateSettings} onSurprise={handleSurpriseFact} onManualServerChange={handleManualServerChange} selectedLanguage={selectedLanguage} onLanguageChange={handleLanguageChange} isLoggedIn={isLoggedIn} onLoginRequest={onLoginRequest} onAddTimestamp={handleTimestamp} onOpenRoomManager={() => setIsRoomManagerOpen(true)} />}
                 
                 {mediaIds.mediaType === 'tv' && !isEmbed && (
                     <div className="flex justify-between items-center mt-4 p-4 bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 text-white rounded-2xl">

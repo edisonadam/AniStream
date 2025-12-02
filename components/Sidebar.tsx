@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import type { Filter, Settings, Page } from '../types';
-import { CloseIcon, UsersIcon, BookOpenIcon, GiftIcon, MoonIcon, SunIcon, HomeIcon, TrendingUpIcon, CalendarIcon, HistoryIcon, InfoIcon, AcademicCapIcon, EyeIcon, EyeOffIcon, MessageCircleIcon, LevelUpIcon, ChevronDownIcon, ClipboardIcon, ShieldCheckIcon, HeartIcon, NewspaperIcon, StarIcon, MailIcon, QuestionMarkCircleIcon, FilmIcon, DownloadIcon, ShoppingCartIcon } from './icons/Icons';
+import { CloseIcon, UsersIcon, BookOpenIcon, GiftIcon, MoonIcon, SunIcon, HomeIcon, TrendingUpIcon, CalendarIcon, HistoryIcon, InfoIcon, AcademicCapIcon, EyeIcon, EyeOffIcon, MessageCircleIcon, TrophyIcon, ChevronDownIcon, ClipboardIcon, ShieldCheckIcon, HeartIcon, NewspaperIcon, StarIcon, MailIcon, QuestionMarkCircleIcon, FilmIcon, DownloadIcon, ShoppingCartIcon } from './icons/Icons';
 import Logo from './Logo';
 import { ANIME_TYPES, ANIME_STATUSES, YEAR_OPTIONS, LANGUAGE_OPTIONS, STUDIO_OPTIONS, GENRES, TAG_OPTIONS } from '../constants';
 
@@ -65,8 +65,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   
   const touchStartRef = useRef<{ x: number, y: number } | null>(null);
-  const listTouchStartRef = useRef<{ x: number, y: number } | null>(null);
-  const listTouchDragRef = useRef<{ dx: number, dy: number } | null>(null);
+  const listTouchStartRef = useRef<{ x: number, y: number, scrollTop: number } | null>(null);
 
   // Horizontal Swipe to Close (Sidebar)
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -110,57 +109,49 @@ const Sidebar: React.FC<SidebarProps> = ({
       }
   };
 
-  // List Touch (Overscroll to close - Close on Release)
+  // List Touch (Overscroll to close - Strict Mode)
   const handleListTouchStart = (e: React.TouchEvent) => {
       const el = e.currentTarget;
-      // Track start only if near boundaries
-      if (el.scrollTop <= 0 || el.scrollHeight - el.scrollTop - el.clientHeight <= 5) {
+      // Only track if we are strictly at the top or bottom
+      if (el.scrollTop === 0 || Math.abs(el.scrollHeight - el.scrollTop - el.clientHeight) < 2) {
           listTouchStartRef.current = { 
               x: e.targetTouches[0].clientX, 
-              y: e.targetTouches[0].clientY 
+              y: e.targetTouches[0].clientY,
+              scrollTop: el.scrollTop
           };
-          listTouchDragRef.current = { dx: 0, dy: 0 };
       } else {
           listTouchStartRef.current = null;
-          listTouchDragRef.current = null;
       }
   };
 
   const handleListTouchMove = (e: React.TouchEvent) => {
-      if (!listTouchStartRef.current) return;
-      const y = e.targetTouches[0].clientY;
-      const x = e.targetTouches[0].clientX;
-      
-      const dy = y - listTouchStartRef.current.y;
-      const dx = x - listTouchStartRef.current.x;
-      
-      listTouchDragRef.current = { dx, dy };
+      // We don't trigger close during move to prevent jitter
   };
 
   const handleListTouchEnd = (e: React.TouchEvent) => {
-      if (!listTouchStartRef.current || !listTouchDragRef.current) return;
+      if (!listTouchStartRef.current || !scrollContainerRef.current) return;
       
-      const { dx, dy } = listTouchDragRef.current;
+      const el = scrollContainerRef.current;
+      const y = e.changedTouches[0].clientY;
+      const dy = y - listTouchStartRef.current.y;
       
-      // Ignore if movement is primarily horizontal to prevent conflict with swipe-to-close
-      if (Math.abs(dx) > Math.abs(dy)) {
-          listTouchStartRef.current = null;
-          listTouchDragRef.current = null;
-          return;
-      }
+      // Significant pull threshold
+      const THRESHOLD = 120;
 
-      // Check threshold (100px) for closing
-      // Top Overscroll (Swipe Down -> dy > 0)
-      if (dy > 100) {
+      // Top Overscroll (Pull Down)
+      // Must have started at top (scrollTop 0) AND pulled down significantly
+      if (listTouchStartRef.current.scrollTop === 0 && dy > THRESHOLD) {
           onClose();
       }
-      // Bottom Overscroll (Swipe Up -> dy < 0)
-      else if (dy < -100) {
+      
+      // Bottom Overscroll (Pull Up)
+      // Must have started at bottom AND pulled up significantly
+      const isAtBottom = Math.abs(el.scrollHeight - listTouchStartRef.current.scrollTop - el.clientHeight) < 2;
+      if (isAtBottom && dy < -THRESHOLD) {
           onClose();
       }
 
       listTouchStartRef.current = null;
-      listTouchDragRef.current = null;
   };
 
   // Wheel Overscroll (Desktop)
@@ -284,8 +275,8 @@ const Sidebar: React.FC<SidebarProps> = ({
               <SideButton icon={<BookOpenIcon />} label="Manga & Mags" onClick={() => handleNavigation('manga')} />
               <SideButton icon={<NewspaperIcon />} label="New Episodes" onClick={() => handleNavigation('new-episodes')} />
               <SideButton icon={<MessageCircleIcon />} label="Community Hub" onClick={() => handleNavigation('community')} />
-              <SideButton icon={<UsersIcon />} label="Watch2Gether" onClick={() => {}} disabled />
-              <SideButton icon={<LevelUpIcon />} label="Leaderboards" onClick={() => handleNavigation('leaderboards')} />
+              <SideButton icon={<UsersIcon />} label="Watch2Gether" onClick={() => { onClose(); onLoginClick("Log in to start a room"); }} />
+              <SideButton icon={<TrophyIcon />} label="Leaderboards" onClick={() => handleNavigation('leaderboards')} />
               <SideButton icon={<ShoppingCartIcon />} label="Shop" onClick={() => handleNavigation('shop')} />
             </SidebarSection>
             

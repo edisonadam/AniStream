@@ -6,22 +6,24 @@ import { useWatchProgress } from '../hooks/useWatchProgress';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { useToast } from '../hooks/useToast';
 import { ChevronLeftIcon, VerifiedIcon, UserIcon, ShieldCheckIcon, HistoryIcon, CogIcon, RefreshCwIcon, LockClosedIcon, EyeIcon } from './icons/Icons';
-import type { Anime, Settings } from '../types';
+import type { Anime, Settings, Page, WatchProgressInfo } from '../types';
 import { COLOR_PRESETS, VIDEO_SERVERS } from '../constants';
 import { fetchAnilistUserAnimeList, fetchMalUserAnimeList } from '../api';
 import ShortcutSettings from './ShortcutSettings';
+import AnimeCard from './AnimeCard';
 
 interface ProfilePageProps {
     onGoBack: () => void;
     allAnime: Anime[];
     onSelectAnime: (anime: Anime) => void;
     getEpisodeStatus: (animeId: number) => { isNew: boolean; episodeNumber: number | null };
+    onNavigate: (page: Page) => void;
 }
 
 type MainTab = 'general' | 'security' | 'sessions' | 'preferences' | 'sync' | 'privacy';
 type GeneralSubTab = 'profile' | 'privacy' | 'statistics' | 'activity';
 
-const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack }) => {
+const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectAnime, getEpisodeStatus, onNavigate }) => {
     const { user } = useAuth();
     const [activeMainTab, setActiveMainTab] = useState<MainTab>('general');
     const [activeGeneralSubTab, setActiveGeneralSubTab] = useState<GeneralSubTab>('profile');
@@ -29,7 +31,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack }) => {
     const renderContent = () => {
         switch (activeMainTab) {
             case 'general':
-                return <GeneralSection activeSubTab={activeGeneralSubTab} setActiveSubTab={setActiveGeneralSubTab} />;
+                return <GeneralSection activeSubTab={activeGeneralSubTab} setActiveSubTab={setActiveGeneralSubTab} allAnime={allAnime} onSelectAnime={onSelectAnime} getEpisodeStatus={getEpisodeStatus} onNavigate={onNavigate} />;
             case 'security':
                 return <SecuritySection />;
             case 'sessions':
@@ -41,7 +43,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack }) => {
             case 'privacy':
                 return <PrivacySection isSubSection={false} />;
             default:
-                return <GeneralSection activeSubTab={activeGeneralSubTab} setActiveSubTab={setActiveGeneralSubTab} />;
+                return <GeneralSection activeSubTab={activeGeneralSubTab} setActiveSubTab={setActiveGeneralSubTab} allAnime={allAnime} onSelectAnime={onSelectAnime} getEpisodeStatus={getEpisodeStatus} onNavigate={onNavigate} />;
         }
     };
 
@@ -102,7 +104,14 @@ const Section: React.FC<{ title: string, subtitle?: string, children: React.Reac
 );
 
 
-const GeneralSection: React.FC<{ activeSubTab: GeneralSubTab, setActiveSubTab: (tab: GeneralSubTab) => void }> = ({ activeSubTab, setActiveSubTab }) => (
+const GeneralSection: React.FC<{ 
+    activeSubTab: GeneralSubTab, 
+    setActiveSubTab: (tab: GeneralSubTab) => void,
+    allAnime: Anime[],
+    onSelectAnime: (anime: Anime) => void,
+    getEpisodeStatus: (animeId: number) => { isNew: boolean; episodeNumber: number | null },
+    onNavigate: (page: Page) => void
+}> = ({ activeSubTab, setActiveSubTab, allAnime, onSelectAnime, getEpisodeStatus, onNavigate }) => (
     <div className="space-y-8">
         <div className="flex flex-wrap border-b border-white/10">
             <SubTabButton label="Profile" isActive={activeSubTab === 'profile'} onClick={() => setActiveSubTab('profile')} />
@@ -113,7 +122,7 @@ const GeneralSection: React.FC<{ activeSubTab: GeneralSubTab, setActiveSubTab: (
         {activeSubTab === 'profile' && <ProfileSubSection />}
         {activeSubTab === 'privacy' && <PrivacySection isSubSection />}
         {activeSubTab === 'statistics' && <StatisticsSubSection />}
-        {activeSubTab === 'activity' && <ActivitySubSection />}
+        {activeSubTab === 'activity' && <ActivitySubSection allAnime={allAnime} onSelectAnime={onSelectAnime} getEpisodeStatus={getEpisodeStatus} onNavigate={onNavigate} />}
     </div>
 );
 
@@ -237,9 +246,76 @@ const StatisticsSubSection: React.FC = () => {
     );
 };
 
-const ActivitySubSection: React.FC = () => (
-    <Section title="Recent Activity"><p className="text-center text-[rgb(var(--text-muted))] py-8">No recent activity</p></Section>
-);
+const ActivitySubSection: React.FC<{
+    allAnime: Anime[], 
+    onSelectAnime: (anime: Anime) => void, 
+    getEpisodeStatus: (animeId: number) => { isNew: boolean; episodeNumber: number | null },
+    onNavigate: (page: Page) => void
+}> = ({ allAnime, onSelectAnime, getEpisodeStatus, onNavigate }) => {
+    const { watchProgressList } = useWatchProgress();
+
+    const watchableItems = useMemo(() => {
+        if (watchProgressList.length === 0) return [];
+
+        const animeMap = new Map<number, Anime>();
+        allAnime.forEach(anime => {
+            if(anime) animeMap.set(anime.id, anime);
+        });
+
+        // Show items that are in progress (0 < progress < 100) or just recently watched
+        return watchProgressList
+            .filter(p => p.progress > 0 && p.progress < 100)
+            .map(progressInfo => {
+                const anime = animeMap.get(progressInfo.animeId);
+                return anime ? { anime, progressInfo } : null;
+            })
+            .filter((item): item is { anime: Anime; progressInfo: WatchProgressInfo } => item !== null && !!item.anime.thumbnail)
+            .map(item => item.anime)
+            .slice(0, 10); // Limit to 10 items for the carousel
+    }, [watchProgressList, allAnime]);
+
+    return (
+        <div className="space-y-6">
+            <Section title="Continue Watching" noPadding>
+                <div className="p-6">
+                    {watchableItems.length > 0 ? (
+                        <>
+                            <div className="flex justify-between items-center mb-4">
+                                <p className="text-sm text-[rgb(var(--text-muted))]">Pick up where you left off</p>
+                                <button onClick={() => onNavigate('history')} className="text-sm font-semibold text-[rgb(var(--color-primary-accent))] hover:underline">
+                                    View All History
+                                </button>
+                            </div>
+                            <div className="flex gap-4 overflow-x-auto pb-4" style={{ scrollbarWidth: 'thin' }}>
+                                {watchableItems.map((anime) => (
+                                    <div key={anime.id} className="flex-shrink-0 w-40">
+                                        <AnimeCard 
+                                            anime={anime} 
+                                            onSelect={onSelectAnime} 
+                                            episodeStatus={getEpisodeStatus(anime.id)} 
+                                            onLoginRequest={() => {}}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    ) : (
+                        <div className="text-center py-8">
+                            <p className="text-[rgb(var(--text-muted))]">No active watch history found.</p>
+                            <button onClick={() => onNavigate('history')} className="mt-2 text-sm font-semibold text-[rgb(var(--color-primary-accent))] hover:underline">
+                                View Full History
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </Section>
+            
+            <Section title="Recent Activity">
+                <p className="text-center text-[rgb(var(--text-muted))] py-4">No recent community activity</p>
+            </Section>
+        </div>
+    );
+};
 
 const SecuritySection: React.FC = () => (
     <div className="space-y-8">
