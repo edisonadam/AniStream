@@ -573,7 +573,7 @@ const App: React.FC = () => {
             case 'videos': return <VideosPage onGoBack={() => setPage('home')} onAnimeSelect={handleAnimeSelect} />;
             case 'new-episodes': return <NewEpisodesPage onAnimeSelect={handleAnimeSelect} getEpisodeStatus={getEpisodeStatusCallback} onLoginRequest={handleLoginRequest} onGoBack={() => setPage('home')} />;
             case 'leaderboards': return <LeaderboardsPage onGoBack={() => setPage('home')} />;
-            case 'shop': return <ShopPage onGoBack={() => setPage('home')} />;
+            case 'shop': return <ShopPage onGoBack={() => setPage('home')} onLoginRequest={handleLoginRequest} />;
             case 'downloads': return <DownloadsPage onGoBack={() => setPage('home')} />;
             case 'home':
             default: return (
