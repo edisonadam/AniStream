@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import type { Anime, Character, Page, Filter } from '../types';
@@ -9,8 +7,7 @@ import { useWatchlist } from '../hooks/useWatchlist';
 import { useFavorites } from '../hooks/useFavorites';
 import { useProfileData } from '../hooks/useProfileData';
 import { getDisplayTitle, formatDuration, mapPartialToFullAnime } from '../utils';
-// FIX: Use type guard to ensure data.data is an array before calling .map(), preventing a potential crash.
-import { fetchWithRetry, mapJikanToCharacter, fetchAniListDetails, mapJikanToAnime, isJikanDataArrayResponse } from '../api';
+import { fetchWithRetry, mapJikanToCharacter, fetchAniListDetails, mapJikanToAnime } from '../api';
 import { ChevronLeftIcon, StarIcon, PlayIcon, BookmarkIcon, HeartIcon, HeartIconSolid, ShareIcon, FilmIcon, UsersIcon, ThumbsUpIcon, ThumbsDownIcon, ViewListIcon } from './icons/Icons';
 import { useQueue } from '../hooks/useQueue';
 import { useAuth } from '../hooks/useAuth';
@@ -90,9 +87,9 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ anime, onGoBack, onGo
                 }
                 
                 if (charactersRes.ok) {
-                    const data = await charactersRes.json();
-                    // FIX: Use type guard to ensure data.data is an array before calling .map(), preventing a potential crash.
-                    if (isJikanDataArrayResponse(data)) {
+                    const data = await charactersRes.json() as any;
+                    // FIX: Ensure data.data is an array before calling .map()
+                    if (data?.data && Array.isArray(data.data)) {
                         setCharacters(data.data.map(mapJikanToCharacter).filter((c: Character | null): c is Character => c !== null));
                     }
                 }
@@ -150,8 +147,14 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ anime, onGoBack, onGo
 
     const { episodeNumber } = getEpisodeStatus(fullAnime.id);
     const totalEpisodes = fullAnime.totalEpisodes || fullAnime.episodes_count;
-    const releasedEpisodes = episodeNumber;
-    const shouldShowReleasedBadge = (fullAnime.status === 'Ongoing' || fullAnime.status === 'Upcoming');
+    
+    let badgeText = '';
+    if (episodeNumber) {
+        badgeText = `${episodeNumber} / ${totalEpisodes || '?'}`;
+    } else if (totalEpisodes) {
+        badgeText = `${totalEpisodes} Eps`;
+    }
+    const showBadge = badgeText !== '';
 
     const Breadcrumbs: React.FC = () => {
         if (!breadcrumbsData) return null;
@@ -215,9 +218,9 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ anime, onGoBack, onGo
                                     {genre}
                                 </button>
                             ))}
-                            {shouldShowReleasedBadge && (totalEpisodes || releasedEpisodes) && (
+                            {showBadge && (
                                  <span className="px-3 py-1 text-xs font-semibold rounded-full bg-cyan-500/20 text-cyan-400">
-                                    {releasedEpisodes || 0} / {totalEpisodes || '?'} Episodes Released
+                                    {badgeText}
                                 </span>
                             )}
                         </div>
@@ -273,14 +276,12 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ anime, onGoBack, onGo
                                         acc[type].push(item);
                                         return acc;
                                     }, {} as Record<string, (Partial<Anime> & { relationType: string })[]>)
-                                ).sort((a, b) => {
-                                    const aType = a[0];
-                                    const bType = b[0];
+                                ).sort(([aType], [bType]) => {
                                     const orderPreference = ['Parent Story', 'Prequel', 'Sequel', 'Side Story', 'Spin Off', 'Alternative', 'Character', 'Summary', 'Other'];
                                     const aIndex = orderPreference.indexOf(aType);
                                     const bIndex = orderPreference.indexOf(bType);
                                     return (aIndex === -1 ? 99 : aIndex) - (bIndex === -1 ? 99 : bIndex);
-                                }).map(([type, items]) => (
+                                }).map(([type, items]: [string, (Partial<Anime> & { relationType: string })[]]) => (
                                     <div key={type}>
                                         <h4 className="font-semibold text-md text-[rgb(var(--text-secondary))] mb-2 capitalize">{type.toLowerCase()}</h4>
                                         <div className="space-y-2">

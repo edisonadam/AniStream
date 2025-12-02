@@ -35,6 +35,7 @@ const GoToTopButton: React.FC = () => {
   return ReactDOM.createPortal(
     <button
       onClick={scrollToTop}
+      title="Go to top"
       className={`fixed bottom-6 right-6 z-30 p-3 rounded-full bg-[rgb(var(--color-primary))] text-white shadow-lg shadow-[rgb(var(--shadow-color))/0.5] hover:bg-[rgb(var(--color-primary-hover))] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[rgb(var(--surface-1))] focus:ring-[rgb(var(--color-primary))] transition-all duration-300 transform ${
         isScrolled ? 'opacity-100 scale-100' : 'opacity-0 scale-90 pointer-events-none'
       }`}

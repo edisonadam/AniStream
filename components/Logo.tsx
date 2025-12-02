@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect } from 'react';
 
 interface LogoProps {
@@ -11,8 +12,6 @@ const Logo: React.FC<LogoProps> = ({ onClick, className }) => {
   useEffect(() => {
     const handleInteraction = () => {
       const button = buttonRef.current;
-      // If the button is the currently focused element, remove focus ("unselect" it).
-      // Added a fallback check with `matches(':focus')` for robustness.
       if (button && (document.activeElement === button || button.matches(':focus'))) {
         button.blur();
       }
@@ -27,17 +26,9 @@ const Logo: React.FC<LogoProps> = ({ onClick, className }) => {
     };
   }, []);
   
-  const handleClick = () => {
-    // First, call the passed onClick function (e.g., to navigate home).
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.currentTarget.blur();
     onClick();
-    
-    // Then, after a short delay, remove focus from the button.
-    // This allows the :active state to show but prevents a sticky :focus state.
-    if (buttonRef.current) {
-        setTimeout(() => {
-            buttonRef.current?.blur();
-        }, 300);
-    }
   };
 
   return (

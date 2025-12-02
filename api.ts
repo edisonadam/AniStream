@@ -681,17 +681,3 @@ export const updateAnilistProgress = async (anilistId: number, episode: number, 
     `;
     await fetchAnilist(mutation, { mediaId: anilistId, progress: episode }, token);
 };
-
-/**
- * Type guard to check if an unknown response has a `data` property that is an array.
- * @param response The unknown response from a fetch call.
- * @returns True if the response matches the expected shape.
- */
-export function isJikanDataArrayResponse(response: unknown): response is { data: any[] } {
-    return (
-        typeof response === 'object' &&
-        response !== null &&
-        'data' in response &&
-        Array.isArray((response as { data: any[] }).data)
-    );
-}

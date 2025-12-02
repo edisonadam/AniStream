@@ -121,7 +121,7 @@ export type Theme = 'light' | 'dark';
 export type ColorPreset = 'abyssal-blue' | 'violet-fusion' | 'cyber-cyan' | 'sunset-orange' | 'rainbow-shift';
 export type EpisodeViewStyle = 'compact' | 'grid' | 'horizontal';
 export type DefaultLanguage = 'sub' | 'dub' | 'ssub';
-export type Page = 'home' | 'player' | 'profile' | 'club-detail' | 'trending' | 'schedule' | 'history' | 'news' | 'manga' | 'beginners' | 'search' | 'community' | 'comment-meter' | 'currency' | 'about' | 'rules' | 'donation' | 'watch-together' | 'og-image-generator' | 'top-100' | 'notifications' | 'how-to-use' | 'videos' | 'new-episodes' | 'details' | 'leaderboards' | 'shop' | 'downloads' | 'queue' | 'errors';
+export type Page = 'home' | 'player' | 'profile' | 'club-detail' | 'trending' | 'schedule' | 'history' | 'news' | 'manga' | 'beginners' | 'search' | 'community' | 'comment-meter' | 'currency' | 'about' | 'rules' | 'donation' | 'watch-together' | 'og-image-generator' | 'top-100' | 'notifications' | 'how-to-use' | 'videos' | 'new-episodes' | 'details' | 'leaderboards' | 'shop' | 'downloads' | 'queue';
 export type ToastType = 'success' | 'warning' | 'error' | 'info' | 'favorite' | 'unfavorite';
 
 export type WatchlistStatus = 'Watching' | 'Completed' | 'On-Hold' | 'Dropped' | 'Plan to Watch';

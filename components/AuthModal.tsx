@@ -1,20 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { auth } from '../firebase';
 import { 
-    type ConfirmationResult,
-    type AuthCredential,
-    createUserWithEmailAndPassword,
+    createUserWithEmailAndPassword, 
+    signInWithEmailAndPassword, 
     updateProfile,
-    sendEmailVerification,
-    signInWithEmailAndPassword,
-    linkWithCredential,
     GoogleAuthProvider,
     signInWithPopup,
     RecaptchaVerifier,
     signInWithPhoneNumber,
-    sendPasswordResetEmail
+    sendEmailVerification,
+    sendPasswordResetEmail,
+    linkWithCredential,
+    type ConfirmationResult,
+    type AuthCredential
 } from 'firebase/auth';
 import { CloseIcon, GoogleIcon, ChevronLeftIcon } from './icons/Icons';
+import type { CommunityUser } from '../types';
 
 interface AuthModalProps {
   onClose: () => void;
@@ -54,42 +55,17 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, reason }) => {
   const recaptchaContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Lazily load and initialize reCAPTCHA when phone view is active
-    const initRecaptcha = () => {
-      try {
-        // RecaptchaVerifier is now imported statically.
-        // Ensure it's not already initialized and the container exists
-        if (!(window as any).recaptchaVerifier && recaptchaContainerRef.current) {
-          (window as any).recaptchaVerifier = new RecaptchaVerifier(auth, recaptchaContainerRef.current, {
-            'size': 'invisible',
-            'callback': () => {
-              // This callback is for an invisible reCAPTCHA and is often triggered automatically.
-            },
-          });
-          (window as any).recaptchaVerifier.render();
+    // Ensure reCAPTCHA is ready when phone view is active
+    if (view === 'phone' && phoneStep === 'input' && recaptchaContainerRef.current) {
+        if (!(window as any).recaptchaVerifier) {
+            (window as any).recaptchaVerifier = new RecaptchaVerifier(auth, recaptchaContainerRef.current, {
+                'size': 'invisible',
+                'callback': (response: any) => {
+                    // reCAPTCHA solved, allow signInWithPhoneNumber.
+                }
+            });
         }
-      } catch (e) {
-        console.error("Error initializing reCAPTCHA:", e);
-        setError("Could not initialize phone sign-in. Please try another method.");
-      }
-    };
-    
-    if (view === 'phone' && phoneStep === 'input') {
-      initRecaptcha();
     }
-
-    // Cleanup function to clear the verifier when the component unmounts or view changes
-    return () => {
-      const verifier = (window as any).recaptchaVerifier;
-      if (verifier) {
-        try {
-          verifier.clear();
-        } catch (e) {
-            // It might throw an error if it's already been cleared or the widget is gone, which is fine.
-            console.warn('reCAPTCHA cleanup failed, this may happen on fast re-renders.', e);
-        }
-      }
-    };
   }, [view, phoneStep]);
 
   const handleTabChange = (newTab: 'login' | 'signup') => {
@@ -133,6 +109,21 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, reason }) => {
           photoURL: avatarUrl
       });
       await sendEmailVerification(userCredential.user);
+
+      // Add user to the public directory for search
+      try {
+          const directoryKey = 'anistream-user-directory';
+          const existingUsersRaw = localStorage.getItem(directoryKey);
+          const existingUsers: CommunityUser[] = existingUsersRaw ? JSON.parse(existingUsersRaw) : [];
+          if (!existingUsers.some(u => u.uid === userCredential.user.uid)) {
+              existingUsers.push({
+                  uid: userCredential.user.uid,
+                  username: displayName.trim(),
+                  avatar: avatarUrl,
+              });
+              localStorage.setItem(directoryKey, JSON.stringify(existingUsers));
+          }
+      } catch(e) { console.error("Failed to update user directory", e); }
 
       setSignupSuccess(true);
     } catch (err: any) {
@@ -196,21 +187,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, reason }) => {
       setError('');
       try {
           const verifier = (window as any).recaptchaVerifier;
-          if (!verifier) {
-            setError("reCAPTCHA is not ready. Please wait a moment and try again.");
-            setIsLoading(false);
-            return;
-          }
           const result = await signInWithPhoneNumber(auth, phoneNumber, verifier);
           setConfirmationResult(result);
           setPhoneStep('verify');
       } catch (err: any) {
           setError(err.message.replace('Firebase: ', ''));
-          // Reset verifier on error
-          if ((window as any).recaptchaVerifier) {
-            (window as any).recaptchaVerifier.clear();
-            delete (window as any).recaptchaVerifier;
-          }
       } finally {
           setIsLoading(false);
       }

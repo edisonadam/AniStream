@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import type { Anime, WatchlistStatus, VideoServer, Settings, DefaultLanguage } from '../types';
@@ -8,7 +7,7 @@ import { useFavorites } from '../hooks/useFavorites';
 import { useToast } from '../hooks/useToast';
 import { updateMalEntry } from '../api';
 import { VIDEO_SERVERS, WATCHLIST_STATUSES } from '../constants';
-import { HeartIcon, HeartIconSolid, CheckIcon, ChevronDownIcon, ScissorsIcon, FlagIcon, BellIcon, SparklesIcon, MessageCircleIcon, BookmarkIcon, CloseIcon, LightbulbIcon, LightbulbOffIcon, ViewListIcon } from './icons/Icons';
+import { HeartIcon, HeartIconSolid, CheckIcon, ChevronDownIcon, ScissorsIcon, FlagIcon, BellIcon, SparklesIcon, MessageCircleIcon, BookmarkIcon, CloseIcon, LightbulbIcon, LightbulbOffIcon, ViewListIcon, HistoryIcon } from './icons/Icons';
 import { useNotificationPrefs } from '../hooks/useNotificationPrefs';
 import { useQueue } from '../hooks/useQueue';
 
@@ -23,6 +22,7 @@ interface PlayerActionsProps {
   onLanguageChange: (lang: DefaultLanguage) => void;
   isLoggedIn: boolean;
   onLoginRequest: (reason: string) => void;
+  onAddTimestamp: () => void;
 }
 
 const ActionButton: React.FC<{ icon: React.ReactNode, label: string, onClick: (e: React.MouseEvent) => void, buttonRef?: React.Ref<HTMLButtonElement>, isActive?: boolean, isDanger?: boolean }> = ({ icon, label, onClick, buttonRef, isActive, isDanger }) => (
@@ -50,7 +50,7 @@ const Toggle: React.FC<{ label: string, icon?: React.ReactNode, checked: boolean
     </label>
 );
 
-const PlayerActions: React.FC<PlayerActionsProps> = ({ anime, onClip, settings, updateSettings, onSurprise, onManualServerChange, selectedLanguage, onLanguageChange, isLoggedIn, onLoginRequest }) => {
+const PlayerActions: React.FC<PlayerActionsProps> = ({ anime, onClip, settings, updateSettings, onSurprise, onManualServerChange, selectedLanguage, onLanguageChange, isLoggedIn, onLoginRequest, onAddTimestamp }) => {
     const { addFavorite, removeFavorite, isFavorite } = useFavorites();
     const { addToWatchlist, removeFromWatchlist, updateWatchlistStatus, isInWatchlist, getWatchlistStatus } = useWatchlist();
     const { addToast } = useToast();
@@ -111,13 +111,23 @@ const PlayerActions: React.FC<PlayerActionsProps> = ({ anime, onClip, settings, 
         inQueue ? removeFromQueue(anime.id) : addToQueue(anime);
     }, "Please log in to manage your queue.");
 
+    const handleNotificationToggle = (key: keyof typeof notificationPrefs) => {
+        const newValue = !notificationPrefs[key];
+        updatePref(anime.id, { [key]: newValue });
+        addToast(`Notifications for ${key === 'newEpisode' ? 'New Episodes' : 'New Dubs'} ${newValue ? 'enabled' : 'disabled'}`, 'info');
+    };
+
     const handleReport = () => { addToast("Thank you for your report. A moderator will review it shortly.", 'info'); };
     const scrollToComments = () => { document.getElementById('comments-section')?.scrollIntoView({ behavior: 'smooth' }); };
 
     const NotifyDropdownMenu = (
         <div className="absolute top-full right-0 mt-2 bg-[rgb(var(--surface-2))] border border-white/10 rounded-xl shadow-lg p-2 z-[70] w-48 animate-subtle-fade-in-up space-y-1">
-            <label className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] rounded-md cursor-pointer"><input type="checkbox" checked={notificationPrefs.newEpisode} onChange={() => updatePref(anime.id, { newEpisode: !notificationPrefs.newEpisode })} className="h-4 w-4 rounded bg-gray-700 border-gray-600 text-[rgb(var(--color-primary))]" /> New Episodes</label>
-            <label className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] rounded-md cursor-pointer"><input type="checkbox" checked={notificationPrefs.newDub} onChange={() => updatePref(anime.id, { newDub: !notificationPrefs.newDub })} className="h-4 w-4 rounded bg-gray-700 border-gray-600 text-[rgb(var(--color-primary))]" /> New Dubs</label>
+            <label className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] rounded-md cursor-pointer">
+                <input type="checkbox" checked={notificationPrefs.newEpisode} onChange={() => handleNotificationToggle('newEpisode')} className="h-4 w-4 rounded bg-gray-700 border-gray-600 text-[rgb(var(--color-primary))]" /> New Episodes
+            </label>
+            <label className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] rounded-md cursor-pointer">
+                <input type="checkbox" checked={notificationPrefs.newDub} onChange={() => handleNotificationToggle('newDub')} className="h-4 w-4 rounded bg-gray-700 border-gray-600 text-[rgb(var(--color-primary))]" /> New Dubs
+            </label>
         </div>
     );
     
@@ -158,6 +168,7 @@ const PlayerActions: React.FC<PlayerActionsProps> = ({ anime, onClip, settings, 
                     <ActionButton buttonRef={notifyButtonRef} icon={<BellIcon />} label="Notify" onClick={() => handleAuthenticatedAction(() => setIsNotifyMenuOpen(p => !p), "Log in to manage notifications")} />
                     {isNotifyMenuOpen && NotifyDropdownMenu}
                 </div>
+                <ActionButton icon={<HistoryIcon />} label="Add Timestamp" onClick={onAddTimestamp} />
                 <ActionButton icon={<ScissorsIcon />} label="Clip" onClick={onClip} />
                 <ActionButton icon={<MessageCircleIcon />} label="Comments" onClick={scrollToComments} />
                 <ActionButton icon={<SparklesIcon />} label="Surprise Me!" onClick={onSurprise} />

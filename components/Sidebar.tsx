@@ -1,8 +1,7 @@
 
-
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import type { Filter, Settings, Page } from '../types';
-import { CloseIcon, UsersIcon, BookOpenIcon, GiftIcon, MoonIcon, SunIcon, HomeIcon, TrendingUpIcon, CalendarIcon, HistoryIcon, InfoIcon, AcademicCapIcon, EyeIcon, EyeOffIcon, MessageCircleIcon, LevelUpIcon, ChevronDownIcon, ClipboardIcon, ShieldCheckIcon, HeartIcon, NewspaperIcon, StarIcon, MailIcon, QuestionMarkCircleIcon, FilmIcon, DownloadIcon, ShoppingCartIcon, ExclamationTriangleIcon } from './icons/Icons';
+import { CloseIcon, UsersIcon, BookOpenIcon, GiftIcon, MoonIcon, SunIcon, HomeIcon, TrendingUpIcon, CalendarIcon, HistoryIcon, InfoIcon, AcademicCapIcon, EyeIcon, EyeOffIcon, MessageCircleIcon, LevelUpIcon, ChevronDownIcon, ClipboardIcon, ShieldCheckIcon, HeartIcon, NewspaperIcon, StarIcon, MailIcon, QuestionMarkCircleIcon, FilmIcon, DownloadIcon, ShoppingCartIcon } from './icons/Icons';
 import Logo from './Logo';
 import { ANIME_TYPES, ANIME_STATUSES, YEAR_OPTIONS, LANGUAGE_OPTIONS, STUDIO_OPTIONS, GENRES, TAG_OPTIONS } from '../constants';
 
@@ -32,7 +31,7 @@ const SidebarSection: React.FC<{ title: string; children: React.ReactNode }> = (
 );
 
 const SideButton: React.FC<{ icon: React.ReactNode; label: string; onClick: () => void; disabled?: boolean }> = ({ icon, label, onClick, disabled = false }) => (
-    <button onClick={onClick} disabled={disabled} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left transition-colors ${disabled ? 'text-[rgb(var(--text-muted))] opacity-60 cursor-not-allowed' : 'text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] hover:text-[rgb(var(--color-primary-accent))]'}`}>
+    <button onClick={onClick} disabled={disabled} title={disabled ? `${label} (Coming Soon)` : label} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left transition-colors ${disabled ? 'text-[rgb(var(--text-muted))] opacity-60 cursor-not-allowed' : 'text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] hover:text-[rgb(var(--color-primary-accent))]'}`}>
         {icon}
         <span className="font-semibold">{label}</span>
         {disabled && <span className="ml-auto text-xs font-bold text-[rgb(var(--text-muted))]">(Coming Soon)</span>}
@@ -61,30 +60,120 @@ const Sidebar: React.FC<SidebarProps> = ({
     installPrompt, onInstallClick
 }) => {
   const [openSections, setOpenSections] = useState<Set<string>>(new Set(['Genres', 'Type']));
-  const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({}); // Store refs
+  const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const asideRef = useRef<HTMLElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   
-  const [touchStartX, setTouchStartX] = useState<number | null>(null);
-  const [touchCurrentX, setTouchCurrentX] = useState<number | null>(null);
+  const touchStartRef = useRef<{ x: number, y: number } | null>(null);
+  const listTouchStartRef = useRef<{ x: number, y: number } | null>(null);
+  const listTouchDragRef = useRef<{ dx: number, dy: number } | null>(null);
 
+  // Horizontal Swipe to Close (Sidebar)
   const handleTouchStart = (e: React.TouchEvent) => {
-      setTouchStartX(e.targetTouches[0].clientX);
-      setTouchCurrentX(e.targetTouches[0].clientX);
+      touchStartRef.current = { x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY };
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-      if (touchStartX === null) return;
-      setTouchCurrentX(e.targetTouches[0].clientX);
+      // Logic handled in End
   };
 
-  const handleTouchEnd = () => {
-      if (touchStartX === null || touchCurrentX === null) return;
-      const diff = touchCurrentX - touchStartX;
-      if (diff < -50) { // Swiped left by 50px
+  const handleTouchEnd = (e: React.TouchEvent) => {
+      if (!touchStartRef.current) return;
+      const touchEndX = e.changedTouches[0].clientX;
+      const touchEndY = e.changedTouches[0].clientY;
+      
+      const diffX = touchEndX - touchStartRef.current.x;
+      const diffY = touchEndY - touchStartRef.current.y;
+      
+      // Only close if horizontal swipe is dominant (to avoid accidental closes when scrolling vertically)
+      // and significant enough (> 50px)
+      if (Math.abs(diffX) > Math.abs(diffY) && diffX < -50) { 
           onClose();
       }
-      setTouchStartX(null);
-      setTouchCurrentX(null);
+      touchStartRef.current = null;
+  };
+
+  // Backdrop Touch (Scroll away to close)
+  const handleBackdropTouchStart = (e: React.TouchEvent) => {
+      touchStartRef.current = { x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY };
+  };
+
+  const handleBackdropTouchMove = (e: React.TouchEvent) => {
+      if (!touchStartRef.current) return;
+      const dx = e.targetTouches[0].clientX - touchStartRef.current.x;
+      const dy = e.targetTouches[0].clientY - touchStartRef.current.y;
+      
+      // Close on significant movement
+      if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+          onClose();
+          touchStartRef.current = null;
+      }
+  };
+
+  // List Touch (Overscroll to close - Close on Release)
+  const handleListTouchStart = (e: React.TouchEvent) => {
+      const el = e.currentTarget;
+      // Track start only if near boundaries
+      if (el.scrollTop <= 0 || el.scrollHeight - el.scrollTop - el.clientHeight <= 5) {
+          listTouchStartRef.current = { 
+              x: e.targetTouches[0].clientX, 
+              y: e.targetTouches[0].clientY 
+          };
+          listTouchDragRef.current = { dx: 0, dy: 0 };
+      } else {
+          listTouchStartRef.current = null;
+          listTouchDragRef.current = null;
+      }
+  };
+
+  const handleListTouchMove = (e: React.TouchEvent) => {
+      if (!listTouchStartRef.current) return;
+      const y = e.targetTouches[0].clientY;
+      const x = e.targetTouches[0].clientX;
+      
+      const dy = y - listTouchStartRef.current.y;
+      const dx = x - listTouchStartRef.current.x;
+      
+      listTouchDragRef.current = { dx, dy };
+  };
+
+  const handleListTouchEnd = (e: React.TouchEvent) => {
+      if (!listTouchStartRef.current || !listTouchDragRef.current) return;
+      
+      const { dx, dy } = listTouchDragRef.current;
+      
+      // Ignore if movement is primarily horizontal to prevent conflict with swipe-to-close
+      if (Math.abs(dx) > Math.abs(dy)) {
+          listTouchStartRef.current = null;
+          listTouchDragRef.current = null;
+          return;
+      }
+
+      // Check threshold (100px) for closing
+      // Top Overscroll (Swipe Down -> dy > 0)
+      if (dy > 100) {
+          onClose();
+      }
+      // Bottom Overscroll (Swipe Up -> dy < 0)
+      else if (dy < -100) {
+          onClose();
+      }
+
+      listTouchStartRef.current = null;
+      listTouchDragRef.current = null;
+  };
+
+  // Wheel Overscroll (Desktop)
+  const handleOverscroll = (e: React.WheelEvent<HTMLDivElement>) => {
+      const el = e.currentTarget;
+      // Bottom overscroll
+      if (el.scrollHeight - el.scrollTop - el.clientHeight < 5 && e.deltaY > 0) {
+          onClose();
+      }
+      // Top overscroll
+      if (el.scrollTop === 0 && e.deltaY < -10) {
+          onClose();
+      }
   };
 
   const handleNavigation = (page: Page) => {
@@ -110,22 +199,14 @@ const Sidebar: React.FC<SidebarProps> = ({
   const toggleSection = (title: string) => {
       setOpenSections(prev => {
           const newSet = new Set(prev);
-          const willOpen = !newSet.has(title);
-
-          if (willOpen) {
+          if (!newSet.has(title)) {
               newSet.add(title);
+              setTimeout(() => {
+                const element = sectionRefs.current[title];
+                if (element) element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+              }, 350);
           } else {
               newSet.delete(title);
-          }
-          
-          if (willOpen) {
-            // Give DOM a moment to render the expanded content before scrolling
-            setTimeout(() => {
-              const element = sectionRefs.current[title];
-              if (element) {
-                element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-              }
-            }, 350); // Match or slightly exceed the CSS transition duration
           }
           return newSet;
       });
@@ -161,24 +242,37 @@ const Sidebar: React.FC<SidebarProps> = ({
       <div
         className={`fixed inset-0 bg-black/60 z-40 transition-opacity duration-300 lg:hidden ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         onClick={onClose}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
+        onWheel={onClose}
+        onTouchStart={handleBackdropTouchStart}
+        onTouchMove={handleBackdropTouchMove}
       />
       <aside
         ref={asideRef}
-        className={`fixed top-0 left-0 w-72 sm:w-80 bg-[rgb(var(--surface-1))/0.7] backdrop-blur-2xl border-r border-white/10 z-50 transform transition-transform duration-300 ease-in-out ${
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        className={`fixed top-0 left-0 w-80 bg-[rgb(var(--surface-1))/0.95] backdrop-blur-2xl border-r border-white/10 z-50 transform transition-transform duration-300 cubic-bezier(0.4, 0.0, 0.2, 1) ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
-        } h-[100dvh] flex flex-col pt-20 lg:pt-0`}
+        } lg:translate-x-0 h-screen flex flex-col shadow-2xl`}
       >
-        <div className="lg:hidden flex-shrink-0 flex justify-between items-center p-4 border-b border-white/10">
-          <Logo onClick={handleGoHome} />
-          <button onClick={onClose} className="text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))]">
-            <CloseIcon />
+        <div className="flex-shrink-0 flex justify-between items-center px-6 h-16 border-b border-white/10 bg-[rgb(var(--surface-1))/0.8] backdrop-blur-md">
+          <div className="transform scale-90 origin-left">
+            <Logo onClick={handleGoHome} />
+          </div>
+          <button onClick={onClose} className="p-2 -mr-2 text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] hover:bg-white/5 rounded-full transition-colors lg:hidden">
+            <CloseIcon className="w-6 h-6" />
           </button>
         </div>
         
-        <div className="flex-1 overflow-y-auto scroll-fade-container" style={{ scrollbarWidth: 'thin' }}>
+        <div 
+            ref={scrollContainerRef}
+            className="flex-1 overflow-y-auto scroll-fade-container overscroll-contain" 
+            style={{ scrollbarWidth: 'thin' }}
+            onWheel={handleOverscroll}
+            onTouchStart={handleListTouchStart}
+            onTouchMove={handleListTouchMove}
+            onTouchEnd={handleListTouchEnd}
+        >
             <SidebarSection title="Menu">
               <SideButton icon={<HomeIcon />} label="Home" onClick={handleGoHome} />
               <SideButton icon={<TrendingUpIcon />} label="Trending" onClick={() => handleNavigation('trending')} />
@@ -191,27 +285,23 @@ const Sidebar: React.FC<SidebarProps> = ({
               <SideButton icon={<NewspaperIcon />} label="New Episodes" onClick={() => handleNavigation('new-episodes')} />
               <SideButton icon={<MessageCircleIcon />} label="Community Hub" onClick={() => handleNavigation('community')} />
               <SideButton icon={<UsersIcon />} label="Watch2Gether" onClick={() => {}} disabled />
-              <SideButton icon={<LevelUpIcon />} label="Leaderboards" onClick={() => {}} disabled />
-              <SideButton icon={<ShoppingCartIcon />} label="Shop" onClick={() => {}} disabled />
+              <SideButton icon={<LevelUpIcon />} label="Leaderboards" onClick={() => handleNavigation('leaderboards')} />
+              <SideButton icon={<ShoppingCartIcon />} label="Shop" onClick={() => handleNavigation('shop')} />
             </SidebarSection>
             
             <SidebarSection title="Tools & Info">
                 <SideButton icon={<HistoryIcon />} label="History" onClick={() => handleNavigation('history')} />
-                <SideButton icon={<DownloadIcon />} label="Downloads" onClick={() => {}} disabled />
+                <SideButton icon={<DownloadIcon />} label="Downloads" onClick={() => handleNavigation('downloads')} />
+                <SideButton icon={<AcademicCapIcon />} label="For Beginners" onClick={() => handleNavigation('beginners')} />
                 <SideButton icon={<GiftIcon />} label="Surprise Me!" onClick={handleSurprise} />
                 <SideButton icon={<InfoIcon />} label="Updates & Logs" onClick={() => handleNavigation('news')} />
                 <SideButton icon={<FilmIcon />} label="Trailers & Intros" onClick={() => handleNavigation('videos')} />
             </SidebarSection>
 
-            <SidebarSection title="Learn">
-                <SideButton icon={<AcademicCapIcon />} label="For Beginners" onClick={() => handleNavigation('beginners')} />
-                <SideButton icon={<QuestionMarkCircleIcon />} label="How to Use" onClick={() => handleNavigation('how-to-use')} />
-                <SideButton icon={<ExclamationTriangleIcon />} label="Errors" onClick={() => handleNavigation('errors')} />
-            </SidebarSection>
-
             <SidebarSection title="App">
                 <SideButton icon={<InfoIcon />} label="About Us" onClick={() => handleNavigation('about')} />
                 <SideButton icon={<ClipboardIcon />} label="Rules" onClick={() => handleNavigation('rules')} />
+                <SideButton icon={<QuestionMarkCircleIcon />} label="How to Use" onClick={() => handleNavigation('how-to-use')} />
                 <SideButton icon={<MailIcon />} label="Feedback" onClick={() => { window.location.href = 'mailto:edisonadam160@gmail.com?subject=ANISTREAM Feedback'; onClose(); }} />
                 <SideButton icon={<HeartIcon />} label="Donation" onClick={() => handleNavigation('donation')} />
                 {installPrompt && <SideButton icon={<DownloadIcon />} label="Install App" onClick={handleInstall} />}
@@ -245,8 +335,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                <div className="flex justify-center items-center gap-2">
                     <button 
                         onClick={() => updateSettings({ theme: settings.theme === 'dark' ? 'light' : 'dark' })} 
-                        title={`Switch to ${settings.theme === 'dark' ? 'Light' : 'Dark'} Theme`} 
-                        aria-label={`Switch to ${settings.theme === 'dark' ? 'Light' : 'Dark'} Theme`}
                         className="p-2.5 rounded-full bg-[rgb(var(--surface-3))] text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-4))] hover:text-[rgb(var(--text-primary))] transition-colors"
                     >
                         {settings.theme === 'dark' ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
@@ -254,8 +342,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                     
                     <button 
                         onClick={() => updateSettings({ displayTitleLanguage: settings.displayTitleLanguage === 'english' ? 'japanese' : 'english' })} 
-                        title={`Switch to ${settings.displayTitleLanguage === 'english' ? 'Japanese' : 'English'} Titles`} 
-                        aria-label={`Switch to ${settings.displayTitleLanguage === 'english' ? 'Japanese' : 'English'} Titles`}
                         className="w-10 h-10 flex items-center justify-center rounded-full bg-[rgb(var(--surface-3))] text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-4))] hover:text-[rgb(var(--text-primary))] font-semibold text-sm transition-colors"
                     >
                         {settings.displayTitleLanguage === 'english' ? 'EN' : 'JP'}
@@ -264,8 +350,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                     {isLoggedIn && (
                       <button 
                           onClick={handleSfwToggle} 
-                          title={`Turn ${settings.restrictAdultContent ? 'Off' : 'On'} Adult Content Restriction`} 
-                          aria-label={`Turn ${settings.restrictAdultContent ? 'Off' : 'On'} Adult Content Restriction`}
                           className="p-2.5 rounded-full bg-[rgb(var(--surface-3))] text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-4))] hover:text-[rgb(var(--text-primary))] transition-colors"
                       >
                           {settings.restrictAdultContent ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
@@ -279,7 +363,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     Reset
                 </button>
                 <button onClick={() => { onApplyFilters(); onClose(); }} className="w-full py-2.5 bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))] rounded-lg font-semibold hover:bg-[rgb(var(--color-primary-hover))] shadow-lg shadow-[rgb(var(--shadow-color))/0.3]">
-                    Apply Filters
+                    Apply
                 </button>
             </div>
         </div>

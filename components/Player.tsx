@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import ReactDOM from 'react-dom';
 import type { Anime, Season, Episode, VideoServer, EpisodeViewStyle, User, Character, DefaultLanguage, Page, Filter, Settings, WatchlistStatus } from '../types';
@@ -11,8 +10,8 @@ import { useWatchProgress } from '../hooks/useWatchProgress';
 import { useProfileData } from '../hooks/useProfileData';
 import { useAuth } from '../hooks/useAuth';
 import { NARUTO_FILLER_EPISODES, VIDEO_SERVERS } from '../constants';
-import { mapJikanToAnime, mapJikanToCharacter, updateAnilistEntry, fetchWithRetry, fetchAniListDetails, fetchConsumetStreamUrl, isJikanDataArrayResponse } from '../api';
-import { getDisplayTitle, mapPartialToFullAnime, formatDuration } from '../utils';
+import { mapJikanToAnime, mapJikanToCharacter, updateAnilistEntry, fetchWithRetry, fetchAniListDetails, fetchConsumetStreamUrl } from '../api';
+import { getDisplayTitle, mapPartialToFullAnime, formatDuration, formatTimestamp } from '../utils';
 import CharacterModal from './CharacterModal';
 import ClippingModal from './ClippingModal';
 import InviteFriendModal from './WatchTogetherModal';
@@ -308,6 +307,8 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
   useEffect(() => { currentSeasonRef.current = currentSeason; }, [currentSeason]);
     
     const [selectedLanguage, setSelectedLanguage] = useState<DefaultLanguage>(settings.defaultLanguage);
+    const [timestampForComment, setTimestampForComment] = useState<string | null>(null);
+    const [episodeListMode, setEpisodeListMode] = useState<'both' | 'sub' | 'dub'>('both');
 
     useEffect(() => {
         const currentServerInfo = VIDEO_SERVERS.find(s => s.id === settings.videoServer);
@@ -329,6 +330,31 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
             handleManualServerChange(firstServerForType.id);
         }
     };
+
+    const handleTimestamp = useCallback(() => {
+        const art = artplayerInstance.current;
+        if (!art) return;
+        
+        const time = formatTimestamp(art.currentTime);
+        const textToInsert = `At ${time}: `;
+        
+        // Show toast
+        addToast(`Timestamp ${time} copied to comments`, 'info');
+        
+        // Update state to trigger effect in Comments component
+        setTimestampForComment(textToInsert);
+        // Clear it shortly after so the same timestamp can be added again if needed
+        setTimeout(() => setTimestampForComment(null), 500);
+
+        // Scroll to comments
+        const commentsSection = document.getElementById('comments-section');
+        if (commentsSection) {
+            commentsSection.scrollIntoView({ behavior: 'smooth' });
+        } else {
+            // Fallback for mobile/modal view - open modal
+            setIsCommentsModalOpen(true);
+        }
+    }, [addToast]);
 
 
   const handleEpisodeScroll = useCallback(() => {
@@ -742,9 +768,9 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
             // Safely handle Jikan API recommendations response, as the data structure is not guaranteed.
             if (anilistPromise.status !== 'fulfilled' || !anilistPromise.value) {
                 if (jikanRecsPromise.status === 'fulfilled') {
-                    const value = jikanRecsPromise.value;
-                    if (isJikanDataArrayResponse(value)) {
-                        setRecommendations(
+                    const value = jikanRecsPromise.value as any; // Cast to any to avoid 'unknown' issues
+                    if (value?.data && Array.isArray(value.data)) {
+                         setRecommendations(
                             value.data.map((r: any) => mapJikanToAnime(r.entry)).filter(Boolean)
                         );
                     }
@@ -979,7 +1005,6 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
     setSurpriseError(null);
     setSurpriseMessage(null);
     try {
-        // FIX: The environment variable for the API key was misspelled. Corrected `API_key` to `API_KEY`.
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
           model: 'gemini-2.5-flash',
@@ -1526,6 +1551,38 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
     }
     const setEpisodeRef = (epNum: number) => (el: HTMLButtonElement | null) => { if (el) episodeRefs.current.set(epNum, el); else episodeRefs.current.delete(epNum); };
 
+    // Strict label logic based on filter selection (episodeListMode)
+    const LanguageLabel = () => {
+        if (episodeListMode === 'sub') {
+            return playerAnime.hasSub ? <span className="text-[10px] font-bold text-cyan-400 bg-cyan-400/20 px-1 py-0.5 rounded-sm ml-2">SUB</span> : null;
+        }
+        if (episodeListMode === 'dub') {
+            return playerAnime.hasDub ? <span className="text-[10px] font-bold text-violet-400 bg-violet-400/20 px-1 py-0.5 rounded-sm ml-2">DUB</span> : null;
+        }
+        // Both
+        return (
+            <>
+                {playerAnime.hasSub && <span className="text-[10px] font-bold text-cyan-400 bg-cyan-400/20 px-1 py-0.5 rounded-sm ml-2">SUB</span>}
+                {playerAnime.hasDub && <span className="text-[10px] font-bold text-violet-400 bg-violet-400/20 px-1 py-0.5 rounded-sm ml-2">DUB</span>}
+            </>
+        );
+    };
+    
+    const LanguageLabelTiny = () => {
+        if (episodeListMode === 'sub') {
+             return playerAnime.hasSub ? <span className="text-[10px] font-bold text-cyan-400 bg-cyan-400/20 px-1 py-0 rounded-sm">SUB</span> : null;
+        }
+        if (episodeListMode === 'dub') {
+             return playerAnime.hasDub ? <span className="text-[10px] font-bold text-violet-400 bg-violet-400/20 px-1 py-0 rounded-sm">DUB</span> : null;
+        }
+        return (
+            <div className="flex flex-col gap-1 items-end">
+                {playerAnime.hasSub && <span className="text-[10px] font-bold text-cyan-400 bg-cyan-400/20 px-1 py-0 rounded-sm">SUB</span>}
+                {playerAnime.hasDub && <span className="text-[10px] font-bold text-violet-400 bg-violet-400/20 px-1 py-0 rounded-sm">DUB</span>}
+            </div>
+        );
+    };
+
     if (view === 'compact') {
         return <div ref={episodeListContainerRef} onScroll={handleEpisodeScroll} className="space-y-2 max-h-[24rem] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin' }}>{episodesToShow.map(ep => {
             const isFiller = playerAnime?.id === 20 && NARUTO_FILLER_EPISODES.includes(ep.episode_number);
@@ -1536,14 +1593,11 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
                         {ep.runtime && <span className="absolute bottom-1 right-1 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded">{formatDuration(ep.runtime)}</span>}
                     </div>
                     <div className="flex-1 min-w-0">
-                        <p className={`font-semibold text-sm whitespace-normal ${currentEpisode === ep.episode_number ? 'text-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-primary))]'}`}>
-                            Episode {ep.episode_number}
-                            <span className="ml-2 align-middle inline-flex items-center gap-1">
-                                {playerAnime.hasSub && <span className="text-xs font-bold text-cyan-400 bg-cyan-400/20 px-1.5 py-0.5 rounded-sm">SUB</span>}
-                                {playerAnime.hasDub && <span className="text-xs font-bold text-violet-400 bg-violet-400/20 px-1.5 py-0.5 rounded-sm">DUB</span>}
-                            </span>
-                            {isFiller && <span className="text-xs font-bold text-yellow-400 bg-yellow-400/20 px-1.5 py-0.5 rounded-sm ml-2 align-middle">FILLER</span>}
-                        </p>
+                        <div className={`font-semibold text-sm whitespace-normal flex flex-wrap items-center ${currentEpisode === ep.episode_number ? 'text-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-primary))]'}`}>
+                            <span>Episode {ep.episode_number}</span>
+                            <LanguageLabel />
+                            {isFiller && <span className="text-xs font-bold text-yellow-400 bg-yellow-400/20 px-1.5 py-0.5 rounded-sm ml-2">FILLER</span>}
+                        </div>
                         <p className="text-xs text-[rgb(var(--text-muted))] whitespace-normal">{ep.name}</p>
                         {ep.air_date && <p className="text-[10px] text-[rgb(var(--text-muted))]">{new Date(ep.air_date).toLocaleDateString()}</p>}
                     </div>
@@ -1560,10 +1614,9 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
                     <img src={ep.still_path ? `https://image.tmdb.org/t/p/w300${ep.still_path}` : playerAnime.bannerImage} alt="" className={`w-full h-full object-cover transition-all duration-300 ${isBlurred ? 'blur-md' : 'blur-0'}`} />
                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
                     <span className="absolute top-1 left-1 bg-black/70 text-white text-xs font-bold px-1.5 py-0.5 rounded">E{ep.episode_number}</span>
-                    <div className="absolute top-1 right-1 flex flex-col items-end gap-1">
-                        {playerAnime.hasSub && <span className="text-xs font-bold text-cyan-400 bg-cyan-400/20 px-1.5 py-0.5 rounded-sm backdrop-blur-sm">SUB</span>}
-                        {playerAnime.hasDub && <span className="text-xs font-bold text-violet-400 bg-violet-400/20 px-1.5 py-0.5 rounded-sm backdrop-blur-sm">DUB</span>}
-                        {isFiller && <span className="text-xs font-bold text-yellow-400 bg-yellow-400/20 px-1.5 py-0.5 rounded-sm">F</span>}
+                    <div className="absolute top-1 right-1">
+                        <LanguageLabelTiny />
+                        {isFiller && <span className="text-[10px] font-bold text-yellow-400 bg-yellow-400/20 px-1 py-0 rounded-sm mt-1 block text-center">F</span>}
                     </div>
                 </button>
             )
@@ -1575,18 +1628,17 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
          const isFiller = playerAnime?.id === 20 && NARUTO_FILLER_EPISODES.includes(ep.episode_number);
         return (
             <button key={ep.episode_number} ref={setEpisodeRef(ep.episode_number)} onClick={() => selectEpisode(ep.episode_number)} disabled={isWatchTogetherSession && !isHost} className={`flex-shrink-0 w-36 sm:w-40 text-left rounded-xl group transition-all duration-300 overflow-hidden hover:scale-105 ${currentEpisode === ep.episode_number ? 'ring-2 ring-[rgb(var(--color-primary-accent))]' : ''} disabled:opacity-70 disabled:cursor-not-allowed`}>
-                <div className="aspect-video w-full bg-[rgb(var(--surface-3))]">
+                <div className="aspect-video w-full bg-[rgb(var(--surface-3))] relative">
                     <img src={ep.still_path ? `https://image.tmdb.org/t/p/w300${ep.still_path}` : playerAnime.bannerImage} alt="" className={`w-full h-full object-cover transition-all duration-300 ${isBlurred ? 'blur-md' : 'blur-0'}`} />
+                     <div className="absolute top-1 right-1">
+                        <LanguageLabelTiny />
+                    </div>
                 </div>
                 <div className="p-2">
-                    <p className={`font-semibold text-xs truncate ${currentEpisode === ep.episode_number ? 'text-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-primary))]'}`}>
-                        Ep {ep.episode_number}
-                        <span className="ml-1 align-middle inline-flex items-center gap-1">
-                            {playerAnime.hasSub && <span className="text-[10px] font-bold text-cyan-400 bg-cyan-400/20 px-1 py-0 rounded-sm">SUB</span>}
-                            {playerAnime.hasDub && <span className="text-[10px] font-bold text-violet-400 bg-violet-400/20 px-1 py-0 rounded-sm">DUB</span>}
-                        </span>
-                        {isFiller && <span className="text-[10px] font-bold text-yellow-400 bg-yellow-400/20 px-1 py-0 rounded-sm ml-1 align-middle">FILLER</span>}
-                    </p>
+                    <div className={`font-semibold text-xs truncate flex items-center gap-1 ${currentEpisode === ep.episode_number ? 'text-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-primary))]'}`}>
+                        <span>Ep {ep.episode_number}</span>
+                        {isFiller && <span className="text-[10px] font-bold text-yellow-400 bg-yellow-400/20 px-1 py-0 rounded-sm">F</span>}
+                    </div>
                     <p className="text-[10px] text-[rgb(var(--text-muted))] whitespace-normal">{ep.name}</p>
                 </div>
             </button>
@@ -1673,9 +1725,14 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
         <div className="relative z-10 p-4 sm:p-6 lg:p-8 !pt-0">
             <div className="container mx-auto">
                 <div className="flex items-end gap-4">
-                    <h1 className="text-3xl md:text-5xl font-bold text-white flex-1" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}>
-                        {displayTitle}
-                    </h1>
+                    <div className="flex flex-col gap-2 flex-1">
+                         <div className="flex items-center gap-2">
+                            {playerAnime.type && <span className="px-2 py-0.5 text-xs font-bold bg-white/20 text-white rounded uppercase backdrop-blur-sm">{playerAnime.type}</span>}
+                         </div>
+                         <h1 className="text-3xl md:text-5xl font-bold text-white" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}>
+                            {displayTitle}
+                        </h1>
+                    </div>
                      <div className="flex items-center gap-2 flex-shrink-0">
                         <button onClick={() => setIsDownloadModalOpen(true)} className="p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors" title="Download Options">
                             <DownloadIcon className="w-5 h-5"/>
@@ -1776,7 +1833,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
                     </div>
                 )}
                 
-                {!isEmbed && <PlayerActions anime={playerAnime} onClip={() => setIsClippingModalOpen(true)} settings={settings} updateSettings={updateSettings} onSurprise={handleSurpriseFact} onManualServerChange={handleManualServerChange} selectedLanguage={selectedLanguage} onLanguageChange={handleLanguageChange} isLoggedIn={isLoggedIn} onLoginRequest={onLoginRequest} />}
+                {!isEmbed && <PlayerActions anime={playerAnime} onClip={() => setIsClippingModalOpen(true)} settings={settings} updateSettings={updateSettings} onSurprise={handleSurpriseFact} onManualServerChange={handleManualServerChange} selectedLanguage={selectedLanguage} onLanguageChange={handleLanguageChange} isLoggedIn={isLoggedIn} onLoginRequest={onLoginRequest} onAddTimestamp={handleTimestamp} />}
                 
                 {mediaIds.mediaType === 'tv' && !isEmbed && (
                     <div className="flex justify-between items-center mt-4 p-4 bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 text-white rounded-2xl">
@@ -1837,8 +1894,36 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
                     <SeasonNavigator/>
                     <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 p-4 sm:p-6 rounded-2xl mt-6">
                         <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-3">
-                            <div className="flex items-center gap-2 border-b border-white/10 sm:border-b-0 self-stretch sm:self-center">
+                            <div className="flex items-center gap-4 border-b border-white/10 sm:border-b-0 self-stretch sm:self-center">
                                 <h3 className="px-4 py-2 text-lg font-semibold text-[rgb(var(--color-primary-accent))]">Episodes</h3>
+                                <div className="flex bg-[rgb(var(--surface-3))] rounded-lg p-1">
+                                     <button 
+                                        onClick={() => setEpisodeListMode('both')}
+                                        className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${episodeListMode === 'both' ? 'bg-[rgb(var(--color-primary))] text-white shadow-sm' : 'text-[rgb(var(--text-muted))] hover:text-white'}`}
+                                     >
+                                        BOTH
+                                     </button>
+                                     <button 
+                                        onClick={() => {
+                                            setEpisodeListMode('sub');
+                                            handleLanguageChange('sub');
+                                        }}
+                                        className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${episodeListMode === 'sub' ? 'bg-[rgb(var(--color-primary))] text-white shadow-sm' : 'text-[rgb(var(--text-muted))] hover:text-white'}`}
+                                     >
+                                        SUB
+                                     </button>
+                                     {playerAnime.hasDub && (
+                                         <button 
+                                            onClick={() => {
+                                                setEpisodeListMode('dub');
+                                                handleLanguageChange('dub');
+                                            }}
+                                            className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${episodeListMode === 'dub' ? 'bg-[rgb(var(--color-primary))] text-white shadow-sm' : 'text-[rgb(var(--text-muted))] hover:text-white'}`}
+                                         >
+                                            DUB
+                                         </button>
+                                     )}
+                                </div>
                             </div>
                             <div className="flex items-center gap-2">
                                 <button onClick={() => setLocalEpisodeViewStyle('compact')} className={`p-2 rounded-lg ${localEpisodeViewStyle === 'compact' ? 'bg-[rgb(var(--color-primary))] text-white' : 'bg-white/10'}`}><ViewListIcon/></button>
@@ -1847,18 +1932,245 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
                                 <button onClick={() => setLocalBlur(p => p === null ? !settings.blurEpisodeThumbnails : !p)} className={`p-2 rounded-lg ${isBlurred ? 'bg-[rgb(var(--color-primary))] text-white' : 'bg-white/10'}`}>
                                     {isBlurred ? <EyeOffIcon/> : <EyeIcon/>}
                                 </button>
-                                <button onClick={() => updateSettings({ hideFillerEpisodes: !settings.hideFillerEpisodes })} className={`px-3 py-1.5 text-xs font-semibold rounded-lg ${settings.hideFillerEpisodes ? 'bg-[rgb(var(--color-primary))] text-white' : 'bg-white/10'}`}>Filler</button>
+                                <button onClick={() => updateSettings({ hideFillerEpisodes: !settings.hideFillerEpisodes })} className={`px-3 py-1.5 text-xs font-semibold rounded-lg ${settings.hideFillerEpisodes ? 'bg-[rgb(var(--color-primary))] text-white' : 'bg-white/10 text-[rgb(var(--text-secondary))]'}`}>
+                                    {settings.hideFillerEpisodes ? 'Show Fillers' : 'Hide Fillers'}
+                                </button>
                             </div>
                         </div>
-                        <EpisodeListContent episodesToShow={paginatedEpisodes} isBlurred={isBlurred} view={localEpisodeViewStyle} />
+
+                        {filteredAndSortedEpisodes.length > 20 && (
+                            <div className="relative mb-4">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[rgb(var(--text-muted))]"><SearchIcon className="w-4 h-4"/></div>
+                                <input type="text" value={episodeSearchQuery} onChange={e => setEpisodeSearchQuery(e.target.value)} placeholder="Search episodes..." className="w-full bg-[rgb(var(--surface-3))] border border-[rgb(var(--border-color))] rounded-lg py-2 pl-9 pr-3 text-sm" />
+                            </div>
+                        )}
+                        <div className={`transition-opacity duration-300 ${isSeasonTransitioning || isPageTransitioning ? 'opacity-30' : 'opacity-100'}`}>
+                            <EpisodeListContent episodesToShow={paginatedEpisodes} isBlurred={isBlurred} view={localEpisodeViewStyle} />
+                        </div>
+                         {currentEpisodeDetails && (
+                            <div className="mt-4 p-4 bg-[rgb(var(--surface-3))/0.5] rounded-lg border border-white/10">
+                                <h4 className="font-bold text-sm text-[rgb(var(--text-primary))] whitespace-normal mb-1">
+                                    Episode {currentEpisodeDetails.episode_number}: {currentEpisodeDetails.name}
+                                </h4>
+                                {currentEpisodeDetails.overview && (
+                                    <p className="text-xs text-[rgb(var(--text-muted))] max-h-24 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+                                        {currentEpisodeDetails.overview}
+                                    </p>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
         </div>
-        <aside className="player-sidebar lg:col-span-1 space-y-6">
-           {/* Sidebar content here */}
-        </aside>
+
+        {!isEmbed && (
+            <aside className="player-sidebar-content lg:col-span-1 space-y-6">
+                <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 p-4 rounded-2xl">
+                    <img src={playerAnime.thumbnail} alt={getDisplayTitle(playerAnime, settings)} className="w-full aspect-[2/3] object-cover rounded-xl shadow-lg mb-4" />
+                     {playerAnime.synopsis && (
+                        <div className="my-4">
+                            <p className="text-sm text-[rgb(var(--text-secondary))]">
+                                {isSynopsisExpanded || playerAnime.synopsis.length <= 250 ? playerAnime.synopsis : `${playerAnime.synopsis.substring(0, 250)}...`}
+                                {playerAnime.synopsis.length > 250 && (
+                                    <button onClick={() => setIsSynopsisExpanded(prev => !prev)} className="font-bold text-[rgb(var(--color-primary-accent))] ml-1">
+                                        {isSynopsisExpanded ? 'Read less' : 'Read more'}
+                                    </button>
+                                )}
+                            </p>
+                        </div>
+                    )}
+                     <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                        <DetailItem label="Format">{playerAnime.type || 'N/A'}</DetailItem>
+                        <DetailItem label="Status">{playerAnime.status}</DetailItem>
+                        <DetailItem label="Rating">{playerAnime.rating ? `${playerAnime.rating.toFixed(2)} / 10` : 'N/A'}</DetailItem>
+                        <DetailItem label="Episodes">{playerAnime.totalEpisodes || 'N/A'}</DetailItem>
+                        <DetailItem label="Duration">{playerAnime.avgEpisodeDuration ? `~${playerAnime.avgEpisodeDuration} min` : 'N/A'}</DetailItem>
+                        <DetailItem label="Season">{`${playerAnime.season || ''} ${playerAnime.releaseYear || ''}`.trim() || 'N/A'}</DetailItem>
+                        <DetailItem label="Start Date">{formatDate(playerAnime.startDate)}</DetailItem>
+                        <DetailItem label="End Date">{formatDate(playerAnime.endDate)}</DetailItem>
+                        <DetailItem label="Studio"><button onClick={() => onStudioSelect(playerAnime.studio)} className="hover:text-[rgb(var(--color-primary-accent))] hover:underline text-left">{playerAnime.studio || 'N/A'}</button></DetailItem>
+                        <DetailItem label="Country">JP</DetailItem>
+                        <DetailItem label="Adult">{playerAnime.isAdult ? 'Yes' : 'No'}</DetailItem>
+                    </div>
+                    <div className="flex flex-wrap gap-2 mt-4">
+                        {playerAnime.genres.map(genre => (
+                            <button key={genre} onClick={() => onGenreSelect(genre)} className="px-3 py-1 text-xs font-semibold rounded-full bg-[rgb(var(--color-primary))/0.3] text-[rgb(var(--text-on-accent))] hover:bg-[rgb(var(--color-primary))/0.5] transition-colors">
+                                {genre}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-white/10 flex flex-wrap gap-3">
+                        {playerAnime.officialSite && (
+                            <a href={playerAnime.officialSite} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm font-semibold text-[rgb(var(--text-secondary))] bg-white/5 px-3 py-1.5 rounded-lg hover:bg-white/10 hover:text-[rgb(var(--color-primary-accent))]">
+                                <ExternalLinkIcon className="w-4 h-4" /> Official Site
+                            </a>
+                        )}
+                        {playerAnime.malUrl && (
+                            <a href={playerAnime.malUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm font-semibold text-[rgb(var(--text-secondary))] bg-white/5 px-3 py-1.5 rounded-lg hover:bg-white/10 hover:text-[rgb(var(--color-primary-accent))]">
+                                <StarIcon className="w-4 h-4" /> MyAnimeList
+                            </a>
+                        )}
+                    </div>
+                </div>
+                
+                <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden">
+                    <div className="flex border-b border-white/10">
+                        <button
+                            onClick={() => setSidebarTab('characters')}
+                            className={`flex-1 py-3 font-semibold text-sm transition-colors ${sidebarTab === 'characters' ? 'text-[rgb(var(--color-primary-accent))] bg-[rgb(var(--color-primary))/0.1]' : 'text-[rgb(var(--text-muted))] hover:bg-white/5'}`}
+                        >
+                            Characters ({characters.length})
+                        </button>
+                        <button
+                            onClick={() => setSidebarTab('trailers')}
+                            className={`flex-1 py-3 font-semibold text-sm transition-colors ${sidebarTab === 'trailers' ? 'text-[rgb(var(--color-primary-accent))] bg-[rgb(var(--color-primary))/0.1]' : 'text-[rgb(var(--text-muted))] hover:bg-white/5'}`}
+                        >
+                            Trailers ({trailers.length})
+                        </button>
+                        <button
+                            onClick={() => setSidebarTab('intros')}
+                            className={`flex-1 py-3 font-semibold text-sm transition-colors ${sidebarTab === 'intros' ? 'text-[rgb(var(--color-primary-accent))] bg-[rgb(var(--color-primary))/0.1]' : 'text-[rgb(var(--text-muted))] hover:bg-white/5'}`}
+                        >
+                            Intros/Outros ({introsOutros.length})
+                        </button>
+                    </div>
+
+                    <div className="p-4 min-h-[10rem]" key={sidebarTab}>
+                        {sidebarTab === 'characters' && (
+                            <div className="animate-cinematic-fade-in">
+                                {isLoadingCharacters ? (
+                                    <p className="text-center text-sm text-[rgb(var(--text-muted))]">Loading characters...</p>
+                                ) : characters.length > 0 ? (
+                                    <>
+                                        {mainCharacters.length > 0 && (
+                                            <div>
+                                                <h5 className="font-semibold text-gray-400 mb-2 text-xs uppercase tracking-wider">Main</h5>
+                                                <div className="space-y-1 max-h-[calc(5*4.75rem)] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin' }}>
+                                                    {mainCharacters.map(c => <CharacterRow key={c.id} character={c} onClick={() => setSelectedCharacter(c)} />)}
+                                                </div>
+                                            </div>
+                                        )}
+                                        {supportingCharacters.length > 0 && (
+                                            <div className={mainCharacters.length > 0 ? "mt-4" : ""}>
+                                                <h5 className="font-semibold text-gray-400 mb-2 text-xs uppercase tracking-wider">Supporting</h5>
+                                                <div className="space-y-1 max-h-[calc(5*4.75rem)] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin' }}>
+                                                    {supportingCharacters.map(c => <CharacterRow key={c.id} character={c} onClick={() => setSelectedCharacter(c)} />)}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    <p className="text-center text-sm text-[rgb(var(--text-muted))]">No characters available.</p>
+                                )}
+                            </div>
+                        )}
+                        {sidebarTab === 'trailers' && (
+                            <div className="animate-cinematic-fade-in">
+                                <div className="space-y-2 max-h-[calc(10*4.5rem)] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin' }}>
+                                    {isLoadingTrailers ? (
+                                        <p className="text-[rgb(var(--text-muted))] text-sm text-center">Loading trailers...</p>
+                                    ) : trailers.length > 0 ? (
+                                        trailers.map((trailer, index) => trailer.key && (
+                                            <MediaRow key={index} item={trailer} onClick={() => setPlayingMedia(trailer)} />
+                                        ))
+                                    ) : (
+                                        <p className="text-[rgb(var(--text-muted))] text-sm text-center">No trailers available for this title.</p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                        {sidebarTab === 'intros' && (
+                            <div className="animate-cinematic-fade-in">
+                                <div className="space-y-2 max-h-[calc(10*4.5rem)] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin' }}>
+                                    {isLoadingIntrosOutros ? (
+                                        <p className="text-[rgb(var(--text-muted))] text-sm text-center">Loading themes...</p>
+                                    ) : introsOutros.length > 0 ? (
+                                        introsOutros.map((theme, index) => theme.key && (
+                                            <MediaRow key={index} item={theme} onClick={() => setPlayingMedia(theme)} />
+                                        ))
+                                    ) : (
+                                        <p className="text-[rgb(var(--text-muted))] text-sm text-center">No intros or outros found for this anime.</p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </aside>
+        )}
       </div>
+
+      {/* Comments section is now the first item after the main grid */}
+      {!isEmbed && settings.showComments && <div id="comments-section" className="mt-8"><Comments anime={playerAnime} currentSeason={currentSeason} currentEpisode={currentEpisode} onUserSelect={onUserSelect} onOpenInModal={() => setIsCommentsModalOpen(true)} insertText={timestampForComment} /></div>}
+
+      {watchOrder.length > 0 && !isEmbed && (
+          <div className="mt-8">
+              <h3 className="text-lg font-semibold text-[rgb(var(--color-primary-accent))] mb-3">Watch Order</h3>
+              <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 p-4 rounded-2xl space-y-4">
+                  {Object.entries(
+                      watchOrder.reduce((acc, item) => {
+                          const type = item.relationType.replace(/_/g, ' ');
+                          if (!acc[type]) acc[type] = [];
+                          acc[type].push(item);
+                          return acc;
+                      }, {} as Record<string, (Partial<Anime> & { relationType: string })[]>)
+                  ).sort(([aType], [bType]) => {
+                      const orderPreference = ['Parent Story', 'Prequel', 'Sequel', 'Side Story', 'Spin Off', 'Alternative', 'Character', 'Summary', 'Other'];
+                      const aIndex = orderPreference.indexOf(aType);
+                      const bIndex = orderPreference.indexOf(bType);
+                      return (aIndex === -1 ? 99 : aIndex) - (bIndex === -1 ? 99 : bIndex);
+                  }).map(([type, items]: [string, (Partial<Anime> & { relationType: string })[]]) => (
+                      <div key={type}>
+                          <h4 className="font-semibold text-md text-[rgb(var(--text-secondary))] mb-2 capitalize">{type.toLowerCase()}</h4>
+                          <div className="space-y-2">
+                              {items.map(item => (
+                                  <div
+                                      key={item.id}
+                                      onClick={() => onSelectRelated(mapPartialToFullAnime(item as any), 'Watch Order')}
+                                      className="group flex items-center gap-3 bg-[rgb(var(--surface-3))/0.5] p-2 rounded-xl hover:bg-[rgb(var(--surface-3))] transition-colors cursor-pointer"
+                                  >
+                                      <img src={item.thumbnail} alt={item.title} className="w-12 h-16 object-cover rounded-md flex-shrink-0" />
+                                      <div className="flex-1 min-w-0">
+                                          <h5 className="font-semibold text-sm truncate group-hover:text-[rgb(var(--color-primary-accent))] transition-colors">{item.title}</h5>
+                                          <p className="text-xs text-[rgb(var(--text-muted))] capitalize">{item.type} &bull; {item.status}</p>
+                                      </div>
+                                  </div>
+                              ))}
+                          </div>
+                      </div>
+                  ))}
+              </div>
+          </div>
+      )}
+
+      <RelatedMovies/>
+      <div>
+          <h3 className="text-lg font-semibold text-[rgb(var(--color-primary-accent))] mb-3">Recommendations</h3>
+          <div className="space-y-3">
+          {recommendations.slice(0, 5).map(rec => <div key={rec.id} onClick={() => onSelectRelated(rec, 'Recommendations')} className="group flex items-center gap-3 bg-[rgb(var(--surface-2))/0.6] p-2 rounded-xl hover:bg-[rgb(var(--surface-2))] transition-colors cursor-pointer"><img src={rec.thumbnail} alt="" className="w-12 h-16 object-cover rounded-md" /><div className="flex-1 min-w-0"><h4 className="font-semibold text-sm truncate group-hover:text-[rgb(var(--color-primary-accent))] transition-colors">{getDisplayTitle(rec, settings)}</h4><p className="text-xs text-[rgb(var(--text-muted))]">{rec.type} &bull; {rec.status}</p></div></div>)}
+          </div>
+      </div>
+      {relatedAnime.length > 0 && (
+          <div>
+              <h3 className="text-lg font-semibold text-[rgb(var(--color-primary-accent))] mb-3">Related Anime</h3>
+              <div className="grid grid-cols-2 gap-4">
+                  {relatedAnime.map(rel => (
+                      <AnimeCard key={rel.id} anime={rel} onSelect={onSelectRelated} episodeStatus={getEpisodeStatus(rel.id)} onLoginRequest={onLoginRequest} />
+                  ))}
+              </div>
+          </div>
+      )}
+      {similarAnime.length > 0 && (
+          <div>
+              <h3 className="text-lg font-semibold text-[rgb(var(--color-primary-accent))] mb-3">Similar Anime</h3>
+              <div className="grid grid-cols-2 gap-4">
+                  {similarAnime.map(anime => (
+                      <AnimeCard key={anime.id} anime={anime} onSelect={onSelectRelated} episodeStatus={getEpisodeStatus(anime.id)} onLoginRequest={onLoginRequest} />
+                  ))}
+              </div>
+          </div>
+      )}
     </div>
     </div>
   );

@@ -194,3 +194,22 @@ export const formatDuration = (minutes: number | null): string => {
   }
   return `${hours}h ${remainingMinutes}m`;
 };
+
+/**
+ * Formats seconds into a timestamp string (e.g., "01:23" or "01:02:34").
+ * @param seconds The total seconds.
+ * @returns The formatted timestamp string.
+ */
+export const formatTimestamp = (seconds: number): string => {
+    const s = Math.floor(seconds);
+    const hours = Math.floor(s / 3600);
+    const minutes = Math.floor((s % 3600) / 60);
+    const remainingSeconds = s % 60;
+
+    const pad = (num: number) => num.toString().padStart(2, '0');
+
+    if (hours > 0) {
+        return `${pad(hours)}:${pad(minutes)}:${pad(remainingSeconds)}`;
+    }
+    return `${pad(minutes)}:${pad(remainingSeconds)}`;
+};

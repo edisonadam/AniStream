@@ -70,6 +70,7 @@ const NewEpisodesPage: React.FC<NewEpisodesPageProps> = ({ onSelectAnime, onGoBa
                                     onSelect={onSelectAnime} 
                                     episodeStatus={getEpisodeStatus(anime.id)} 
                                     onLoginRequest={onLoginRequest}
+                                    hideNewEpisodeBadge={true}
                                 />
                             </div>
                         ))

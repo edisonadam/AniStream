@@ -1,6 +1,5 @@
 
-
-import React, { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import type { Anime, Club, Filter, Notification, Settings, Page, User, ShortcutAction, RecentEpisode } from './types';
 import { useSettings } from './hooks/useSettings';
@@ -11,71 +10,58 @@ import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import AnimeGrid from './components/AnimeGrid';
 import Footer from './components/Footer';
+import Player from './components/Player';
+import SearchOverlay from './components/SearchOverlay';
+import AuthModal from './components/AuthModal';
+import ProfilePage from './components/ProfilePage';
 import GoToTopButton from './components/GoToTopButton';
 import ContinueWatching from './components/ContinueWatching';
+import WatchlistOverlay from './components/WatchlistOverlay';
 import AdBanner from './components/AdBanner';
-import BeginnerAnime from './components/BeginnerAnime';
+import ClubDetailPage from './components/ClubDetailPage';
+import TrendingPage from './components/TrendingPage';
+import SchedulePage from './components/SchedulePage';
+import HistoryPage from './components/HistoryPage';
+import NewsPage from './components/NewsPage';
+import MangaPage from './components/MangaPage';
+import BeginnerAnimePage from './components/BeginnerAnimePage';
 import { useWatchProgress } from './hooks/useWatchProgress';
+import BeginnerAnime from './components/BeginnerAnime';
 import { useAuth } from './hooks/useAuth';
 import { GENRES_MAP } from './constants';
 import RecentCommentsCarousel from './components/RecentComments';
+import CommunityPage from './components/CommunityPage';
 import LoginPrompt from './components/LoginPrompt';
+import CommentMeterPage from './components/CommentMeterPage';
+import CurrencyPage from './components/CurrencyPage';
+import UserDetailModal from './components/UserDetailModal';
+import AboutPage from './components/AboutPage';
+import RulesPage from './components/RulesPage';
+import DonationPage from './components/DonationPage';
 import AlphabeticalBrowse from './components/AlphabeticalBrowse';
+import WatchTogetherPage from './components/WatchTogetherPage';
+import OGImageGenerator from './components/OGImageGenerator';
+import ShortcutsHelpModal from './components/ShortcutsHelpModal';
 import FloatingPlayer from './components/FloatingPlayer';
 import { useFloatingPlayer } from './hooks/useFloatingPlayer';
 import TopAnime from './components/TopAnime';
+import Top100Page from './components/Top100Page';
 import { Toaster } from './components/Toaster';
 import { useToast } from './hooks/useToast';
+import NotificationsPage from './components/NotificationsPage';
 import ThisSeasonAnime from './components/ThisSeasonAnime';
 import LoadingBar from './components/LoadingBar';
+import HowToUsePage from './components/HowToUsePage';
 import NewEpisodesSection from './components/NewEpisodesSection';
+import NewEpisodesPage from './components/NewEpisodesPage';
 import FeaturedCarousel from './components/FeaturedCarousel';
+import VideosPage from './components/VideosPage';
+import AnimeDetailPage from './components/AnimeDetailPage';
+import QueueOverlay from './components/QueueOverlay';
 import { useQueue } from './hooks/useQueue';
 import { useProfileData } from './hooks/useProfileData';
-import AuthModal from './components/AuthModal';
-
-// Lazy load pages and overlays
-const Player = lazy(() => import('./components/Player'));
-const SearchOverlay = lazy(() => import('./components/SearchOverlay'));
-const ProfilePage = lazy(() => import('./components/ProfilePage'));
-const WatchlistOverlay = lazy(() => import('./components/WatchlistOverlay'));
-const ClubDetailPage = lazy(() => import('./components/ClubDetailPage'));
-const TrendingPage = lazy(() => import('./components/TrendingPage'));
-const SchedulePage = lazy(() => import('./components/SchedulePage'));
-const HistoryPage = lazy(() => import('./components/HistoryPage'));
-const NewsPage = lazy(() => import('./components/NewsPage'));
-const MangaPage = lazy(() => import('./components/MangaPage'));
-const BeginnerAnimePage = lazy(() => import('./components/BeginnerAnimePage'));
-const CommunityPage = lazy(() => import('./components/CommunityPage'));
-const CommentMeterPage = lazy(() => import('./components/CommentMeterPage'));
-const CurrencyPage = lazy(() => import('./components/CurrencyPage'));
-const UserDetailModal = lazy(() => import('./components/UserDetailModal'));
-const AboutPage = lazy(() => import('./components/AboutPage'));
-const RulesPage = lazy(() => import('./components/RulesPage'));
-const DonationPage = lazy(() => import('./components/DonationPage'));
-const WatchTogetherPage = lazy(() => import('./components/WatchTogetherPage'));
-const OGImageGenerator = lazy(() => import('./components/OGImageGenerator'));
-const ShortcutsHelpModal = lazy(() => import('./components/ShortcutsHelpModal'));
-const Top100Page = lazy(() => import('./components/Top100Page'));
-const NotificationsPage = lazy(() => import('./components/NotificationsPage'));
-const HowToUsePage = lazy(() => import('./components/HowToUsePage'));
-const NewEpisodesPage = lazy(() => import('./components/NewEpisodesPage'));
-const VideosPage = lazy(() => import('./components/VideosPage'));
-const AnimeDetailPage = lazy(() => import('./components/AnimeDetailPage'));
-const QueueOverlay = lazy(() => import('./components/QueueOverlay'));
-const ErrorsPage = lazy(() => import('./components/ErrorsPage'));
-
 
 const ANIME_PAGE_SIZE = 25;
-
-const PageLoader: React.FC = () => (
-    <div className="w-full min-h-screen flex items-center justify-center">
-        <div 
-            className="w-12 h-12 border-4 border-transparent rounded-full animate-spin"
-            style={{ borderTopColor: 'rgb(var(--color-primary))' }}
-        ></div>
-    </div>
-);
 
 const App: React.FC = () => {
     const [page, setPage] = useState<Page>('home');
@@ -117,6 +103,7 @@ const App: React.FC = () => {
     const [recentEpisodes, setRecentEpisodes] = useState<RecentEpisode[]>([]);
     const [newEpisodeAnime, setNewEpisodeAnime] = useState<(Anime & { episodeNumber: number })[]>([]);
     const [isNewEpisodesLoading, setIsNewEpisodesLoading] = useState(true);
+    const [seenNewEpisodes, setSeenNewEpisodes] = useState<Record<number, number>>({});
     
     const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
 
@@ -132,6 +119,68 @@ const App: React.FC = () => {
     const homePageScrollPosition = useRef(0);
     const pageBeforePlayerRef = useRef<{page: Page, filters: Filter, source?: string}>({page: 'home', filters});
 
+    // Global listener to un-highlight elements on scroll/drag
+    useEffect(() => {
+        const handleInteraction = () => {
+            if (document.activeElement instanceof HTMLElement) {
+                document.activeElement.blur();
+            }
+        };
+        window.addEventListener('scroll', handleInteraction, { passive: true });
+        window.addEventListener('touchmove', handleInteraction, { passive: true });
+        return () => {
+            window.removeEventListener('scroll', handleInteraction);
+            window.removeEventListener('touchmove', handleInteraction);
+        };
+    }, []);
+
+    // Handle History API (Browser Back/Forward)
+    useEffect(() => {
+        const handlePopState = (event: PopStateEvent) => {
+            if (page === 'player') {
+                hidePlayer();
+            }
+            if (page !== 'home') {
+                // If we are deep in the app, going back likely means going home or to previous view
+                // For simplicity in this SPA, back button often maps to home or restoring state if we had a router.
+                // Here we just go home as a fallback if no state.
+                setPage('home');
+                setSelectedAnime(null);
+                // Restore scroll logic
+                setTimeout(() => {
+                    window.scrollTo({ top: homePageScrollPosition.current, behavior: 'smooth' });
+                }, 100);
+            }
+        };
+
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, [page, hidePlayer]);
+
+    useEffect(() => {
+        try {
+            const stored = localStorage.getItem('seen-new-episodes');
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                // Clean up old entries
+                const twentyFourHours = 24 * 60 * 60 * 1000;
+                const now = Date.now();
+                const freshEntries: Record<number, number> = {};
+                for (const id in parsed) {
+                    if ((now - parsed[id]) < twentyFourHours) {
+                        freshEntries[id] = parsed[id];
+                    }
+                }
+                setSeenNewEpisodes(freshEntries);
+                if (Object.keys(parsed).length !== Object.keys(freshEntries).length) {
+                    localStorage.setItem('seen-new-episodes', JSON.stringify(freshEntries));
+                }
+            }
+        } catch (e) {
+            console.error("Failed to load seen new episodes", e);
+        }
+    }, []);
+
     const lastViewedTimestamps = useMemo(() => {
         const map = new Map<number, number>();
         // watchProgressList is sorted by timestamp descending, so first found is latest
@@ -144,9 +193,14 @@ const App: React.FC = () => {
     }, [watchProgressList]);
 
     const getEpisodeStatusCallback = useCallback((id: number) => {
+        const seenTimestamp = seenNewEpisodes[id];
+        const twentyFourHours = 24 * 60 * 60 * 1000;
+        if (seenTimestamp && (Date.now() - seenTimestamp) < twentyFourHours) {
+            return { isNew: false, episodeNumber: null };
+        }
+
         const recentEp = recentEpisodes.find(ep => ep.malId === id);
         const lastViewed = lastViewedTimestamps.get(id);
-        const twentyFourHours = 24 * 60 * 60 * 1000;
         
         let isNew = false;
         if (recentEp && recentEp.releaseTimestamp) {
@@ -162,7 +216,7 @@ const App: React.FC = () => {
             isNew,
             episodeNumber: episodeData?.episodeNumber || null,
         };
-    }, [recentEpisodes, lastViewedTimestamps, newEpisodeAnime]);
+    }, [recentEpisodes, lastViewedTimestamps, newEpisodeAnime, seenNewEpisodes]);
 
 
     const handleLoginRequest = useCallback((reason: string) => {
@@ -170,27 +224,28 @@ const App: React.FC = () => {
         setLoginReason(reason);
     }, []);
     
+    // Prevent scroll on LOADING SCREEN ONLY
     useEffect(() => {
-        const hidePreloader = () => {
-            const preloader = document.getElementById('preloader');
+        const isLoading = isCarouselLoading || isTopAnimeLoading;
+        const preloader = document.getElementById('preloader');
+        
+        if (isLoading) {
+            document.body.style.overflow = 'hidden';
+            document.documentElement.style.overflow = 'hidden';
+            if (preloader) preloader.style.display = 'flex';
+        } else {
+            document.body.style.overflow = '';
+            document.documentElement.style.overflow = '';
             if (preloader && preloader.style.display !== 'none') {
                 preloader.style.transition = 'opacity 0.5s ease';
                 preloader.style.opacity = '0';
                 setTimeout(() => { preloader.style.display = 'none'; }, 500);
             }
-        };
-
-        if (!isCarouselLoading && !isTopAnimeLoading) {
-            hidePreloader();
         }
-
-        // Failsafe timeout to hide preloader after 10 seconds regardless of loading state
-        const failsafeTimer = setTimeout(hidePreloader, 10000);
-
-        return () => {
-            clearTimeout(failsafeTimer);
-        };
     }, [isCarouselLoading, isTopAnimeLoading]);
+
+    // Sidebar should NOT lock scroll anymore, allowing backdrop scroll to work and close menu
+    // We remove the useEffect that was doing `document.body.style.overflow = 'hidden'` on sidebar open.
 
     useEffect(() => {
       const handleBeforeInstallPrompt = (e: Event) => { e.preventDefault(); setInstallPrompt(e); };
@@ -202,9 +257,13 @@ const App: React.FC = () => {
         let scrollTimeout: number;
         const handleScroll = () => {
           document.body.classList.add('is-scrolling');
+          // Add to html element as well for some browser compat
+          document.documentElement.classList.add('is-scrolling');
+          
           clearTimeout(scrollTimeout);
           scrollTimeout = window.setTimeout(() => {
             document.body.classList.remove('is-scrolling');
+            document.documentElement.classList.remove('is-scrolling');
           }, 500); // Fade out after 0.5s of inactivity
         };
         window.addEventListener('scroll', handleScroll, { passive: true });
@@ -232,6 +291,17 @@ const App: React.FC = () => {
         }
     }, [isLoggedIn, user, addToast]);
     
+    // Automatically close sidebar on resize to desktop
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth >= 1024 && isSidebarOpen) {
+                setIsSidebarOpen(false);
+            }
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, [isSidebarOpen]);
+
     useEffect(() => {
         const isAnyModalOpen = isSearchOpen || isLoginOpen || isWatchlistOpen || isQueueOpen || isUserDetailModalOpen || isShortcutsHelpOpen;
         if (isAnyModalOpen) {
@@ -250,7 +320,7 @@ const App: React.FC = () => {
             const recentResult = await fetchWithRetry(`https://api.jikan.moe/v4/watch/episodes?limit=25`);
             if (recentResult.ok) {
                 const data = await recentResult.json();
-                const recentEntries: any[] = (data && data.data && Array.isArray(data.data)) ? data.data : [];
+                const recentEntries: any[] = data.data || [];
     
                 setRecentEpisodes(recentEntries.map(entry => ({
                     id: `${entry.entry.mal_id}-${entry.episodes[0]?.mal_id}`,
@@ -307,22 +377,18 @@ const App: React.FC = () => {
 
             if (featuredResult.status === 'fulfilled' && featuredResult.value.ok) {
                 const data = await featuredResult.value.json();
-                if (data && data.data && Array.isArray(data.data)) {
-                    const mapped = data.data.map(mapJikanToAnime).filter(Boolean);
-                    setFeaturedAnime(mapped);
-                    allFetchedAnime.push(...mapped);
-                }
+                const mapped = data.data.map(mapJikanToAnime).filter(Boolean);
+                setFeaturedAnime(mapped);
+                allFetchedAnime.push(...mapped);
             } else {
                 console.error("Failed to fetch featured anime:", featuredResult.status === 'rejected' ? featuredResult.reason : 'Request failed');
             }
 
             if (topResult.status === 'fulfilled' && topResult.value.ok) {
                 const data = await topResult.value.json();
-                if (data && data.data && Array.isArray(data.data)) {
-                    const mapped = data.data.map(mapJikanToAnime).filter(Boolean);
-                    setTopAnimeList(mapped);
-                    allFetchedAnime.push(...mapped);
-                }
+                const mapped = data.data.map(mapJikanToAnime).filter(Boolean);
+                setTopAnimeList(mapped);
+                allFetchedAnime.push(...mapped);
             } else {
                 console.error("Failed to fetch top anime:", topResult.status === 'rejected' ? topResult.reason : 'Request failed');
             }
@@ -368,18 +434,12 @@ const App: React.FC = () => {
                 const response = await fetchWithRetry(url);
                 if (!response.ok) throw new Error(`Jikan API responded with status ${response.status}`);
                 const data = await response.json();
-                if (data && data.data && Array.isArray(data.data)) {
-                    const mapped = data.data.map(mapJikanToAnime).filter(Boolean);
-                    setGridAnime(mapped);
-                    setAllAnime(prev => Array.from(new Map([...prev, ...mapped].map(a => [a.id, a])).values()));
-                    setHasMore(data.pagination?.has_next_page ?? false);
-                    setTotalPages(data.pagination?.last_visible_page ?? 0);
-                    setCurrentPage(1);
-                } else {
-                    setGridAnime([]);
-                    setHasMore(false);
-                    setTotalPages(0);
-                }
+                const mapped = data.data.map(mapJikanToAnime).filter(Boolean);
+                setGridAnime(mapped);
+                setAllAnime(prev => Array.from(new Map([...prev, ...mapped].map(a => [a.id, a])).values()));
+                setHasMore(data.pagination?.has_next_page ?? false);
+                setTotalPages(data.pagination?.last_visible_page ?? 0);
+                setCurrentPage(1);
             } catch (error) {
                 console.error("Failed to fetch initial grid data:", error);
                 addToast("Could not load anime list.", "error");
@@ -400,15 +460,11 @@ const App: React.FC = () => {
             const response = await fetchWithRetry(url);
             if (!response.ok) throw new Error(`Jikan API responded with status ${response.status}`);
             const data = await response.json();
-            if (data && data.data && Array.isArray(data.data)) {
-                const mapped = data.data.map(mapJikanToAnime).filter(Boolean);
-                setGridAnime(prev => [...prev, ...mapped]);
-                setAllAnime(prev => Array.from(new Map([...prev, ...mapped].map(a => [a.id, a])).values()));
-                setHasMore(data.pagination?.has_next_page ?? false);
-                setCurrentPage(pageToFetch);
-            } else {
-                setHasMore(false);
-            }
+            const mapped = data.data.map(mapJikanToAnime).filter(Boolean);
+            setGridAnime(prev => [...prev, ...mapped]);
+            setAllAnime(prev => Array.from(new Map([...prev, ...mapped].map(a => [a.id, a])).values()));
+            setHasMore(data.pagination?.has_next_page ?? false);
+            setCurrentPage(pageToFetch);
         } catch (error) {
             console.error("Failed to load more grid data:", error);
             addToast("Could not load more anime.", "error");
@@ -439,6 +495,7 @@ const App: React.FC = () => {
         if (!['player', 'details'].includes(page)) { homePageScrollPosition.current = window.scrollY; }
         setPage(newPage);
         window.scrollTo(0, 0);
+        window.history.pushState({}, '', `?page=${newPage}`);
         setIsSidebarOpen(false);
     }, [page]);
 
@@ -447,25 +504,38 @@ const App: React.FC = () => {
         return () => clearTimeout(timer);
     }, [page, selectedAnime]);
 
-    const handleWatchNow = (anime: Anime, source?: string) => {
+    const handleWatchNow = useCallback((anime: Anime, source?: string) => {
         if (page !== 'player' && page !== 'details') {
             pageBeforePlayerRef.current = { page, filters, source };
         }
         setSelectedAnime(anime);
         setPage('player');
         hidePlayer();
-    };
+    }, [page, filters, hidePlayer]);
 
-    const handleDetailSelect = (anime: Anime, source?: string) => {
+    const handleDetailSelect = useCallback((anime: Anime, source?: string) => {
         if (page !== 'player' && page !== 'details') {
             pageBeforePlayerRef.current = { page, filters, source };
         }
         setSelectedAnime(anime);
         setPage('details');
         hidePlayer();
-    };
+    }, [page, filters, hidePlayer]);
 
-    const handleAnimeSelect = (anime: Anime, source?: string) => {
+    const handleAnimeSelect = useCallback((anime: Anime, source?: string) => {
+        const isActuallyNew = (() => {
+            const recentEp = recentEpisodes.find(ep => ep.malId === anime.id);
+            if (!recentEp?.releaseTimestamp) return false;
+            const releaseTimeInMs = recentEp.releaseTimestamp > 1000000000000 ? recentEp.releaseTimestamp : recentEp.releaseTimestamp * 1000;
+            return (Date.now() - releaseTimeInMs) < 24 * 60 * 60 * 1000;
+        })();
+
+        if (isActuallyNew) {
+            const newSeen = { ...seenNewEpisodes, [anime.id]: Date.now() };
+            setSeenNewEpisodes(newSeen);
+            localStorage.setItem('seen-new-episodes', JSON.stringify(newSeen));
+        }
+
         if (source === 'Season Navigation' && page === 'player') {
             handleWatchNow(anime, source);
         } else if (source === 'Continue Watching' || source === 'Watchlist' || source === 'Queue') {
@@ -473,7 +543,7 @@ const App: React.FC = () => {
         } else {
             handleDetailSelect(anime, source);
         }
-    };
+    }, [page, recentEpisodes, seenNewEpisodes, handleWatchNow, handleDetailSelect]);
     
     const renderPage = () => {
         if (watchTogetherRoomId) return <WatchTogetherPage roomId={watchTogetherRoomId} onExit={() => setWatchTogetherRoomId(null)} />;
@@ -499,7 +569,6 @@ const App: React.FC = () => {
             case 'how-to-use': return <HowToUsePage onGoBack={() => setPage('home')} />;
             case 'videos': return <VideosPage onGoBack={() => setPage('home')} onAnimeSelect={handleAnimeSelect} />;
             case 'new-episodes': return <NewEpisodesPage onAnimeSelect={handleAnimeSelect} getEpisodeStatus={getEpisodeStatusCallback} onLoginRequest={handleLoginRequest} onGoBack={() => setPage('home')} />;
-            case 'errors': return <ErrorsPage onGoBack={() => setPage('home')} />;
             case 'home':
             default: return (
                 <>
@@ -545,6 +614,7 @@ const App: React.FC = () => {
         <div>
             <LoadingBar isLoading={isPageLoading || isCarouselLoading || isGridLoading} />
             <Toaster />
+            {isShortcutsHelpOpen && <ShortcutsHelpModal onClose={() => setIsShortcutsHelpOpen(false)} />}
             
             {!isEmbedMode && (
                 <Sidebar 
@@ -566,7 +636,7 @@ const App: React.FC = () => {
                 />
             )}
             
-            <div className={!isEmbedMode ? "" : ""}>
+            <div className={`main-content-wrapper ${!isEmbedMode ? "lg:ml-80" : ""}`}>
                 {!isEmbedMode && (
                     <Header 
                         onMenuClick={() => setIsSidebarOpen(true)}
@@ -583,23 +653,17 @@ const App: React.FC = () => {
                 {!isLoggedIn && page === 'home' && <LoginPrompt onLoginClick={() => handleLoginRequest("Please log in to access all features.")} />}
                 
                 <main className="min-h-screen">
-                    <Suspense fallback={<PageLoader />}>
-                        {renderPage()}
-                    </Suspense>
+                    {renderPage()}
                 </main>
                 
                 {!isEmbedMode && <Footer onNavigate={navigateTo} />}
             </div>
             
+            {isSearchOpen && <SearchOverlay onClose={() => setIsSearchOpen(false)} onAnimeSelect={handleDetailSelect} onSearchSubmit={(q) => { setFilters({ ...filters, query: q }); setPage('home'); setIsSearchOpen(false); }} />}
             {isLoginOpen && <AuthModal onClose={() => setIsLoginOpen(false)} reason={loginReason} />}
-            
-            <Suspense fallback={<div/>}>
-                {isShortcutsHelpOpen && <ShortcutsHelpModal onClose={() => setIsShortcutsHelpOpen(false)} />}
-                {isSearchOpen && <SearchOverlay onClose={() => setIsSearchOpen(false)} onAnimeSelect={handleDetailSelect} onSearchSubmit={(q) => { setFilters({ ...filters, query: q }); setPage('home'); setIsSearchOpen(false); }} />}
-                {isWatchlistOpen && <WatchlistOverlay onClose={() => setIsWatchlistOpen(false)} onSelectAnime={handleAnimeSelect} newEpisodeAnime={newEpisodeAnime} />}
-                {isQueueOpen && <QueueOverlay onClose={() => setIsQueueOpen(false)} onSelectAnime={handleAnimeSelect} />}
-                {isUserDetailModalOpen && selectedUser && <UserDetailModal user={selectedUser} onClose={() => setIsUserDetailModalOpen(false)} />}
-            </Suspense>
+            {isWatchlistOpen && <WatchlistOverlay onClose={() => setIsWatchlistOpen(false)} onSelectAnime={handleAnimeSelect} newEpisodeAnime={newEpisodeAnime} />}
+            {isQueueOpen && <QueueOverlay onClose={() => setIsQueueOpen(false)} onSelectAnime={handleAnimeSelect} />}
+            {isUserDetailModalOpen && selectedUser && <UserDetailModal user={selectedUser} onClose={() => setIsUserDetailModalOpen(false)} />}
 
             {!isEmbedMode && (
                 <>

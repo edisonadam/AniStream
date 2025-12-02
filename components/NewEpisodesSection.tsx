@@ -53,6 +53,7 @@ const NewEpisodesSection: React.FC<NewEpisodesSectionProps> = ({ onAnimeSelect, 
                             onSelect={onAnimeSelect} 
                             episodeStatus={getEpisodeStatus(anime.id)}
                             onLoginRequest={onLoginRequest}
+                            hideNewEpisodeBadge={true}
                         />
                     </div>
                 ))}

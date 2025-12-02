@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Comment as CommentType, Anime, User } from '../types';
 import { useAuth } from '../hooks/useAuth';
@@ -14,6 +15,7 @@ interface CommentsProps {
   onUserSelect: (user: User) => void;
   isModalMode?: boolean;
   onOpenInModal?: () => void;
+  insertText?: string | null;
 }
 
 type SortOrder = 'newest' | 'oldest' | 'top';
@@ -36,9 +38,22 @@ const CommentForm: React.FC<{
   placeholder: string;
   onCancel?: () => void;
   autoFocus?: boolean;
-}> = ({ user, onSubmit, cta, placeholder, onCancel, autoFocus = false }) => {
-  const [text, setText] = useState('');
+  initialText?: string;
+}> = ({ user, onSubmit, cta, placeholder, onCancel, autoFocus = false, initialText = '' }) => {
+  const [text, setText] = useState(initialText);
   const [isSpoiler, setIsSpoiler] = useState(false);
+
+  useEffect(() => {
+      if (initialText) {
+          setText(prev => {
+              // Avoid duplicating if re-renders happen quickly
+              if (prev.endsWith(initialText)) return prev;
+              // If text is not empty and doesn't end with space, add a space
+              const prefix = prev && !prev.endsWith(' ') ? prev + ' ' : prev;
+              return prefix + initialText;
+          });
+      }
+  }, [initialText]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,7 +96,7 @@ const CommentForm: React.FC<{
   )
 }
 
-const Comments: React.FC<CommentsProps> = ({ anime, currentSeason, currentEpisode, onUserSelect, isModalMode = false, onOpenInModal }) => {
+const Comments: React.FC<CommentsProps> = ({ anime, currentSeason, currentEpisode, onUserSelect, isModalMode = false, onOpenInModal, insertText }) => {
   const { isLoggedIn, user } = useAuth();
   const { addFriend, isFriend, addNotification, addAniTokens, isUserBlocked } = useProfileData();
   const [comments, setComments] = useState<CommentType[]>([]);
@@ -194,7 +209,7 @@ const Comments: React.FC<CommentsProps> = ({ anime, currentSeason, currentEpisod
 
         {isLoggedIn && user ? (
           <div className="mb-6">
-            <CommentForm user={user} onSubmit={handleAddComment} cta="Post Comment" placeholder="Add a public comment..." />
+            <CommentForm user={user} onSubmit={handleAddComment} cta="Post Comment" placeholder="Add a public comment..." initialText={insertText || ''} />
           </div>
         ) : (
           <div className="text-center p-4 mb-6 bg-[rgb(var(--surface-3))] rounded-xl">
