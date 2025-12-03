@@ -12,6 +12,7 @@ import { ChevronLeftIcon, StarIcon, PlayIcon, BookmarkIcon, HeartIcon, HeartIcon
 import { useQueue } from '../hooks/useQueue';
 import { useAuth } from '../hooks/useAuth';
 import CharacterModal from './CharacterModal';
+import RatingControl from './RatingControl';
 
 interface AnimeDetailPageProps {
     anime: Anime;
@@ -300,6 +301,9 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ anime, onGoBack, onGo
                         <StatItem label="Views" value={fullAnime.views?.toLocaleString()} />
                         <StatItem label="Likes" value={fullAnime.likes?.toLocaleString()} />
                     </div>
+
+                    {/* Rating Control Added Here */}
+                    <RatingControl animeId={fullAnime.id} animeTitle={displayTitle} />
 
                     {watchOrder.length > 0 && (
                         <div>

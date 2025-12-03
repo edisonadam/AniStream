@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import type { Anime } from '../types';
-import { CloseIcon, SearchIcon } from './icons/Icons';
+import { SearchIcon } from './icons/Icons';
 import { DEFAULT_SEARCH_SUGGESTIONS } from '../constants';
 import { useSettings } from '../hooks/useSettings';
 import { mapJikanToAnime } from '../api';
@@ -82,9 +83,7 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose, onAnimeSelect, o
         className="relative bg-[rgb(var(--surface-2))/0.6] backdrop-blur-2xl border border-white/10 rounded-[2rem] w-[90%] max-w-2xl shadow-2xl shadow-[rgb(var(--shadow-color))/0.5] animate-modal-pop-in" 
         onClick={e => e.stopPropagation()}
       >
-        <button onClick={onClose} className="absolute top-4 right-4 text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))] z-10" aria-label="Close search">
-          <CloseIcon />
-        </button>
+        {/* Close button removed */}
         <div className="relative p-4">
           <div className="absolute inset-y-0 left-0 pl-8 flex items-center pointer-events-none text-[rgb(var(--text-muted))]"><SearchIcon /></div>
           <input
@@ -94,15 +93,8 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose, onAnimeSelect, o
             onChange={e => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Search for an anime..."
-            className="w-full bg-[rgb(var(--surface-input))/0.2] border-2 border-white/10 rounded-full py-3 pl-12 pr-12 text-lg text-[rgb(var(--text-primary))] placeholder-[rgb(var(--text-muted))] focus:ring-2 focus:ring-[rgb(var(--border-focus))] focus:shadow-[0_0_15px_rgb(var(--shadow-color)/0.8)]"
+            className="w-full bg-[rgb(var(--surface-input))/0.2] border-2 border-white/10 rounded-full py-3 pl-12 pr-6 text-lg text-[rgb(var(--text-primary))] placeholder-[rgb(var(--text-muted))] focus:ring-2 focus:ring-[rgb(var(--border-focus))] focus:shadow-[0_0_15px_rgb(var(--shadow-color)/0.8)] truncate"
           />
-           <button 
-              onClick={() => query.trim() && onSearchSubmit(query.trim())}
-              className="absolute inset-y-0 right-0 pr-8 flex items-center text-[rgb(var(--text-muted))] hover:text-[rgb(var(--color-primary-accent))]"
-              aria-label="Submit search"
-            >
-              <SearchIcon/>
-            </button>
         </div>
         
         <div className="p-4 pt-0 max-h-[60vh] overflow-y-auto">

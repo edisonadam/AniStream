@@ -565,7 +565,7 @@ const App: React.FC = () => {
         switch (page) {
             case 'player': return selectedAnime && <Player anime={selectedAnime} allAnime={allAnime} onGoBack={() => setPage(pageBeforePlayerRef.current.page)} onGoHome={goHome} onSelectRelated={handleAnimeSelect} onGenreSelect={(g) => { setFilters({ ...filters, genres: [g] }); setPage('home'); }} onStudioSelect={(s) => { setFilters({ ...filters, studios: [s] }); setPage('home'); }} onUserSelect={(u) => { setSelectedUser(u); setIsUserDetailModalOpen(true); }} onEnterRoom={setWatchTogetherRoomId} breadcrumbsData={pageBeforePlayerRef.current} settings={settings} updateSettings={updateSettings} isLoggedIn={isLoggedIn} onLoginRequest={handleLoginRequest} getEpisodeStatus={getEpisodeStatusCallback} />;
             case 'details': return selectedAnime && <AnimeDetailPage anime={selectedAnime} onGoBack={() => setPage(pageBeforePlayerRef.current.page)} onGoHome={goHome} onWatchNow={handleWatchNow} onGenreSelect={(g) => { setFilters({ ...filters, genres: [g] }); setPage('home'); }} onStudioSelect={(s) => { setFilters({ ...filters, studios: [s] }); setPage('home'); }} onLoginRequest={handleLoginRequest} breadcrumbsData={pageBeforePlayerRef.current} getEpisodeStatus={getEpisodeStatusCallback} onSelectRelated={handleAnimeSelect} onVoiceActorSelect={handleVoiceActorSelect} />;
-            case 'voice-actor': return selectedVoiceActorId && <VoiceActorPage voiceActorId={selectedVoiceActorId} onGoBack={() => setPage(pageBeforePlayerRef.current.page)} onAnimeSelect={handleAnimeSelect} />;
+            case 'voice-actor': return <VoiceActorPage voiceActorId={selectedVoiceActorId} onGoBack={() => setPage(pageBeforePlayerRef.current.page)} onAnimeSelect={handleAnimeSelect} onVoiceActorSelect={handleVoiceActorSelect} />;
             case 'profile': return <ProfilePage onGoBack={() => setPage('home')} allAnime={allAnime} onSelectAnime={handleAnimeSelect} getEpisodeStatus={getEpisodeStatusCallback} onNavigate={navigateTo} />;
             case 'club-detail': return selectedClub && <ClubDetailPage club={selectedClub} onGoBack={() => setPage('community')} onSelectAnime={handleAnimeSelect} getEpisodeStatus={getEpisodeStatusCallback} />;
             case 'trending': return <TrendingPage onAnimeSelect={handleAnimeSelect} getEpisodeStatus={getEpisodeStatusCallback} onLoginRequest={handleLoginRequest} />;
@@ -654,6 +654,7 @@ const App: React.FC = () => {
                     onLoginClick={handleLoginRequest}
                     installPrompt={installPrompt}
                     onInstallClick={handleInstallClick}
+                    onShowWatchlist={() => setIsWatchlistOpen(true)}
                 />
             )}
             

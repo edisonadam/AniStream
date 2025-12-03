@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { HamburgerIcon, SearchIcon, BellIcon, UserIcon, CloseIcon, BookmarkIcon, LogoutIcon, UsersIcon, MessageCircleIcon, LevelUpIcon, HeartIcon, RefreshCwIcon, SettingsIcon, FilmIcon, ViewListIcon } from './icons/Icons';
+import { HamburgerIcon, SearchIcon, BellIcon, UserIcon, CloseIcon, BookmarkIcon, LogoutIcon, UsersIcon, MessageCircleIcon, LevelUpIcon, HeartIcon, RefreshCwIcon, SettingsIcon, FilmIcon, ViewListIcon, NewspaperIcon } from './icons/Icons';
 import { useAuth } from '../hooks/useAuth';
 import type { Notification, Anime, Page, NotificationType } from '../types';
 import Logo from './Logo';
@@ -23,8 +23,8 @@ interface HeaderProps {
 }
 
 const NavLink: React.FC<{ page: Page; onNavigate: (page: Page) => void; children: React.ReactNode }> = ({ page, onNavigate, children }) => (
-    <button onClick={() => onNavigate(page)} className="font-semibold text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] transition-colors duration-300">
-        {children}
+    <button onClick={() => onNavigate(page)} className="flex items-center gap-2 font-bold text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] hover:bg-white/5 px-3 py-2 rounded-lg transition-all duration-300">
+        <span className="tracking-wide">{children}</span>
     </button>
 );
 
@@ -95,11 +95,11 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
   }
 
   return (
-    <header className="sticky top-0 z-40 bg-[rgb(var(--surface-1))/0.9] backdrop-blur-xl border-b border-[rgb(var(--border-color))] shadow-lg">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20">
+    <header className="sticky top-0 z-40 bg-[rgb(var(--surface-1))/0.9] backdrop-blur-xl border-b border-[rgb(var(--border-color))] shadow-lg transition-all duration-300">
+      <div className="w-full px-4 sm:px-6 lg:px-10">
+        <div className="flex items-center justify-between h-20 lg:h-24 transition-all duration-300">
           {/* Left Section */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center gap-4 lg:gap-8">
             <button 
               onClick={(e) => { e.currentTarget.blur(); onMenuClick(); }} 
               title="Menu" 
@@ -109,32 +109,31 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
                 <HamburgerIcon />
             </button>
             <Logo onClick={onGoHome} />
-            <nav className="hidden md:flex items-center space-x-6 ml-6">
-                <button onClick={onGoHome} className="font-semibold text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--color-primary-accent))] transition-colors duration-300">Home</button>
+            <nav className="hidden md:flex items-center space-x-2 lg:space-x-4 ml-4">
+                <NavLink page="watch-together" onNavigate={onNavigate}>Watch2Gether</NavLink>
+                <NavLink page="new-episodes" onNavigate={onNavigate}>New Episodes</NavLink>
                 <NavLink page="manga" onNavigate={onNavigate}>Manga</NavLink>
-                <NavLink page="trending" onNavigate={onNavigate}>Trending</NavLink>
-                <NavLink page="schedule" onNavigate={onNavigate}>Schedule</NavLink>
                 <NavLink page="community" onNavigate={onNavigate}>Community</NavLink>
             </nav>
           </div>
           
           {/* Center Section: Search Bar (Desktop) */}
-          <div className="hidden sm:flex flex-1 justify-center px-8">
+          <div className="hidden sm:flex flex-1 justify-center px-8 lg:px-16 min-w-0">
              <div
                 onClick={onSearchClick}
-                className="relative w-full max-w-md group cursor-text"
+                className="relative w-full max-w-md lg:max-w-xl group cursor-text transition-all duration-300"
               >
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[rgb(var(--text-muted))] group-hover:text-[rgb(var(--color-primary-accent))] transition-colors">
-                  <SearchIcon className="w-5 h-5" />
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[rgb(var(--text-muted))] group-hover:text-[rgb(var(--color-primary-accent))] transition-colors z-10">
+                  <SearchIcon className="w-4 h-4" />
                 </div>
-                <div className="w-full bg-[rgb(var(--surface-2))] border border-[rgb(var(--border-color))] rounded-full py-2 pl-12 pr-4 text-[rgb(var(--text-muted))] group-hover:border-[rgb(var(--border-focus))] transition-colors">
-                    Search...
+                <div className="w-full h-10 flex items-center bg-[rgb(var(--surface-2))] border border-[rgb(var(--border-color))] rounded-full pl-12 pr-4 text-[rgb(var(--text-muted))] text-sm lg:text-base group-hover:border-[rgb(var(--border-focus))] transition-all shadow-sm group-hover:shadow-md overflow-hidden">
+                    <span className="truncate block w-full text-left">Search anime, characters, users...</span>
                 </div>
               </div>
           </div>
 
           {/* Right Section */}
-          <div className="flex items-center space-x-2 sm:space-x-4">
+          <div className="flex items-center space-x-3 sm:space-x-5">
             <button onClick={onSearchClick} title="Search" className="sm:hidden p-2.5 rounded-full text-[rgb(var(--text-secondary))] bg-white/5 hover:text-[rgb(var(--color-primary-accent))] hover:bg-white/10 transition-all" aria-label="Search"><SearchIcon /></button>
             
             {isLoggedIn && user ? (
@@ -189,30 +188,31 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
 
                 <div className="relative" ref={profileRef}>
                   <button onClick={() => setIsProfileOpen(!isProfileOpen)} title={user.username} className="p-1 rounded-full text-[rgb(var(--text-secondary))] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[rgb(var(--surface-1))] focus:ring-[rgb(var(--color-primary))]">
-                    <img loading="lazy" src={user.avatar} alt={user.username} className="w-9 h-9 rounded-full bg-[rgb(var(--color-primary)/0.5)]" />
+                    <img loading="lazy" src={user.avatar} alt={user.username} className="w-10 h-10 rounded-full bg-[rgb(var(--color-primary)/0.5)] object-cover ring-2 ring-white/10" />
                   </button>
-                  <div className={`origin-top-right absolute right-0 mt-2 w-56 rounded-2xl shadow-lg shadow-[rgb(var(--shadow-color))/0.3] bg-[rgb(var(--surface-2))] border border-white/10 transition-all duration-300 ease-out transform ${isProfileOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'}`}>
+                  <div className={`origin-top-right absolute right-0 mt-4 w-64 rounded-2xl shadow-lg shadow-[rgb(var(--shadow-color))/0.3] bg-[rgb(var(--surface-2))] border border-white/10 transition-all duration-300 ease-out transform ${isProfileOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'}`}>
                       <div className="p-2 space-y-1" role="menu">
-                        <div className="flex justify-between items-center px-3 py-2 text-sm text-[rgb(var(--text-primary))] font-semibold border-b border-white/10 mb-1">
-                          <span>{user.username}</span>
-                          <button onClick={() => handleProfileLink('currency')} className="flex items-center gap-1 text-yellow-400 rounded-md p-1 -m-1 hover:bg-white/10 transition-colors">
+                        <div className="flex flex-col px-3 py-3 text-sm text-[rgb(var(--text-primary))] font-semibold border-b border-white/10 mb-1">
+                          <span className="text-base mb-1">{user.username}</span>
+                          <button onClick={() => handleProfileLink('currency')} className="flex items-center gap-1.5 text-yellow-400 bg-yellow-400/10 px-2 py-1 rounded-md hover:bg-yellow-400/20 transition-colors w-fit">
                             💎
-                            <span>{aniTokens.toLocaleString()}</span>
+                            <span>{aniTokens.toLocaleString()} AniTK</span>
                           </button>
                         </div>
-                        <button onClick={() => handleProfileLink('profile')} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] hover:text-[rgb(var(--text-primary))] rounded-lg transition-colors">
+                        <button onClick={() => handleProfileLink('profile')} className="flex items-center gap-3 w-full text-left px-3 py-2.5 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] hover:text-[rgb(var(--text-primary))] rounded-lg transition-colors">
                             <UserIcon className="w-5 h-5"/>
                             <span>Profile & Settings</span>
                         </button>
-                        <button onClick={handleWatchlistLink} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] hover:text-[rgb(var(--text-primary))] rounded-lg transition-colors">
+                        <button onClick={handleWatchlistLink} className="flex items-center gap-3 w-full text-left px-3 py-2.5 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] hover:text-[rgb(var(--text-primary))] rounded-lg transition-colors">
                             <BookmarkIcon className="w-5 h-5"/>
                             <span>Watchlist</span>
                         </button>
-                         <button onClick={() => handleProfileLink('comment-meter')} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] hover:text-[rgb(var(--text-primary))] rounded-lg transition-colors">
+                         <button onClick={() => handleProfileLink('comment-meter')} className="flex items-center gap-3 w-full text-left px-3 py-2.5 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] hover:text-[rgb(var(--text-primary))] rounded-lg transition-colors">
                             <LevelUpIcon className="w-5 h-5"/>
                             <span>Level Up</span>
                         </button>
-                        <button onClick={handleLogout} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] hover:text-[rgb(var(--text-primary))] rounded-lg transition-colors">
+                        <div className="h-px bg-white/10 my-1"></div>
+                        <button onClick={handleLogout} className="flex items-center gap-3 w-full text-left px-3 py-2.5 text-sm text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] hover:text-[rgb(var(--text-primary))] rounded-lg transition-colors hover:bg-red-500/10 hover:text-red-400">
                             <LogoutIcon className="w-5 h-5"/>
                             <span>Logout</span>
                         </button>
@@ -221,7 +221,9 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
                 </div>
               </>
             ) : (
-              <button onClick={onLoginClick} className="px-5 py-2.5 bg-[rgb(var(--color-primary))] rounded-full text-sm font-semibold hover:bg-[rgb(var(--color-primary-hover))] text-[rgb(var(--text-on-primary))] transition-colors shadow-lg shadow-[rgb(var(--shadow-color))/0.3]">Login</button>
+              <button onClick={onLoginClick} className="px-6 py-2.5 bg-[rgb(var(--color-primary))] rounded-full text-sm font-bold hover:bg-[rgb(var(--color-primary-hover))] text-[rgb(var(--text-on-primary))] transition-all shadow-lg shadow-[rgb(var(--shadow-color))/0.3] hover:scale-105">
+                Login
+              </button>
             )}
           </div>
         </div>

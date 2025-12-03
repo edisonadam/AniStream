@@ -11,6 +11,7 @@ import { updateAnilistEntry, fetchWithRetry } from '../api';
 import { useWatchProgress } from '../hooks/useWatchProgress';
 import { useToast } from '../hooks/useToast';
 import { useQueue } from '../hooks/useQueue';
+import { useProfileData } from '../hooks/useProfileData';
 
 interface AnimeCardProps {
   anime: Anime;
@@ -26,10 +27,13 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect, episodeStatus, o
   const { settings } = useSettings();
   const { getWatchProgress } = useWatchProgress();
   const { addToQueue, isInQueue } = useQueue();
+  const { getRating } = useProfileData();
+  
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const inWatchlist = isInWatchlist(anime.id);
   const inQueue = isInQueue(anime.id);
   const currentStatus = getWatchlistStatus(anime.id);
+  const userRating = getRating(anime.id);
 
   const titleRef = useRef<HTMLHeadingElement>(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
@@ -180,6 +184,10 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect, episodeStatus, o
   }
   const showBadge = badgeText !== '';
 
+  const ratingColorClass = userRating 
+    ? userRating >= 8 ? 'text-green-400 bg-green-400/10' : userRating >= 5 ? 'text-yellow-400 bg-yellow-400/10' : 'text-red-400 bg-red-400/10'
+    : 'text-yellow-400'; // Default for global rating
+
   return (
     <div className={`anime-card-touch-target group relative isolate overflow-hidden rounded-xl shadow-lg cursor-pointer transform transition-all duration-300 hover:shadow-2xl hover:shadow-[rgb(var(--shadow-color))/0.4] hover:scale-105`}
       onClick={handleClick}
@@ -231,12 +239,15 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect, episodeStatus, o
       <div className="absolute top-2 right-2 z-20 flex flex-col items-end gap-1.5 pointer-events-none">
           {anime.status === 'Ongoing' && <div title="Ongoing" className="w-3 h-3 bg-blue-500 rounded-full ring-2 ring-black"></div>}
           {anime.status === 'Completed' && <div title="Completed" className="w-3 h-3 bg-green-500 rounded-full ring-2 ring-black"></div>}
-          {anime.rating && anime.rating > 0 && (
-              <div className="flex items-center gap-1 px-2 py-0.5 text-xs font-bold rounded-full bg-black/60 text-yellow-400 backdrop-blur-md">
-                  <StarIcon className="w-3 h-3" />
-                  <span>{anime.rating.toFixed(1)}</span>
+          
+          {/* Rating Badge (User's if available, else MAL average) */}
+          {(userRating || (anime.rating && anime.rating > 0)) && (
+              <div className={`flex items-center gap-1 px-2 py-0.5 text-xs font-bold rounded-full bg-black/60 backdrop-blur-md ${ratingColorClass}`}>
+                  <StarIcon className={`w-3 h-3 ${userRating ? 'fill-current' : ''}`} />
+                  <span>{userRating ? userRating : anime.rating?.toFixed(1)}</span>
               </div>
           )}
+          
           {anime.releaseYear && (
             <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/60 text-white backdrop-blur-md">{anime.releaseYear}</span>
           )}

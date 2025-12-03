@@ -6,6 +6,7 @@ import { GoogleGenAI } from '@google/genai';
 import { ChevronLeftIcon, StarIcon, ChevronRightIcon, ViewGridIcon, ViewListIcon, ViewCarouselIcon, EyeIcon, EyeOffIcon, RewindIcon, FastForwardIcon, RefreshCwIcon, ShareIcon, CloseIcon, DownloadIcon, AnnouncementIcon, ExternalLinkIcon, CodeIcon, SearchIcon, PlayIcon, PauseIcon, VolumeUpIcon, VolumeOffIcon, SettingsIcon, FullscreenEnterIcon, FullscreenExitIcon, ExclamationTriangleIcon, ScissorsIcon, UsersIcon, UserPlusIcon, PictureInPictureIcon, FilmIcon, ArrowTopRightOnSquareIcon, LightbulbOffIcon, LightbulbIcon, SparklesIcon, ChevronDownIcon, InfoIcon } from './icons/Icons';
 import AnimeCard from './AnimeCard';
 import Comments from './Comments';
+import RatingControl from './RatingControl';
 import { useWatchProgress } from '../hooks/useWatchProgress';
 import { useProfileData } from '../hooks/useProfileData';
 import { useAuth } from '../hooks/useAuth';
@@ -1895,6 +1896,10 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
             {!isEmbed && (
                 <div className="mb-8">
                     <SeasonNavigator/>
+                    
+                    {/* Rating Control Inserted Here */}
+                    <RatingControl animeId={playerAnime.id} animeTitle={getDisplayTitle(playerAnime, settings)} />
+
                     <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 p-4 sm:p-6 rounded-2xl mt-6">
                         <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-3">
                             <div className="flex items-center gap-4 border-b border-white/10 sm:border-b-0 self-stretch sm:self-center">

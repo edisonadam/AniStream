@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import type { Filter, Settings, Page } from '../types';
-import { CloseIcon, UsersIcon, BookOpenIcon, GiftIcon, MoonIcon, SunIcon, HomeIcon, TrendingUpIcon, CalendarIcon, HistoryIcon, InfoIcon, AcademicCapIcon, EyeIcon, EyeOffIcon, MessageCircleIcon, TrophyIcon, ChevronDownIcon, ClipboardIcon, ShieldCheckIcon, HeartIcon, NewspaperIcon, StarIcon, MailIcon, QuestionMarkCircleIcon, FilmIcon, DownloadIcon, ShoppingCartIcon, MicrophoneIcon, RefreshCwIcon, DevicePhoneMobileIcon } from './icons/Icons';
+import { CloseIcon, UsersIcon, BookOpenIcon, GiftIcon, MoonIcon, SunIcon, HomeIcon, TrendingUpIcon, CalendarIcon, HistoryIcon, InfoIcon, AcademicCapIcon, EyeIcon, EyeOffIcon, MessageCircleIcon, UserIcon, ChevronDownIcon, ClipboardIcon, ShieldCheckIcon, HeartIcon, NewspaperIcon, StarIcon, MailIcon, QuestionMarkCircleIcon, FilmIcon, DownloadIcon, ShoppingCartIcon, MicrophoneIcon, RefreshCwIcon, DevicePhoneMobileIcon, ChartBarIcon, BookmarkIcon, LevelUpIcon } from './icons/Icons';
 import Logo from './Logo';
 import { ANIME_TYPES, ANIME_STATUSES, YEAR_OPTIONS, LANGUAGE_OPTIONS, STUDIO_OPTIONS, GENRES, TAG_OPTIONS } from '../constants';
 
@@ -15,6 +15,7 @@ interface SidebarProps {
   onNavigate: (page: Page) => void;
   onGoHome: () => void;
   onSurpriseMe: () => void;
+  onShowWatchlist: () => void;
   settings: Settings;
   updateSettings: (newSettings: Partial<Settings>) => void;
   isLoggedIn: boolean;
@@ -55,7 +56,7 @@ const FilterSection: React.FC<{ title: string; children: React.ReactNode; isOpen
 
 const Sidebar: React.FC<SidebarProps> = ({ 
     isOpen, onClose, filters, onFilterChange, onApplyFilters, onResetFilters, 
-    onNavigate, onGoHome, onSurpriseMe, 
+    onNavigate, onGoHome, onSurpriseMe, onShowWatchlist,
     settings, updateSettings, isLoggedIn, onLoginClick,
     installPrompt, onInstallClick
 }) => {
@@ -264,6 +265,14 @@ const Sidebar: React.FC<SidebarProps> = ({
             onTouchMove={handleListTouchMove}
             onTouchEnd={handleListTouchEnd}
         >
+            {isLoggedIn && (
+                <SidebarSection title="My Profile">
+                    <SideButton icon={<UserIcon />} label="Profile & Settings" onClick={() => handleNavigation('profile')} />
+                    <SideButton icon={<BookmarkIcon />} label="My Watchlist" onClick={() => { onClose(); onShowWatchlist(); }} />
+                    <SideButton icon={<LevelUpIcon />} label="Level & Stats" onClick={() => handleNavigation('comment-meter')} />
+                </SidebarSection>
+            )}
+
             <SidebarSection title="Menu">
               <SideButton icon={<HomeIcon />} label="Home" onClick={handleGoHome} />
               <SideButton icon={<TrendingUpIcon />} label="Trending" onClick={() => handleNavigation('trending')} />
@@ -277,7 +286,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               <SideButton icon={<MessageCircleIcon />} label="Community Hub" onClick={() => handleNavigation('community')} />
               <SideButton icon={<UsersIcon />} label="Watch2Gether" onClick={() => handleNavigation('watch-together')} />
               <SideButton icon={<MicrophoneIcon />} label="Voice Actors" onClick={() => handleNavigation('voice-actor')} />
-              <SideButton icon={<TrophyIcon />} label="Leaderboards" onClick={() => handleNavigation('leaderboards')} />
+              <SideButton icon={<ChartBarIcon />} label="Leaderboards" onClick={() => handleNavigation('leaderboards')} />
             </SidebarSection>
             
             <SidebarSection title="Library">

@@ -118,6 +118,18 @@ export interface Comment {
   isSpoiler?: boolean;
 }
 
+export interface Review {
+    id: string;
+    userId: string;
+    username: string;
+    userAvatar: string;
+    animeId: number;
+    rating: number;
+    text: string;
+    timestamp: number;
+    likes: number;
+}
+
 export type Theme = 'light' | 'dark';
 export type ColorPreset = 'abyssal-blue' | 'violet-fusion' | 'cyber-cyan' | 'sunset-orange' | 'rainbow-shift';
 export type EpisodeViewStyle = 'compact' | 'grid' | 'horizontal';
