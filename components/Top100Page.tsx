@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import type { Anime } from '../types';
 import { useSettings } from '../hooks/useSettings';
@@ -24,16 +25,33 @@ const Top100Page: React.FC<Top100PageProps> = ({ onSelectAnime, onGoBack, getEpi
             setIsLoading(true);
             setError(null);
             try {
-                const res = await fetchWithRetry('https://api.jikan.moe/v4/top/anime?limit=100');
-                if (!res.ok) {
-                    throw new Error(`Failed to fetch Top 100 anime from Jikan API. Status: ${res.status}`);
+                // Jikan API limits items per page (usually 25). Fetching 100 directly might fail or return truncated results.
+                // We fetch 4 pages of 25 sequentially to ensure we get the full top 100 reliably.
+                let collectedData: any[] = [];
+                
+                for (let page = 1; page <= 4; page++) {
+                    const res = await fetchWithRetry(`https://api.jikan.moe/v4/top/anime?page=${page}&limit=25`);
+                    if (!res.ok) {
+                        throw new Error(`Failed to fetch Top 100 data (Page ${page}). Status: ${res.status}`);
+                    }
+                    const data = await res.json();
+                    if (data.data) {
+                        collectedData = [...collectedData, ...data.data];
+                    }
+                    // Small delay to respect rate limits
+                    await new Promise(resolve => setTimeout(resolve, 350));
                 }
-                const data = await res.json();
-                let mapped = data.data.map(mapJikanToAnime).filter(Boolean);
+
+                let mapped = collectedData.map(mapJikanToAnime).filter((a): a is Anime => a !== null);
+                
                 if (settings.restrictAdultContent) {
                     mapped = mapped.filter((a: Anime) => !a.isAdult);
                 }
-                setAnimeList(mapped);
+                
+                // Deduplicate just in case the API returns overlapping data during updates
+                const uniqueAnime = Array.from(new Map(mapped.map(a => [a.id, a])).values());
+                
+                setAnimeList(uniqueAnime);
             } catch (e) {
                 setError(e instanceof Error ? e.message : 'An unknown error occurred.');
             } finally {
@@ -67,9 +85,9 @@ const Top100Page: React.FC<Top100PageProps> = ({ onSelectAnime, onGoBack, getEpi
                         ))
                     ) : (
                         animeList.map((anime, index) => (
-                            <div key={anime.id} className="relative group">
+                            <div key={anime.id} className="relative group animate-subtle-fade-in-up" style={{ animationDelay: `${index * 20}ms` }}>
                                 <span 
-                                    className="absolute -top-4 -left-2 text-6xl font-black text-[rgb(var(--surface-3))] transition-colors duration-300 group-hover:text-[rgb(var(--color-primary-accent))] z-0"
+                                    className="absolute -top-4 -left-2 text-6xl font-black text-[rgb(var(--surface-3))] transition-colors duration-300 group-hover:text-[rgb(var(--color-primary-accent))] z-0 pointer-events-none select-none"
                                     style={{ textShadow: `0 2px 4px rgba(0,0,0,0.5)` }}
                                 >
                                     {index + 1}

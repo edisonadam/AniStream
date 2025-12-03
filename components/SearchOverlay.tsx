@@ -83,7 +83,7 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose, onAnimeSelect, o
         className="relative bg-[rgb(var(--surface-2))/0.6] backdrop-blur-2xl border border-white/10 rounded-[2rem] w-[90%] max-w-2xl shadow-2xl shadow-[rgb(var(--shadow-color))/0.5] animate-modal-pop-in" 
         onClick={e => e.stopPropagation()}
       >
-        {/* Close button removed */}
+        {/* Close button removed as requested */}
         <div className="relative p-4">
           <div className="absolute inset-y-0 left-0 pl-8 flex items-center pointer-events-none text-[rgb(var(--text-muted))]"><SearchIcon /></div>
           <input
@@ -93,7 +93,7 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose, onAnimeSelect, o
             onChange={e => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Search for an anime..."
-            className="w-full bg-[rgb(var(--surface-input))/0.2] border-2 border-white/10 rounded-full py-3 pl-12 pr-6 text-lg text-[rgb(var(--text-primary))] placeholder-[rgb(var(--text-muted))] focus:ring-2 focus:ring-[rgb(var(--border-focus))] focus:shadow-[0_0_15px_rgb(var(--shadow-color)/0.8)] truncate"
+            className="w-full bg-[rgb(var(--surface-input))/0.2] border-2 border-white/10 rounded-full py-3 pl-12 pr-6 text-lg text-[rgb(var(--text-primary))] placeholder-[rgb(var(--text-muted))] focus:ring-2 focus:ring-[rgb(var(--border-focus))] focus:shadow-[0_0_15px_rgb(var(--shadow-color)/0.8)] truncate min-w-0"
           />
         </div>
         
