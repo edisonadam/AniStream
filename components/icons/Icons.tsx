@@ -88,7 +88,7 @@ export const UserPlusIcon = createIcon(<><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0
 export const PictureInPictureIcon = createIcon(<><path d="M12 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M21 3h-6a2 2 0 00-2 2v6a2 2 0 002 2h6a2 2 0 002-2V5a2 2 0 00-2-2z" /></>);
 export const ArrowTopRightOnSquareIcon = createIcon(<path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" />);
 export const LightbulbOffIcon = createIcon(<path d="M9 18h6m-3-13.01V2M9 2a3 3 0 013 3v1m-6 6H2m20 0h-2m-3.4-9.6a8.94 8.94 0 00-11.2 0M19.6 18.2a8.94 8.94 0 000-11.2m-11.2 0a8.94 8.94 0 000 11.2m-4-4.2H2m20 0h-2M12 6a6 6 0 016 6" />);
-export const LightbulbIcon = createIcon(<path d="M9 18h6m-3-13.01V2M9 2a3 3 0 013 3v1m-6 6H2m20 0h-2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41M12 6a6 6 0 016 6" />);
+export const LightbulbIcon = createIcon(<path d="M9 18h6m-3-13.01V2M9 2a3 3 0 013 3v1m-6 6H2m20 0h-2m-3.4-9.6a8.94 8.94 0 00-11.2 0M19.6 18.2a8.94 8.94 0 000-11.2m-11.2 0a8.94 8.94 0 000 11.2m-4-4.2H2m20 0h-2M12 6a6 6 0 016 6" />);
 export const SparklesIcon = createIcon(<path d="M12 3L9.27 7.76L4 9l4.77 4.27L7.53 19L12 16.3l4.47 2.7l-1.24-5.73L20 9l-5.27-.24L12 3z" />);
 export const ThumbsUpIcon = createIcon(<path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3zM7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3" />);
 export const ThumbsDownIcon = createIcon(<path d="M10 15v4a3 3 0 003 3l4-9V2H5.72a2 2 0 00-2 1.7l-1.38 9a2 2 0 002 2.3zm7-13h2.67A2.31 2.31 0 0122 4.33v7.34A2.31 2.31 0 0119.67 14H17" />);
@@ -98,7 +98,7 @@ export const ArrowUpIcon = createIcon(<path d="M12 19V5M5 12l7-7 7 7" />);
 export const HeartIconSolid = createSolidIcon(<path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />);
 export const PlusCircleIcon = createIcon(<><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" /></>);
 export const FlagIcon = createIcon(<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7" />);
-export const CaptionsIcon = createIcon(<path d="M15 16H9M13 12H9M11 8H9" /><path d="M21 16V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2h14a2 2 0 002-2z" />);
+export const CaptionsIcon = createIcon(<><path d="M15 16H9M13 12H9M11 8H9" /><path d="M21 16V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2h14a2 2 0 002-2z" /></>);
 export const CogIcon = createIcon(<path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><circle cx="12" cy="12" r="3" />);
 export const MicrophoneIcon = createIcon(<path d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />);
 export const MicrophoneOffIcon = createIcon(<><path d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clipRule="evenodd" /><path d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" /></>);
