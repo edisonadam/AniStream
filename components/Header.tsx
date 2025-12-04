@@ -127,7 +127,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
                   <SearchIcon className="w-4 h-4" />
                 </div>
                 <div className="w-full h-10 flex items-center bg-[rgb(var(--surface-2))] border border-[rgb(var(--border-color))] rounded-full pl-10 pr-4 text-[rgb(var(--text-muted))] text-sm lg:text-base group-hover:border-[rgb(var(--border-focus))] transition-all shadow-sm group-hover:shadow-md overflow-hidden">
-                    <span className="truncate w-full text-left block">Search anime, characters, users...</span>
+                    <span className="truncate w-full text-left">Search anime, characters, users...</span>
                 </div>
               </div>
           </div>

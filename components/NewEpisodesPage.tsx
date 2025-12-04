@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import type { Anime } from '../types';
 import { fetchWithRetry, mapJikanToAnime } from '../api';
@@ -29,8 +30,6 @@ const NewEpisodesPage: React.FC<NewEpisodesPageProps> = ({ onSelectAnime, onGoBa
                 const data = await res.json();
                 const mapped = (data.data || []).map((item: any) => mapJikanToAnime(item.entry)).filter(Boolean);
                 
-                // The same anime might appear multiple times if multiple episodes were released.
-                // We only want to show each anime once.
                 const uniqueAnime = Array.from(new Map(mapped.map((a: Anime) => [a.id, a])).values());
 
                 setAnimeList(uniqueAnime);
@@ -70,7 +69,7 @@ const NewEpisodesPage: React.FC<NewEpisodesPageProps> = ({ onSelectAnime, onGoBa
                                     onSelect={onSelectAnime} 
                                     episodeStatus={getEpisodeStatus(anime.id)} 
                                     onLoginRequest={onLoginRequest}
-                                    hideNewEpisodeBadge={true}
+                                    // Removed hideNewEpisodeBadge prop
                                 />
                             </div>
                         ))

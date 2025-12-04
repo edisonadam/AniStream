@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { Anime } from '../types';
 import { useSettings } from '../hooks/useSettings';
@@ -53,7 +54,7 @@ const NewEpisodesSection: React.FC<NewEpisodesSectionProps> = ({ onAnimeSelect, 
                             onSelect={onAnimeSelect} 
                             episodeStatus={getEpisodeStatus(anime.id)}
                             onLoginRequest={onLoginRequest}
-                            hideNewEpisodeBadge={true}
+                            // Removed hideNewEpisodeBadge prop so it defaults to showing
                         />
                     </div>
                 ))}
