@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Anime } from '../types';
 import { ChevronLeftIcon, ChevronRightIcon, PlayIcon, PlusIcon, StarIcon, CheckIcon, InfoIcon } from './icons/Icons';
@@ -347,12 +349,12 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
                   <span>{currentSlide.genres.slice(0, 3).join(' • ')}</span>
               </div>
               <p className="line-clamp-3 text-gray-200 mb-6 max-w-lg">{currentSlide.synopsis}</p>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <button onClick={() => onAnimeSelect(currentSlide)} className="flex items-center gap-2 px-6 py-3 bg-[rgb(var(--color-primary))] text-white rounded-full font-bold hover:bg-[rgb(var(--color-primary-hover))] transition-transform duration-300 hover:scale-105 shadow-lg shadow-[rgb(var(--shadow-color))/0.4] hover:shadow-[rgb(var(--shadow-color))/0.6]">
                   <PlayIcon className="w-6 h-6"/>
                   <span>Watch Now</span>
                 </button>
-                <button onClick={() => onDetailsSelect(currentSlide)} className="flex items-center gap-2 px-6 py-3 bg-white/10 text-white rounded-full font-bold hover:bg-white/20 transition-transform duration-300 hover:scale-105 backdrop-blur-sm">
+                <button onClick={() => onDetailsSelect(currentSlide)} className="flex items-center gap-2 px-6 py-3 bg-transparent text-white rounded-full font-bold hover:bg-white/10 backdrop-blur-sm border-2 border-white/20 hover:border-white/40 transition-all duration-300 transform hover:scale-105">
                     <InfoIcon className="w-6 h-6"/>
                     <span>Details</span>
                 </button>
@@ -365,7 +367,7 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
                       }
                   }}
                   disabled={inWatchlist}
-                  className="flex items-center gap-2 px-5 py-3 bg-white/10 text-white rounded-full font-semibold hover:bg-white/20 transition-colors backdrop-blur-sm disabled:opacity-70 disabled:cursor-not-allowed">
+                  className="flex items-center gap-2 px-6 py-3 bg-white/10 text-white rounded-full font-bold hover:bg-white/20 transition-colors backdrop-blur-sm disabled:opacity-70 disabled:cursor-not-allowed">
                   {inWatchlist ? <CheckIcon/> : <PlusIcon/>}
                   <span>{inWatchlist ? 'In List' : 'Add to List'}</span>
                 </button>

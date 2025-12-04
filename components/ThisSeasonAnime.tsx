@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect } from 'react';
 import type { Anime } from '../types';
 import { fetchWithRetry, mapJikanToAnime } from '../api';
@@ -73,8 +75,6 @@ const ThisSeasonAnime: React.FC<ThisSeasonAnimeProps> = ({ onAnimeSelect, onShow
       )
   }
   
-  if (seasonalAnime.length === 0) return null;
-
   return (
     <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex justify-between items-center mb-6">

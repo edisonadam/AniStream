@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import ReactDOM from 'react-dom';
 import type { Anime, Season, Episode, VideoServer, EpisodeViewStyle, User, Character, DefaultLanguage, Page, Filter, Settings, WatchlistStatus } from '../types';
@@ -311,6 +312,13 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
     const [timestampForComment, setTimestampForComment] = useState<string | null>(null);
     const [episodeListMode, setEpisodeListMode] = useState<'both' | 'sub' | 'dub'>('both');
 
+    useLayoutEffect(() => {
+        // We only want to scroll to top when the main content has loaded to avoid layout shifts causing a scroll jump.
+        if (!isEmbed && !isLoading) {
+            window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+        }
+    }, [anime.id, isEmbed, isLoading]);
+
     useEffect(() => {
         const currentServerInfo = VIDEO_SERVERS.find(s => s.id === settings.videoServer);
         if (currentServerInfo) {
@@ -537,7 +545,6 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
     // Main data fetching effect
     useEffect(() => {
         if (!anime?.id) return;
-        if (!isEmbed) window.scrollTo(0, 0);
 
         // Immediately render the page with basic info
         setPlayerAnime(anime);
