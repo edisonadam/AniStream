@@ -62,7 +62,7 @@ const ThisSeasonAnime: React.FC<ThisSeasonAnimeProps> = ({ onAnimeSelect, onShow
     fetchSeasonal();
   }, [settings.restrictAdultContent]);
 
-  if (isLoading && seasonalAnime.length === 0) {
+  if (isLoading) {
       return (
           <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="h-8 bg-[rgb(var(--surface-3))] rounded-md w-1/3 mb-6 animate-pulse"></div>
@@ -86,7 +86,7 @@ const ThisSeasonAnime: React.FC<ThisSeasonAnimeProps> = ({ onAnimeSelect, onShow
         </button>
       </div>
 
-      <div className="flex gap-6 overflow-x-auto pb-4 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8" style={{ scrollbarWidth: 'thin' }}>
+      <div className="flex gap-6 overflow-x-auto pb-4 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 horizontal-scroll-fade">
         {seasonalAnime.slice(0, 10).map((anime, index) => {
           return (
             <div key={anime.id} className="relative flex-shrink-0 w-48 group flex flex-col items-center text-center">

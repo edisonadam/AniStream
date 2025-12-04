@@ -94,7 +94,7 @@ const ContinueWatching: React.FC<ContinueWatchingProps> = ({ onShowHistory, onSe
                     View All History
                 </button>
             </div>
-            <div className="flex gap-4 md:gap-6 overflow-x-auto pb-4 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8" style={{ scrollbarWidth: 'thin' }}>
+            <div className="flex gap-4 md:gap-6 overflow-x-auto pb-4 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 horizontal-scroll-fade">
                 {watchableItems.map(({ anime, progressInfo }) => (
                     <div key={anime.id} className="flex-shrink-0 w-48">
                         <AnimeCard

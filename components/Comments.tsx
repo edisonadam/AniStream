@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Comment as CommentType, Anime, User } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { useProfileData } from '../hooks/useProfileData';
-import { MessageCircleIcon, UserPlusIcon, CheckIcon, ThumbsUpIcon, ArrowTopRightOnSquareIcon } from './icons/Icons';
+import { MessageCircleIcon, UserPlusIcon, CheckIcon, ThumbsUpIcon, ArrowTopRightOnSquareIcon, VerifiedIcon } from './icons/Icons';
 import { formatRelativeTime, getCanonicalId } from '../utils';
 import { db } from '../firebase';
 import { ref, onValue, push, serverTimestamp, runTransaction } from 'firebase/database';
@@ -224,7 +223,10 @@ const Comments: React.FC<CommentsProps> = ({ anime, currentSeason, currentEpisod
                 <img loading="lazy" src={comment.user.avatar} alt={comment.user.username} className="w-10 h-10 rounded-full cursor-pointer" onClick={() => onUserSelect(comment.user)} />
                 <div className="flex-1">
                   <div className="flex items-baseline gap-2">
-                    <span className="font-bold text-[rgb(var(--text-primary))] cursor-pointer" onClick={() => onUserSelect(comment.user)}>{comment.user.username}</span>
+                    <div className="font-bold text-[rgb(var(--text-primary))] cursor-pointer flex items-center gap-1.5" onClick={() => onUserSelect(comment.user)}>
+                        {comment.user.username}
+                        {comment.user.isVip && <VerifiedIcon className="w-4 h-4 text-yellow-400" title="VIP Member" />}
+                    </div>
                     <span className="text-xs text-[rgb(var(--text-muted))]">{formatRelativeTime(comment.timestamp)}</span>
                   </div>
                   {comment.isSpoiler ? (

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { Anime } from '../types';
 import { useSettings } from '../hooks/useSettings';
@@ -19,7 +18,7 @@ const NewEpisodesSection: React.FC<NewEpisodesSectionProps> = ({ onAnimeSelect, 
 
     if (!settings.showNewEpisodeBadges) return null;
 
-    if (isLoading && newEpisodeAnime.length === 0) {
+    if (isLoading) {
         return (
             <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="h-8 bg-[rgb(var(--surface-3))] rounded-md w-1/3 mb-6 animate-pulse"></div>
@@ -46,7 +45,7 @@ const NewEpisodesSection: React.FC<NewEpisodesSectionProps> = ({ onAnimeSelect, 
                     View All <ChevronRightIcon className="w-4 h-4" />
                 </button>
             </div>
-             <div className="flex gap-4 md:gap-6 overflow-x-auto pb-4 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8" style={{ scrollbarWidth: 'thin' }}>
+             <div className="flex gap-4 md:gap-6 overflow-x-auto pb-4 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 horizontal-scroll-fade">
                 {newEpisodeAnime.map(anime => (
                     <div key={anime.id} className="flex-shrink-0 w-48">
                         <AnimeCard 
@@ -54,7 +53,6 @@ const NewEpisodesSection: React.FC<NewEpisodesSectionProps> = ({ onAnimeSelect, 
                             onSelect={onAnimeSelect} 
                             episodeStatus={getEpisodeStatus(anime.id)}
                             onLoginRequest={onLoginRequest}
-                            // Removed hideNewEpisodeBadge prop so it defaults to showing
                         />
                     </div>
                 ))}

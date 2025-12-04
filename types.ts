@@ -1,4 +1,3 @@
-
 import type { ColorPreset as OriginalColorPreset } from './types';
 
 export interface Anime {
@@ -100,6 +99,7 @@ export interface User {
   email: string | null;
   joinedDate: number; // timestamp
   isVerified: boolean;
+  isVip?: boolean;
 }
 
 export interface Comment {

@@ -1,25 +1,25 @@
-
 import React from 'react';
 
-type IconProps = {
-  className?: string;
-};
+// @FIX: Update IconProps to allow any valid SVG attribute, including 'style', and handle the 'title' prop for accessibility.
+// Fix: Added title property to IconProps to allow passing a title for accessibility.
+type IconProps = React.SVGProps<SVGSVGElement> & { title?: string };
 
-// FIX: Added strokeLinecap and strokeLinejoin for better icon rendering.
-const createIcon = (path: React.ReactNode): React.FC<IconProps> => ({ className }) => (
-  <svg className={`w-6 h-6 ${className || ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+const createIcon = (path: React.ReactNode): React.FC<IconProps> => ({ className, title, ...props }) => (
+  <svg className={`w-6 h-6 ${className || ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    {title && <title>{title}</title>}
     {path}
   </svg>
 );
 
-const createSolidIcon = (path: React.ReactNode): React.FC<IconProps> => ({ className }) => (
-    <svg className={`w-6 h-6 ${className || ''}`} viewBox="0 0 20 20" fill="currentColor">
+const createSolidIcon = (path: React.ReactNode): React.FC<IconProps> => ({ className, title, ...props }) => (
+    <svg className={`w-6 h-6 ${className || ''}`} viewBox="0 0 20 20" fill="currentColor" {...props}>
+      {title && <title>{title}</title>}
       {path}
     </svg>
 );
 
-export const GoogleIcon: React.FC<IconProps> = ({ className }) => (
-    <svg className={`w-5 h-5 ${className || ''}`} viewBox="0 0 48 48" >
+export const GoogleIcon: React.FC<IconProps> = ({ className, ...props }) => (
+    <svg className={`w-5 h-5 ${className || ''}`} viewBox="0 0 48 48" {...props} >
         <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path>
         <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path>
         <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.222,0-9.565-3.113-11.28-7.481l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path>
@@ -100,10 +100,11 @@ export const HeartIconSolid = createSolidIcon(<path fillRule="evenodd" d="M3.172
 export const PlusCircleIcon = createIcon(<><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" /></>);
 export const FlagIcon = createIcon(<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7" />);
 export const CaptionsIcon = createIcon(<><path d="M15 16H9M13 12H9M11 8H9" /><path d="M21 16V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2h14a2 2 0 002-2z" /></>);
-export const CogIcon = createIcon(<path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><circle cx="12" cy="12" r="3" />);
+export const CogIcon = createIcon(<path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><circle cx="12" cy="12" r="3" />);
 export const MicrophoneIcon = createIcon(<path d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />);
 export const MicrophoneOffIcon = createIcon(<><path d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clipRule="evenodd" /><path d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" /></>);
 export const VideoCameraIcon = createIcon(<path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />);
 export const VideoCameraOffIcon = createIcon(<><path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /><path d="M3 3l18 18" /></>);
 export const DevicePhoneMobileIcon = createIcon(<path d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />);
+export const DeviceDesktopIcon = createIcon(<><rect x="2" y="3" width="20" height="14" rx="2" ry="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" /></>);
 export const ChartBarIcon = createIcon(<path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />);

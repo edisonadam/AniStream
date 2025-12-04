@@ -5,7 +5,7 @@ import { useProfileData } from '../hooks/useProfileData';
 import { useWatchProgress } from '../hooks/useWatchProgress';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { useToast } from '../hooks/useToast';
-import { ChevronLeftIcon, VerifiedIcon, UserIcon, ShieldCheckIcon, HistoryIcon, CogIcon, RefreshCwIcon, LockClosedIcon, EyeIcon } from './icons/Icons';
+import { ChevronLeftIcon, VerifiedIcon, UserIcon, ShieldCheckIcon, HistoryIcon, CogIcon, RefreshCwIcon, LockClosedIcon, EyeIcon, DeviceDesktopIcon, DevicePhoneMobileIcon, StarIcon, ThumbsUpIcon, ThumbsDownIcon } from './icons/Icons';
 import type { Anime, Settings, Page, WatchProgressInfo } from '../types';
 import { COLOR_PRESETS, VIDEO_SERVERS } from '../constants';
 import { fetchAnilistUserAnimeList, fetchMalUserAnimeList } from '../api';
@@ -21,7 +21,7 @@ interface ProfilePageProps {
 }
 
 type MainTab = 'general' | 'security' | 'sessions' | 'preferences' | 'sync' | 'privacy';
-type GeneralSubTab = 'profile' | 'privacy' | 'statistics' | 'activity';
+type GeneralSubTab = 'profile' | 'privacy' | 'statistics' | 'activity' | 'ratings';
 
 const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectAnime, getEpisodeStatus, onNavigate }) => {
     const { user } = useAuth();
@@ -118,11 +118,13 @@ const GeneralSection: React.FC<{
             <SubTabButton label="Privacy" isActive={activeSubTab === 'privacy'} onClick={() => setActiveSubTab('privacy')} />
             <SubTabButton label="Statistics" isActive={activeSubTab === 'statistics'} onClick={() => setActiveSubTab('statistics')} />
             <SubTabButton label="Activity" isActive={activeSubTab === 'activity'} onClick={() => setActiveSubTab('activity')} />
+            <SubTabButton label="Ratings" isActive={activeSubTab === 'ratings'} onClick={() => setActiveSubTab('ratings')} />
         </div>
         {activeSubTab === 'profile' && <ProfileSubSection />}
         {activeSubTab === 'privacy' && <PrivacySection isSubSection />}
         {activeSubTab === 'statistics' && <StatisticsSubSection />}
         {activeSubTab === 'activity' && <ActivitySubSection allAnime={allAnime} onSelectAnime={onSelectAnime} getEpisodeStatus={getEpisodeStatus} onNavigate={onNavigate} />}
+        {activeSubTab === 'ratings' && <RatingsSubSection allAnime={allAnime} onSelectAnime={onSelectAnime} getEpisodeStatus={getEpisodeStatus} onLoginRequest={() => {}} />}
     </div>
 );
 
@@ -155,6 +157,7 @@ const ProfileSubSection: React.FC = () => {
                         <div className="flex-1 text-center sm:text-left">
                             <div className="flex items-center gap-2 justify-center sm:justify-start">
                                 <p className="font-bold text-lg">{user?.username}</p>
+                                {user?.isVip && <VerifiedIcon className="w-5 h-5 text-yellow-400" title="VIP Member" />}
                                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-500/20 text-red-400">Private</span>
                             </div>
                             <p className="text-sm text-[rgb(var(--text-muted))]">{user?.email}</p>
@@ -317,6 +320,77 @@ const ActivitySubSection: React.FC<{
     );
 };
 
+const RatingsSubSection: React.FC<{
+    allAnime: Anime[], 
+    onSelectAnime: (anime: Anime) => void, 
+    getEpisodeStatus: (animeId: number) => { isNew: boolean; episodeNumber: number | null },
+    onLoginRequest: (reason: string) => void
+}> = ({ allAnime, onSelectAnime, getEpisodeStatus, onLoginRequest }) => {
+    const { likedAnime, dislikedAnime } = useProfileData();
+
+    const animeMap = useMemo(() => new Map(allAnime.map(a => [a.id, a])), [allAnime]);
+
+    const likedAnimeDetails = useMemo(() => 
+        likedAnime.map(id => animeMap.get(id)).filter((a): a is Anime => a !== undefined),
+        [likedAnime, animeMap]
+    );
+
+    const dislikedAnimeDetails = useMemo(() => 
+        dislikedAnime.map(id => animeMap.get(id)).filter((a): a is Anime => a !== undefined),
+        [dislikedAnime, animeMap]
+    );
+
+    return (
+        <div className="space-y-8 animate-subtle-fade-in-up">
+            <Section title="Liked Anime" subtitle={`You have liked ${likedAnimeDetails.length} anime.`} noPadding>
+                <div className="p-6">
+                    {likedAnimeDetails.length > 0 ? (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                            {likedAnimeDetails.map(anime => (
+                                <AnimeCard 
+                                    key={anime.id}
+                                    anime={anime}
+                                    onSelect={onSelectAnime}
+                                    episodeStatus={getEpisodeStatus(anime.id)}
+                                    onLoginRequest={onLoginRequest}
+                                />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center py-8 text-[rgb(var(--text-muted))]">
+                            <ThumbsUpIcon className="w-12 h-12 mx-auto mb-2 opacity-30"/>
+                            <p>You haven't liked any anime yet.</p>
+                        </div>
+                    )}
+                </div>
+            </Section>
+            
+            <Section title="Disliked Anime" subtitle={`You have disliked ${dislikedAnimeDetails.length} anime.`} noPadding>
+                <div className="p-6">
+                    {dislikedAnimeDetails.length > 0 ? (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                            {dislikedAnimeDetails.map(anime => (
+                                <AnimeCard 
+                                    key={anime.id}
+                                    anime={anime}
+                                    onSelect={onSelectAnime}
+                                    episodeStatus={getEpisodeStatus(anime.id)}
+                                    onLoginRequest={onLoginRequest}
+                                />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center py-8 text-[rgb(var(--text-muted))]">
+                            <ThumbsDownIcon className="w-12 h-12 mx-auto mb-2 opacity-30"/>
+                            <p>No disliked anime.</p>
+                        </div>
+                    )}
+                </div>
+            </Section>
+        </div>
+    );
+};
+
 const SecuritySection: React.FC = () => (
     <div className="space-y-8">
         <Section title="Two-Factor Authentication" subtitle="Add an extra layer of security to your account">
@@ -340,18 +414,40 @@ const SecuritySection: React.FC = () => (
     </div>
 );
 
-const SessionsSection: React.FC = () => (
-    <Section title="Active Sessions" subtitle="Manage your active sessions across all devices">
-        <div className="bg-[rgb(var(--surface-3))] p-4 rounded-lg flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div className="text-center sm:text-left">
-                <p className="font-bold">Android <span className="text-green-400">(Current Session)</span></p>
-                <p className="text-sm text-[rgb(var(--text-muted))]">Chrome Mobile &bull; Last active: 11 minutes ago</p>
+const SessionsSection: React.FC = () => {
+    const mockSessions = [
+        { id: 1, device: 'Chrome on Windows', type: 'desktop', location: 'New York, USA', ip: '192.168.1.1', lastActive: '11 minutes ago', isCurrent: true },
+        { id: 2, device: 'Safari on iPhone', type: 'mobile', location: 'New York, USA', ip: '192.168.1.1', lastActive: '2 hours ago', isCurrent: false },
+        { id: 3, device: 'Firefox on Linux', type: 'desktop', location: 'London, UK', ip: '10.0.0.1', lastActive: 'Yesterday', isCurrent: false },
+    ];
+
+    const getIcon = (type: string) => {
+        if (type === 'mobile') return <DevicePhoneMobileIcon className="w-8 h-8 text-[rgb(var(--text-muted))]" />;
+        return <DeviceDesktopIcon className="w-8 h-8 text-[rgb(var(--text-muted))]" />;
+    };
+
+    return (
+        <Section title="Active Sessions" subtitle="Manage your active sessions across all devices">
+            {mockSessions.map(session => (
+                <div key={session.id} className="bg-[rgb(var(--surface-3))] p-4 rounded-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div className="flex items-center gap-4">
+                        {getIcon(session.type)}
+                        <div className="text-left">
+                            <p className="font-bold text-[rgb(var(--text-primary))]">{session.device} {session.isCurrent && <span className="text-green-400 text-sm">(Current)</span>}</p>
+                            <p className="text-xs text-[rgb(var(--text-muted))]">{session.location} &bull; {session.ip} &bull; Last active: {session.lastActive}</p>
+                        </div>
+                    </div>
+                    {!session.isCurrent && (
+                        <button className="px-4 py-2 text-sm bg-white/10 rounded-lg hover:bg-white/20 self-end sm:self-center">Sign Out</button>
+                    )}
+                </div>
+            ))}
+            <div className="pt-4 border-t border-white/10">
+                <button className="px-5 py-2.5 bg-red-500/10 text-red-400 rounded-lg font-semibold hover:bg-red-500/20">Sign out all other sessions</button>
             </div>
-            <button className="px-4 py-2 text-sm bg-white/10 rounded-lg hover:bg-white/20">Sign Out</button>
-        </div>
-        <StatCard label="Active Sessions" value={1} />
-    </Section>
-);
+        </Section>
+    );
+};
 
 const PreferencesSection: React.FC = () => {
     const { settings, updateSettings, restoreDefaults } = useSettings();
@@ -384,7 +480,7 @@ const PreferencesSection: React.FC = () => {
                     <div className="flex items-center gap-4"><input type="range" min="1" max="100" value={settings.anilistSyncThreshold} onChange={e => updateSettings({ anilistSyncThreshold: parseInt(e.target.value, 10)})} className="w-full" /><span className="font-bold w-12 text-center">{settings.anilistSyncThreshold}%</span></div>
                 </div>
                 <Toggle label="Auto Play Next Episode" checked={settings.autoPlay} onChange={() => updateSettings({ autoPlay: !settings.autoPlay })} tooltip="Continue to next episode automatically" />
-                <Toggle label="Skip Intro" checked={settings.autoSkip} onChange={() => updateSettings({ autoSkip: !settings.autoSkip })} tooltip="Skip opening sequences" />
+                <Toggle label="Auto Skip Intro" checked={settings.autoSkip} onChange={() => updateSettings({ autoSkip: !settings.autoSkip })} tooltip="Skip opening sequences" />
                 <Toggle label="Skip Outro" checked={false} onChange={() => {}} tooltip="Skip ending sequences" />
             </Section>
             <Section title="Notification Settings">

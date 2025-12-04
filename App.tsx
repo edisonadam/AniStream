@@ -1,4 +1,7 @@
 
+
+
+
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import type { Anime, Club, Filter, Notification, Settings, Page, User, ShortcutAction, RecentEpisode } from './types';
@@ -65,6 +68,7 @@ import ShopPage from './components/ShopPage';
 import DownloadsPage from './components/DownloadsPage';
 import VoiceActorPage from './components/VoiceActorPage';
 import PermissionInfoModal from './components/PermissionInfoModal';
+import WebsiteEditor from './components/WebsiteEditor';
 
 const ANIME_PAGE_SIZE = 25;
 
@@ -565,9 +569,9 @@ const App: React.FC = () => {
         switch (page) {
             case 'player': return selectedAnime && <Player anime={selectedAnime} allAnime={allAnime} onGoBack={() => setPage(pageBeforePlayerRef.current.page)} onGoHome={goHome} onSelectRelated={handleAnimeSelect} onGenreSelect={(g) => { setFilters({ ...filters, genres: [g] }); setPage('home'); }} onStudioSelect={(s) => { setFilters({ ...filters, studios: [s] }); setPage('home'); }} onUserSelect={(u) => { setSelectedUser(u); setIsUserDetailModalOpen(true); }} onEnterRoom={setWatchTogetherRoomId} breadcrumbsData={pageBeforePlayerRef.current} settings={settings} updateSettings={updateSettings} isLoggedIn={isLoggedIn} onLoginRequest={handleLoginRequest} getEpisodeStatus={getEpisodeStatusCallback} />;
             case 'details': return selectedAnime && <AnimeDetailPage anime={selectedAnime} onGoBack={() => setPage(pageBeforePlayerRef.current.page)} onGoHome={goHome} onWatchNow={handleWatchNow} onGenreSelect={(g) => { setFilters({ ...filters, genres: [g] }); setPage('home'); }} onStudioSelect={(s) => { setFilters({ ...filters, studios: [s] }); setPage('home'); }} onLoginRequest={handleLoginRequest} breadcrumbsData={pageBeforePlayerRef.current} getEpisodeStatus={getEpisodeStatusCallback} onSelectRelated={handleAnimeSelect} onVoiceActorSelect={handleVoiceActorSelect} />;
-            case 'voice-actor': return <VoiceActorPage voiceActorId={selectedVoiceActorId} onGoBack={() => setPage(pageBeforePlayerRef.current.page)} onAnimeSelect={handleAnimeSelect} onVoiceActorSelect={handleVoiceActorSelect} />;
+            case 'voice-actor': return <VoiceActorPage voiceActorId={selectedVoiceActorId} onGoBack={() => setPage(pageBeforePlayerRef.current.page)} onAnimeSelect={handleAnimeSelect} />;
             case 'profile': return <ProfilePage onGoBack={() => setPage('home')} allAnime={allAnime} onSelectAnime={handleAnimeSelect} getEpisodeStatus={getEpisodeStatusCallback} onNavigate={navigateTo} />;
-            case 'club-detail': return selectedClub && <ClubDetailPage club={selectedClub} onGoBack={() => setPage('community')} onSelectAnime={handleAnimeSelect} getEpisodeStatus={getEpisodeStatusCallback} />;
+            case 'club-detail': return selectedClub && <ClubDetailPage club={selectedClub} onGoBack={() => setPage('community')} onSelectAnime={handleAnimeSelect} getEpisodeStatus={getEpisodeStatusCallback} onLoginRequest={handleLoginRequest} />;
             case 'trending': return <TrendingPage onAnimeSelect={handleAnimeSelect} getEpisodeStatus={getEpisodeStatusCallback} onLoginRequest={handleLoginRequest} />;
             case 'schedule': return <SchedulePage onAnimeSelect={handleAnimeSelect} getEpisodeStatus={getEpisodeStatusCallback} onLoginRequest={handleLoginRequest} />;
             case 'history': return <HistoryPage onGoBack={() => setPage('home')} onSelectAnime={handleAnimeSelect} allAnime={allAnime} />;
@@ -584,7 +588,7 @@ const App: React.FC = () => {
             case 'notifications': return <NotificationsPage onGoBack={() => setPage('home')} onSelectAnime={handleAnimeSelect} />;
             case 'how-to-use': return <HowToUsePage onGoBack={() => setPage('home')} />;
             case 'videos': return <VideosPage onGoBack={() => setPage('home')} onAnimeSelect={handleAnimeSelect} />;
-            case 'new-episodes': return <NewEpisodesPage onAnimeSelect={handleAnimeSelect} getEpisodeStatus={getEpisodeStatusCallback} onLoginRequest={handleLoginRequest} onGoBack={() => setPage('home')} />;
+            case 'new-episodes': return <NewEpisodesPage onSelectAnime={handleAnimeSelect} getEpisodeStatus={getEpisodeStatusCallback} onLoginRequest={handleLoginRequest} onGoBack={() => setPage('home')} />;
             case 'leaderboards': return <LeaderboardsPage onGoBack={() => setPage('home')} />;
             case 'shop': return <ShopPage onGoBack={() => setPage('home')} onLoginRequest={handleLoginRequest} />;
             case 'downloads': return <DownloadsPage onGoBack={() => setPage('home')} />;
@@ -642,7 +646,7 @@ const App: React.FC = () => {
                     isOpen={isSidebarOpen}
                     onClose={() => setIsSidebarOpen(false)}
                     filters={stagedFilters}
-                    onFilterChange={setStagedFilters}
+                    onFilterChange={(newFilters) => setStagedFilters(prev => ({...prev, ...newFilters}))}
                     onApplyFilters={() => { setFilters(stagedFilters); setPage('home'); }}
                     onResetFilters={() => { setFilters({ query: '', genres: [], types: [], statuses: [], years: [], languages: [], studios: [], sort: 'popularity', tags: [], letter: '' }); setPage('home'); }}
                     onNavigate={navigateTo}
@@ -691,6 +695,7 @@ const App: React.FC = () => {
                 <>
                     <GoToTopButton />
                     <FloatingPlayer onDock={handleWatchNow} />
+                    {isLoggedIn && user?.email === 'edisonadam160@gmail.com' && <WebsiteEditor />}
                 </>
             )}
         </div>

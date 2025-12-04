@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Anime } from '../types';
 import { ChevronLeftIcon, ChevronRightIcon, PlayIcon, PlusIcon, StarIcon, CheckIcon, InfoIcon } from './icons/Icons';
@@ -328,15 +327,13 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
                 {displayTitle}
               </h2>
               <div className="flex items-center flex-wrap gap-x-4 gap-y-2 mb-4 text-gray-300 font-medium" style={{textShadow: '0 2px 8px rgba(0,0,0,0.7)'}}>
-                  {/* Flashy Badge Update */}
-                  {isNew && <span className="px-2 py-1 text-sm font-bold rounded-full bg-gradient-to-r from-red-600 to-orange-500 text-white animate-pulse shadow-lg shadow-red-500/50">NEW EPISODE</span>}
-                  
-                  {currentSlide.status === 'Ongoing' && episodeNumber && (currentSlide.totalEpisodes || currentSlide.episodes_count) && (
+                  {isNew && <span className="px-2 py-1 text-sm font-bold rounded-md animate-flashy-red text-white">NEW EPISODE</span>}
+                  {currentSlide.status === 'Ongoing' && episodeNumber && (
                       <span
                           className="inline-flex items-center rounded-md bg-cyan-500/20 px-2 py-1 text-sm font-semibold text-cyan-300 backdrop-blur-sm"
-                          title={`Episode ${episodeNumber} of ${currentSlide.totalEpisodes || currentSlide.episodes_count} released`}
+                          title={`Episode ${episodeNumber} of ${currentSlide.totalEpisodes || currentSlide.episodes_count || '?'} released`}
                       >
-                          Ep {episodeNumber} / {currentSlide.totalEpisodes || currentSlide.episodes_count}
+                          Ep {episodeNumber} / {currentSlide.totalEpisodes || currentSlide.episodes_count || '?'}
                       </span>
                   )}
                   {currentSlide.type && <span>{currentSlide.type}</span>}
@@ -359,15 +356,19 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
                     <InfoIcon className="w-6 h-6"/>
                     <span>Details</span>
                 </button>
-                {isLoggedIn && (
-                  <button
-                    onClick={handleAddToWatchlist}
-                    disabled={inWatchlist}
-                    className="flex items-center gap-2 px-5 py-3 bg-white/10 text-white rounded-full font-semibold hover:bg-white/20 transition-colors backdrop-blur-sm disabled:opacity-70 disabled:cursor-not-allowed">
-                    {inWatchlist ? <CheckIcon/> : <PlusIcon/>}
-                    <span>{inWatchlist ? 'In List' : 'Add to List'}</span>
-                  </button>
-                )}
+                <button
+                  onClick={() => {
+                      if (!isLoggedIn) {
+                          onLoginRequest("Please log in to manage your watchlist.");
+                      } else {
+                          handleAddToWatchlist();
+                      }
+                  }}
+                  disabled={inWatchlist}
+                  className="flex items-center gap-2 px-5 py-3 bg-white/10 text-white rounded-full font-semibold hover:bg-white/20 transition-colors backdrop-blur-sm disabled:opacity-70 disabled:cursor-not-allowed">
+                  {inWatchlist ? <CheckIcon/> : <PlusIcon/>}
+                  <span>{inWatchlist ? 'In List' : 'Add to List'}</span>
+                </button>
               </div>
             </div>
         </div>

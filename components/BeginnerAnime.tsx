@@ -21,7 +21,7 @@ const BeginnerAnime: React.FC<BeginnerAnimeProps> = ({ onAnimeSelect, getEpisode
             <h2 className="text-2xl sm:text-3xl font-bold text-[rgb(var(--text-primary))] mb-6" style={{ textShadow: `0 0 8px rgb(var(--shadow-color) / 0.5)` }}>
                 For Beginners
             </h2>
-             <div className="flex gap-4 md:gap-6 overflow-x-auto pb-4 -mx-4 sm:mx-6 lg:mx-8 px-4 sm:px-6 lg:px-8" style={{ scrollbarWidth: 'thin' }}>
+             <div className="flex gap-4 md:gap-6 overflow-x-auto pb-4 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 horizontal-scroll-fade">
                 {animeList.map((anime, index) => (
                     <div key={anime.id} className="flex-shrink-0 w-48 animate-subtle-fade-in-up" style={{ animationDelay: `${index * 50}ms` }}>
                         <AnimeCard anime={anime} onSelect={onAnimeSelect} episodeStatus={getEpisodeStatus(anime.id)} onLoginRequest={onLoginRequest} />

@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { ref, onValue, set, push, serverTimestamp, onDisconnect, remove, get, update } from 'firebase/database';
 import { db } from '../firebase';
@@ -357,6 +358,8 @@ const ActiveRoom: React.FC<{ roomId: string; onExit: () => void }> = ({ roomId, 
                     <Player
                         anime={anime}
                         onGoBack={onExit}
+// @FIX: Pass the onExit function to the required onGoHome prop to ensure type safety.
+                        onGoHome={onExit}
                         onSelectRelated={() => {}}
                         allAnime={[]}
                         onGenreSelect={() => {}}

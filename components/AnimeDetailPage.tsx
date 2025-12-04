@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import type { Anime, Character, Page, Filter } from '../types';
@@ -89,8 +90,7 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ anime, onGoBack, onGo
                 }
                 
                 if (charactersRes.ok) {
-                    const data = await charactersRes.json() as any;
-                    // FIX: Ensure data.data is an array before calling .map()
+                    const data = (await charactersRes.json()) as any;
                     if (data?.data && Array.isArray(data.data)) {
                         setCharacters(data.data.map(mapJikanToCharacter).filter((c: Character | null): c is Character => c !== null));
                     }

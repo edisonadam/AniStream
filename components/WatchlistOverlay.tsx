@@ -77,7 +77,7 @@ const WatchlistOverlay: React.FC<WatchlistOverlayProps> = ({ onClose, onSelectAn
                                         <button onClick={() => handleResume(anime)} className="p-2.5 bg-[rgb(var(--color-primary))] rounded-full hover:bg-[rgb(var(--color-primary-hover))] transition-colors" aria-label="Resume">
                                             <PlayIcon />
                                         </button>
-                                         <button onClick={() => removeFromWatchlist(anime.id)} className="p-2.5 bg-[rgb(var(--surface-3))] rounded-full hover:bg-[rgb(var(--color-danger))] transition-colors" aria-label="Remove">
+                                         <button onClick={() => removeFromWatchlist(anime.id, getDisplayTitle(anime, settings))} className="p-2.5 bg-[rgb(var(--surface-3))] rounded-full hover:bg-[rgb(var(--color-danger))] transition-colors" aria-label="Remove">
                                             <CloseIcon/>
                                         </button>
                                     </div>

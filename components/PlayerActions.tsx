@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import type { Anime, WatchlistStatus, VideoServer, Settings, DefaultLanguage } from '../types';

@@ -1499,7 +1499,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
     return (
         <div className="mb-6">
             <h3 className="text-lg font-semibold text-[rgb(var(--color-primary-accent))] mb-3">{useTmdbSeasons ? 'Seasons' : 'Series'}</h3>
-            <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8" style={{ scrollbarWidth: 'thin' }}>
+            <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 horizontal-scroll-fade">
                 {items.map(item => {
                     const hasFailed = failedImages.has(item.id);
                     return (
@@ -1536,7 +1536,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
     return (
         <div className="mt-8">
             <h3 className="text-lg font-semibold text-[rgb(var(--color-primary-accent))] mb-3">Related Movies</h3>
-            <div className="flex gap-3 overflow-x-auto pb-4 -mx-1 px-1" style={{ scrollbarWidth: 'thin' }}>
+            <div className="flex gap-3 overflow-x-auto pb-4 -mx-1 px-1 horizontal-scroll-fade">
                 {relatedMovies.map(movie => (
                     <div key={movie.id} className="flex-shrink-0 w-32 sm:w-36">
                         <AnimeCard anime={movie} onSelect={onSelectRelated} episodeStatus={getEpisodeStatus(movie.id)} onLoginRequest={onLoginRequest} />
@@ -1628,7 +1628,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
     }
     
     // Default to 'horizontal'
-    return <div ref={episodeListContainerRef} onScroll={handleEpisodeScroll} className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4">{episodesToShow.map(ep => {
+    return <div ref={episodeListContainerRef} onScroll={handleEpisodeScroll} className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 horizontal-scroll-fade">{episodesToShow.map(ep => {
          const isFiller = playerAnime?.id === 20 && NARUTO_FILLER_EPISODES.includes(ep.episode_number);
         return (
             <button key={ep.episode_number} ref={setEpisodeRef(ep.episode_number)} onClick={() => selectEpisode(ep.episode_number)} disabled={isWatchTogetherSession && !isHost} className={`flex-shrink-0 w-36 sm:w-40 text-left rounded-xl group transition-all duration-300 overflow-hidden hover:scale-105 ${currentEpisode === ep.episode_number ? 'ring-2 ring-[rgb(var(--color-primary-accent))]' : ''} disabled:opacity-70 disabled:cursor-not-allowed`}>

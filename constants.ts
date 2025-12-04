@@ -314,3 +314,5 @@ export const defaultShortcuts: Shortcuts = {
   'showShortcuts': ['/', '?'],
   'focusPlayer': ['Shift+Enter']
 };
+
+export const VIP_USERS = ['Admin', 'Edison'];

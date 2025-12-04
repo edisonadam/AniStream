@@ -1,6 +1,7 @@
 
+
 import React, { useState, useRef, useEffect } from 'react';
-import { HamburgerIcon, SearchIcon, BellIcon, UserIcon, CloseIcon, BookmarkIcon, LogoutIcon, UsersIcon, MessageCircleIcon, LevelUpIcon, HeartIcon, RefreshCwIcon, SettingsIcon, FilmIcon, ViewListIcon, NewspaperIcon } from './icons/Icons';
+import { HamburgerIcon, SearchIcon, BellIcon, UserIcon, CloseIcon, BookmarkIcon, LogoutIcon, UsersIcon, MessageCircleIcon, LevelUpIcon, HeartIcon, RefreshCwIcon, SettingsIcon, FilmIcon, ViewListIcon, NewspaperIcon, VerifiedIcon } from './icons/Icons';
 import { useAuth } from '../hooks/useAuth';
 import type { Notification, Anime, Page, NotificationType } from '../types';
 import Logo from './Logo';
@@ -127,7 +128,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
                   <SearchIcon className="w-4 h-4" />
                 </div>
                 <div className="w-full h-10 flex items-center bg-[rgb(var(--surface-2))] border border-[rgb(var(--border-color))] rounded-full pl-10 pr-4 text-[rgb(var(--text-muted))] text-sm lg:text-base group-hover:border-[rgb(var(--border-focus))] transition-all shadow-sm group-hover:shadow-md overflow-hidden">
-                    <span className="truncate w-full text-left">Search anime, characters, users...</span>
+                    <span className="truncate w-full text-left block">Search anime, characters, users...</span>
                 </div>
               </div>
           </div>
@@ -193,7 +194,10 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
                   <div className={`origin-top-right absolute right-0 mt-4 w-64 rounded-2xl shadow-lg shadow-[rgb(var(--shadow-color))/0.3] bg-[rgb(var(--surface-2))] border border-white/10 transition-all duration-300 ease-out transform ${isProfileOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'}`}>
                       <div className="p-2 space-y-1" role="menu">
                         <div className="flex flex-col px-3 py-3 text-sm text-[rgb(var(--text-primary))] font-semibold border-b border-white/10 mb-1">
-                          <span className="text-base mb-1">{user.username}</span>
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <span className="text-base">{user.username}</span>
+                            {user.isVip && <VerifiedIcon className="w-5 h-5 text-yellow-400" title="VIP Member" />}
+                          </div>
                           <button onClick={() => handleProfileLink('currency')} className="flex items-center gap-1.5 text-yellow-400 bg-yellow-400/10 px-2 py-1 rounded-md hover:bg-yellow-400/20 transition-colors w-fit">
                             💎
                             <span>{aniTokens.toLocaleString()} AniTK</span>

@@ -47,7 +47,7 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ user, onClose }) => {
         <div className="flex flex-col items-center">
             <div className="relative">
                 <img loading="lazy" src={user.avatar} alt={user.username} className="w-24 h-24 rounded-full mb-4 ring-4 ring-[rgb(var(--color-primary))]/50" />
-                {user.isVerified && <VerifiedIcon className="w-8 h-8 text-blue-400 absolute -bottom-2 -right-2" />}
+                {(user.isVerified || user.isVip) && <VerifiedIcon className={`w-8 h-8 ${user.isVip ? 'text-yellow-400' : 'text-blue-400'} absolute -bottom-2 -right-2`} title={user.isVip ? "VIP Member" : "Verified"} />}
             </div>
             <h2 className="text-2xl font-bold">{user.username}</h2>
             <p className="text-sm text-[rgb(var(--text-muted))]">Joined: {new Date(user.joinedDate).toLocaleDateString()}</p>

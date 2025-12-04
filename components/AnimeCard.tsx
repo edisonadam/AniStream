@@ -1,4 +1,3 @@
-
 import React, { useState, useLayoutEffect, useRef, useCallback, useEffect } from 'react';
 import type { Anime, WatchlistStatus } from '../types';
 import { useWatchlist } from '../hooks/useWatchlist';
@@ -18,10 +17,9 @@ interface AnimeCardProps {
   onSelect: (anime: Anime) => void;
   episodeStatus: { isNew: boolean; episodeNumber: number | null };
   onLoginRequest: (reason: string) => void;
-  hideNewEpisodeBadge?: boolean;
 }
 
-const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect, episodeStatus, onLoginRequest, hideNewEpisodeBadge = false }) => {
+const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect, episodeStatus, onLoginRequest }) => {
   const { addToWatchlist, removeFromWatchlist, isInWatchlist, updateWatchlistStatus, getWatchlistStatus } = useWatchlist();
   const { isLoggedIn } = useAuth();
   const { settings } = useSettings();
@@ -189,7 +187,7 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect, episodeStatus, o
     : 'text-yellow-400'; // Default for global rating
 
   return (
-    <div className={`anime-card-touch-target group relative isolate overflow-hidden rounded-xl shadow-lg cursor-pointer transform transition-all duration-300 hover:shadow-2xl hover:shadow-[rgb(var(--shadow-color))/0.4] hover:scale-105`}
+    <div className={`anime-card-touch-target group relative rounded-xl shadow-lg cursor-pointer transform transition-all duration-300 hover:shadow-2xl hover:shadow-[rgb(var(--shadow-color))/0.4] hover:scale-105`}
       onClick={handleClick}
       onKeyDown={(e) => e.key === 'Enter' && handleClick(e as any)}
       role="button"
@@ -198,7 +196,7 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect, episodeStatus, o
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      <div className="aspect-[2/3] w-full relative bg-black">
+      <div className="aspect-[2/3] w-full relative bg-black rounded-xl overflow-hidden">
         <img loading="lazy" src={anime.thumbnail} alt={displayTitle} className="w-full h-full object-cover z-0" />
         {isHovering && trailerKey && !isLoadingTrailer && (
             <div className="absolute inset-0 animate-cinematic-fade-in pointer-events-none z-10">
@@ -220,11 +218,11 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect, episodeStatus, o
         )}
       </div>
 
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-100 transition-opacity duration-300 z-10 pointer-events-none"></div>
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-100 transition-opacity duration-300 z-10 pointer-events-none rounded-xl"></div>
 
       {/* Top-Left Badge Container */}
       <div className="absolute top-2 left-2 z-20 flex flex-col items-start gap-1.5 pointer-events-none">
-          {isNew && !hideNewEpisodeBadge && <span className="order-first px-2 py-1 text-xs font-bold rounded-full bg-gradient-to-r from-[rgb(var(--color-primary))] to-[rgb(var(--color-secondary-accent))] text-white animate-pulse">NEW EP</span>}
+          {isNew && <span className="order-first px-2 py-1 text-xs font-bold rounded-full text-white animate-flashy-red">NEW EP</span>}
           {anime.type && (
             <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/60 text-white backdrop-blur-md">{anime.type.toUpperCase()}</span>
           )}
@@ -274,7 +272,7 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect, episodeStatus, o
                 <DotsVerticalIcon />
             </button>
             {isLoggedIn && isMenuOpen && (
-                <div className="absolute top-full right-0 mt-1 bg-[rgb(var(--surface-2))] rounded-lg shadow-lg p-1 z-10 w-48">
+                <div className="absolute top-full right-0 mt-1 bg-[rgb(var(--surface-2))] rounded-lg shadow-lg p-1 z-40 w-48">
                     <button onClick={handleAddToQueue} disabled={inQueue} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] rounded-md disabled:opacity-50 disabled:cursor-not-allowed">
                         {inQueue ? <CheckIcon className="w-4 h-4 text-green-400"/> : <ViewListIcon className="w-4 h-4"/>}
                         <span>{inQueue ? 'In Queue' : 'Add to Queue'}</span>

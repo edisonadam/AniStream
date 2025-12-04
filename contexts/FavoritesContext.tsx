@@ -1,6 +1,8 @@
 import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
+import { useSettings } from '../hooks/useSettings';
+import { updateAnilistEntry } from '../api';
 
 interface FavoritesContextType {
   favorites: number[];
@@ -16,6 +18,7 @@ export const FavoritesProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [favorites, setFavorites] = useState<number[]>([]);
   const { user } = useAuth();
   const { addToast } = useToast();
+  const { settings } = useSettings();
 
   useEffect(() => {
     if (user) {
@@ -47,18 +50,24 @@ export const FavoritesProvider: React.FC<{ children: ReactNode }> = ({ children 
       const newFavs = [...prev, animeId];
       persistFavorites(newFavs);
       addToast(`Added "${animeTitle}" to Favorites`, 'favorite');
+      if (settings.autoSyncAniList && settings.anilistToken) {
+          updateAnilistEntry(animeId, settings.anilistToken, { isFavorite: true });
+      }
       return newFavs;
     });
-  }, [persistFavorites, addToast]);
+  }, [persistFavorites, addToast, settings.autoSyncAniList, settings.anilistToken]);
 
   const removeFavorite = useCallback((animeId: number, animeTitle: string) => {
     setFavorites(prev => {
       const newFavs = prev.filter(id => id !== animeId);
       persistFavorites(newFavs);
       addToast(`Removed "${animeTitle}" from Favorites`, 'unfavorite');
+      if (settings.autoSyncAniList && settings.anilistToken) {
+          updateAnilistEntry(animeId, settings.anilistToken, { isFavorite: false });
+      }
       return newFavs;
     });
-  }, [persistFavorites, addToast]);
+  }, [persistFavorites, addToast, settings.autoSyncAniList, settings.anilistToken]);
 
   const isFavorite = useCallback((animeId: number) => {
     return favorites.includes(animeId);

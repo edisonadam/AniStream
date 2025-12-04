@@ -28,9 +28,14 @@ const NewEpisodesPage: React.FC<NewEpisodesPageProps> = ({ onSelectAnime, onGoBa
                     throw new Error(`Failed to fetch New Episodes from Jikan API. Status: ${res.status}`);
                 }
                 const data = await res.json();
-                const mapped = (data.data || []).map((item: any) => mapJikanToAnime(item.entry)).filter(Boolean);
                 
-                const uniqueAnime = Array.from(new Map(mapped.map((a: Anime) => [a.id, a])).values());
+                // FIX: Explicitly type the argument in the filter's type guard to ensure
+                // the compiler correctly narrows the array type from `(Anime | null)[]` to `Anime[]`.
+                const mapped = (data.data || []).map((item: any) => mapJikanToAnime(item.entry)).filter((anime: Anime | null): anime is Anime => anime !== null);
+                
+                // The same anime might appear multiple times if multiple episodes were released.
+                // We only want to show each anime once.
+                const uniqueAnime = Array.from(new Map(mapped.map(a => [a.id, a])).values());
 
                 setAnimeList(uniqueAnime);
             } catch (e) {
@@ -69,7 +74,6 @@ const NewEpisodesPage: React.FC<NewEpisodesPageProps> = ({ onSelectAnime, onGoBa
                                     onSelect={onSelectAnime} 
                                     episodeStatus={getEpisodeStatus(anime.id)} 
                                     onLoginRequest={onLoginRequest}
-                                    // Removed hideNewEpisodeBadge prop
                                 />
                             </div>
                         ))

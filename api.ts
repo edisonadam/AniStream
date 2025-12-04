@@ -633,9 +633,9 @@ const mapToAnilistStatus = (status: WatchlistStatus): MediaListStatus => {
 export const updateAnilistEntry = async (
     malId: number,
     token: string,
-    data: { status?: WatchlistStatus, progress?: number }
+    data: { status?: WatchlistStatus; progress?: number; isFavorite?: boolean }
 ): Promise<void> => {
-    if (!token || (!data.status && data.progress === undefined)) return;
+    if (!token || (!data.status && data.progress === undefined && data.isFavorite === undefined)) return;
 
     const anilistId = await getAnilistId(malId);
     if (!anilistId) {
@@ -644,21 +644,25 @@ export const updateAnilistEntry = async (
     }
 
     const mutation = `
-        mutation ($mediaId: Int, $status: MediaListStatus, $progress: Int) {
-            SaveMediaListEntry(mediaId: $mediaId, status: $status, progress: $progress) {
+        mutation ($mediaId: Int, $status: MediaListStatus, $progress: Int, $isFavourite: Boolean) {
+            SaveMediaListEntry(mediaId: $mediaId, status: $status, progress: $progress, isFavourite: $isFavourite) {
                 id
                 status
                 progress
+                isFavourite
             }
         }
     `;
 
-    const variables: { mediaId: number; status?: MediaListStatus; progress?: number } = { mediaId: anilistId };
+    const variables: { mediaId: number; status?: MediaListStatus; progress?: number; isFavourite?: boolean } = { mediaId: anilistId };
     if (data.status) {
         variables.status = mapToAnilistStatus(data.status);
     }
     if (data.progress !== undefined) {
         variables.progress = data.progress;
+    }
+    if (data.isFavorite !== undefined) {
+        variables.isFavourite = data.isFavorite;
     }
 
     try {

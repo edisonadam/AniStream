@@ -1,8 +1,8 @@
-
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import { auth } from '../firebase';
 import { onAuthStateChanged, signOut, updateProfile, type User as FirebaseUser } from 'firebase/auth';
 import type { User } from '../types';
+import { VIP_USERS } from '../constants';
 
 interface AuthContextType {
   user: User | null;
@@ -25,6 +25,7 @@ export const mapFirebaseUserToAppUser = (firebaseUser: FirebaseUser): User => {
         email: firebaseUser.email,
         joinedDate: firebaseUser.metadata.creationTime ? new Date(firebaseUser.metadata.creationTime).getTime() : Date.now(),
         isVerified: VERIFIED_USERS.includes(username),
+        isVip: VIP_USERS.includes(username),
     };
 };
 
