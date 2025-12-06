@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { auth } from '../firebase';
 import { 
@@ -15,7 +16,8 @@ import {
     type AuthCredential
 } from 'firebase/auth';
 import { CloseIcon, GoogleIcon, ChevronLeftIcon } from './icons/Icons';
-import type { CommunityUser } from '../types';
+import type { User } from '../types';
+import { mapFirebaseUserToAppUser } from '../contexts/AuthContext';
 
 interface AuthModalProps {
   onClose: () => void;
@@ -112,15 +114,12 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, reason }) => {
 
       // Add user to the public directory for search
       try {
+          const appUser = mapFirebaseUserToAppUser(userCredential.user);
           const directoryKey = 'anistream-user-directory';
           const existingUsersRaw = localStorage.getItem(directoryKey);
-          const existingUsers: CommunityUser[] = existingUsersRaw ? JSON.parse(existingUsersRaw) : [];
-          if (!existingUsers.some(u => u.uid === userCredential.user.uid)) {
-              existingUsers.push({
-                  uid: userCredential.user.uid,
-                  username: displayName.trim(),
-                  avatar: avatarUrl,
-              });
+          const existingUsers: User[] = existingUsersRaw ? JSON.parse(existingUsersRaw) : [];
+          if (!existingUsers.some(u => u.uid === appUser.uid)) {
+              existingUsers.push(appUser);
               localStorage.setItem(directoryKey, JSON.stringify(existingUsers));
           }
       } catch(e) { console.error("Failed to update user directory", e); }

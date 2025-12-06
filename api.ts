@@ -1,3 +1,4 @@
+
 import type { Anime, Character, VoiceActor, NewsPromo, Manga, WatchlistStatus } from './types';
 
 /**
@@ -37,109 +38,6 @@ export const fetchWithRetry = async (url: string, retries = 3, delay = 1000): Pr
     }
     // This should theoretically not be reached, but it's a safeguard.
     throw new Error(`Fetch failed for ${url} after multiple retries.`);
-};
-
-const CONSUMET_API = 'https://api.consumet.org';
-
-// Helper to get consumet ID for an anime, with caching
-const getConsumetId = async (animeTitle: string, provider: 'gogoanime' | 'zoro' | 'animepahe' = 'zoro'): Promise<string | null> => {
-    const cacheKey = `consumet-id-${provider}-${animeTitle.toLowerCase()}`;
-    const cachedId = sessionStorage.getItem(cacheKey);
-    if (cachedId) return cachedId;
-
-    try {
-        // Search for the anime on the specified provider
-        const searchRes = await fetchWithRetry(`${CONSUMET_API}/anime/${provider}/${encodeURIComponent(animeTitle)}`);
-        if (!searchRes.ok) return null;
-        const searchData = await searchRes.json();
-        
-        // Try to find an exact match first
-        const exactMatch = searchData.results?.find((item: any) => item.title.toLowerCase() === animeTitle.toLowerCase());
-        const bestMatch = exactMatch || searchData.results?.[0];
-        
-        if (bestMatch?.id) {
-            sessionStorage.setItem(cacheKey, bestMatch.id);
-            return bestMatch.id;
-        }
-        return null;
-    } catch (error) {
-        console.error(`Consumet search with provider '${provider}' failed:`, error);
-        return null;
-    }
-};
-
-/**
- * Fetches a direct streaming URL from the Consumet API for a given anime and episode.
- * This function handles searching for the anime, finding the correct episode, and extracting a playable source URL.
- * It includes caching to improve performance for repeated requests.
- * @param animeTitle The title of the anime to search for.
- * @param episodeNumber The absolute episode number to fetch.
- * @param provider The Consumet provider to use (e.g., 'gogoanime').
- * @returns A promise that resolves to the direct, playable video URL.
- */
-export const fetchConsumetStreamUrl = async (
-    animeTitle: string,
-    episodeNumber: number,
-    provider: 'gogoanime' | 'zoro' | 'animepahe' = 'zoro'
-): Promise<string> => {
-    const consumetApi = 'https://api.consumet.org';
-    const animeIdCacheKey = `consumet-id-${provider}-${animeTitle.toLowerCase()}`;
-    const episodeListCacheKey = (animeId: string) => `consumet-episodes-${provider}-${animeId}`;
-
-    try {
-        // Step 1: Get anime ID from Consumet, use cache if available.
-        let animeId = sessionStorage.getItem(animeIdCacheKey);
-        if (!animeId) {
-            const searchRes = await fetchWithRetry(`${consumetApi}/anime/${provider}/${encodeURIComponent(animeTitle)}`);
-            if (!searchRes.ok) throw new Error(`Could not find anime on ${provider}.`);
-            const searchData = await searchRes.json();
-            const animeInfo = searchData.results?.find((item: any) => 
-                item.title.toLowerCase() === animeTitle.toLowerCase()
-            ) || searchData.results?.[0];
-            if (!animeInfo?.id) throw new Error(`No results for "${animeTitle}" on ${provider}.`);
-            animeId = animeInfo.id;
-            sessionStorage.setItem(animeIdCacheKey, animeId);
-        }
-
-        // Step 2: Get episode list for the anime, use cache if available.
-        let episodes: any[] = [];
-        const cachedEpisodes = sessionStorage.getItem(episodeListCacheKey(animeId));
-        if (cachedEpisodes) {
-            episodes = JSON.parse(cachedEpisodes);
-        } else {
-            const infoRes = await fetchWithRetry(`${consumetApi}/anime/${provider}/info/${animeId}`);
-            if (!infoRes.ok) throw new Error('Could not fetch anime episode details.');
-            const infoData = await infoRes.json();
-            episodes = infoData.episodes || [];
-            if (episodes.length > 0) {
-                sessionStorage.setItem(episodeListCacheKey(animeId), JSON.stringify(episodes));
-            }
-        }
-        
-        const targetEpisode = episodes.find(ep => ep.number === episodeNumber);
-        if (!targetEpisode?.id) {
-            throw new Error(`Episode ${episodeNumber} not found for this series.`);
-        }
-        const episodeId = targetEpisode.id;
-
-        // Step 3: Get streaming sources for the episode.
-        const streamRes = await fetchWithRetry(`${consumetApi}/anime/${provider}/watch/${episodeId}`);
-        if (!streamRes.ok) throw new Error('Could not fetch streaming sources.');
-        const streamData = await streamRes.json();
-
-        // Step 4: Find the best quality source URL.
-        const source = streamData.sources?.find((s: any) => s.quality === 'default' || s.quality === 'auto') || streamData.sources?.[streamData.sources.length - 1];
-        if (!source?.url) {
-            throw new Error('No playable video source was found from the provider.');
-        }
-
-        return source.url;
-
-    } catch (error) {
-        console.error(`[Consumet Stream Fetch Error] Provider: ${provider}, Anime: ${animeTitle}, Ep: ${episodeNumber}`, error);
-        // Re-throw the error so it can be caught and displayed in the UI.
-        throw error;
-    }
 };
 
 /**
@@ -228,36 +126,35 @@ export const mapJikanToAnime = (item: any): Anime | null => {
     };
 };
 
+// FIX: Added missing function to map Consumet trending API response to the Anime type.
 export const mapConsumetTrendingToAnime = (item: any): Anime | null => {
-    if (!item || !item.malId) return null;
-
-    let rating = item.rating ? parseFloat(item.rating) : null;
-    if (rating && rating > 10) {
-        rating = rating / 10;
+    if (!item || !item.malId) {
+        return null;
     }
 
+    // Consumet trending data is minimal. We'll fill in what we can and use defaults.
     return {
         id: item.malId,
         title: item.title,
-        title_english: item.title,
-        title_japanese: item.title, // Consumet doesn't provide this
+        title_english: item.title, // Assumption
+        title_japanese: '', // Not provided
         thumbnail: item.image,
-        bannerImage: item.cover || item.image,
-        synopsis: item.description || 'No synopsis available.',
+        bannerImage: item.image, // Use same for banner
+        synopsis: 'Synopsis not available from this source.',
         genres: item.genres || [],
-        releaseYear: item.releaseDate || null,
-        status: item.status === 'Ongoing' ? 'Ongoing' : 'Completed', // Simple mapping
-        totalEpisodes: item.totalEpisodes || null,
-        episodes_count: item.totalEpisodes || null,
-        seasons_count: null, // Not available
-        rating: rating,
-        type: item.type?.includes('Movie') ? 'Movie' : 'TV', // Heuristic
-        studio: 'Unknown', // Not available
-        hasSub: true, // Assume
-        hasDub: false, // Assume
+        releaseYear: null, // Not provided
+        status: 'Ongoing', // Assumption for trending
+        totalEpisodes: null, // Not provided
+        episodes_count: null,
+        seasons_count: null,
+        rating: null, // Not provided
+        type: null, // Not provided
+        studio: 'Unknown',
+        hasSub: true, // Assumption
+        hasDub: false, // Assumption
         runtime: null,
-        avgEpisodeDuration: item.duration || null,
-        isAdult: false, // Assume false for trending
+        avgEpisodeDuration: null,
+        isAdult: false, // Consumet doesn't provide this, but we'll assume not adult unless filtered later
         malUrl: `https://myanimelist.net/anime/${item.malId}`,
     };
 };
@@ -562,7 +459,6 @@ const mapAnilistToAnime = (item: any): Anime | null => {
         avgEpisodeDuration: item.duration,
         isAdult: item.isAdult,
         malUrl: `https://myanimelist.net/anime/${item.idMal}`,
-        // FIX: Removed `anilistUrl` as it does not exist on the `Anime` type.
     };
 };
 
@@ -684,4 +580,49 @@ export const updateAnilistProgress = async (anilistId: number, episode: number, 
         }
     `;
     await fetchAnilist(mutation, { mediaId: anilistId, progress: episode }, token);
+};
+
+// FIX: Added missing function to fetch streaming URLs from the Consumet API.
+export const fetchConsumetStreamUrl = async (
+    title: string,
+    episodeNumber: number,
+    provider: 'gogoanime' | 'zoro' | 'animepahe'
+): Promise<string | null> => {
+    try {
+        // Clean title: remove parenthetical info like (TV) or (2024) to improve search hits
+        const cleanTitle = title.replace(/\s*\([^)]*\)/g, '').trim();
+        const searchRes = await fetchWithRetry(`https://api.consumet.org/anime/${provider}/${encodeURIComponent(cleanTitle)}`);
+        
+        if (!searchRes.ok) throw new Error('Anime not found on provider');
+        const searchData = await searchRes.json();
+        
+        // Find the best match. Prefer exact title matches (case-insensitive).
+        const animeResult = searchData.results?.find((r: any) => r.title.toLowerCase() === title.toLowerCase()) || searchData.results?.[0];
+        
+        if (!animeResult?.id) throw new Error('Could not determine anime ID from provider');
+        const animeId = animeResult.id;
+
+        // 2. Fetch episode list for the anime.
+        const episodesRes = await fetchWithRetry(`https://api.consumet.org/anime/${provider}/info/${animeId}`);
+        if (!episodesRes.ok) throw new Error('Could not fetch episode list');
+        const episodesData = await episodesRes.json();
+        
+        const episode = episodesData.episodes?.find((ep: any) => ep.number === episodeNumber);
+        const episodeId = episode?.id;
+        if (!episodeId) throw new Error(`Episode ${episodeNumber} not found for ${title}`);
+
+        // 3. Fetch the streaming URL for the episode.
+        const streamRes = await fetchWithRetry(`https://api.consumet.org/anime/${provider}/watch/${episodeId}`);
+        if (!streamRes.ok) throw new Error('Could not fetch streaming URL');
+        const streamData = await streamRes.json();
+
+        // Find the highest quality source, or the default one.
+        const source = streamData.sources?.find((s: any) => s.quality === 'default' || s.quality === '1080p') || streamData.sources?.[streamData.sources.length - 1];
+        
+        return source?.url || null;
+
+    } catch (error) {
+        console.error(`[fetchConsumetStreamUrl] Failed for ${title} Ep ${episodeNumber} on ${provider}:`, error);
+        return null;
+    }
 };

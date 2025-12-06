@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import type { CommunityPost, CommunityUser, Club, User, Anime } from '../types';
+import type { CommunityPost, User, Club, Anime } from '../types';
 import { formatRelativeTime } from '../utils';
-import { SearchIcon } from './icons/Icons';
+import { SearchIcon, UserPlusIcon, CheckIcon } from './icons/Icons';
 import ClubsPage from './ClubsPage';
 import CreateClubModal from './CreateClubModal';
 import RecentCommentsCarousel from './RecentComments';
@@ -20,9 +21,9 @@ interface CommunityPageProps {
 
 const CommunityPage: React.FC<CommunityPageProps> = ({ onLoginClick, onClubSelect, onUserSelect, onAnimeSelect }) => {
     const { user, isLoggedIn } = useAuth();
-    const { isUserBlocked } = useProfileData();
+    const { isUserBlocked, addFriend, isFriend, addNotification } = useProfileData();
     const [posts, setPosts] = useState<CommunityPost[]>([]);
-    const [users, setUsers] = useState<CommunityUser[]>([]);
+    const [users, setUsers] = useState<User[]>([]);
     const [postText, setPostText] = useState('');
     const [userSearchQuery, setUserSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState<'feed' | 'clubs'>('feed');
@@ -47,7 +48,7 @@ const CommunityPage: React.FC<CommunityPageProps> = ({ onLoginClick, onClubSelec
         if (!postText.trim() || !user) return;
         const newPost: CommunityPost = {
             id: Date.now().toString(),
-            user: { uid: user.uid, username: user.username, avatar: user.avatar },
+            user: user,
             text: postText.trim(),
             timestamp: Date.now(),
         };
@@ -113,12 +114,37 @@ const CommunityPage: React.FC<CommunityPageProps> = ({ onLoginClick, onClubSelec
                             <input type="text" value={userSearchQuery} onChange={e => setUserSearchQuery(e.target.value)} placeholder="Search for users..." className="w-full bg-[rgb(var(--surface-input))/0.2] border border-white/10 rounded-lg py-2 pl-10 pr-4 text-[rgb(var(--text-primary))]" />
                         </div>
                         <div className="mt-4 space-y-2 max-h-96 overflow-y-auto">
-                            {filteredUsers.map(u => (
+                            {filteredUsers.map(u => {
+                                const isAlreadyFriend = isFriend(u.username);
+                                const isSelf = user?.uid === u.uid;
+                                return (
                                 <div key={u.uid} className="flex items-center gap-3 p-2 rounded-lg bg-[rgb(var(--surface-3))]">
                                     <img loading="lazy" src={u.avatar} alt={u.username} className="w-8 h-8 rounded-full" />
-                                    <p className="font-semibold text-[rgb(var(--text-secondary))]">{u.username}</p>
+                                    <p className="font-semibold text-[rgb(var(--text-secondary))] flex-1 truncate">{u.username}</p>
+                                    {!isSelf && (
+                                        isAlreadyFriend ? (
+                                            <div className="flex items-center gap-1 text-xs text-green-400 font-semibold">
+                                                <CheckIcon className="w-4 h-4" /> Friend
+                                            </div>
+                                        ) : (
+                                            <button
+                                                onClick={() => {
+                                                    addFriend(u);
+                                                    addNotification({
+                                                        type: 'friend_request',
+                                                        text: 'sent you a friend request!',
+                                                        relatedUser: user as User,
+                                                    }, u.username);
+                                                }}
+                                                className="p-2 bg-white/10 rounded-full hover:bg-[rgb(var(--color-primary))]"
+                                                aria-label={`Add ${u.username} as a friend`}
+                                            >
+                                                <UserPlusIcon className="w-4 h-4"/>
+                                            </button>
+                                        )
+                                    )}
                                 </div>
-                            ))}
+                            )})}
                         </div>
                     </div>
                 </div>

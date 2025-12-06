@@ -1,3 +1,5 @@
+
+
 import type { ColorPreset as OriginalColorPreset } from './types';
 
 export interface Anime {
@@ -226,6 +228,12 @@ export interface Notification {
   animeTitle?: string; // For context in notifications list
 }
 
+export interface FavoriteVoiceActor {
+  id: number;
+  name: string;
+  image?: string;
+}
+
 export interface VoiceActor {
   id: number;
   name: string;
@@ -241,6 +249,27 @@ export interface Character {
   role: string;
   about?: string;
   voiceActors: VoiceActor[];
+}
+
+export interface StaffPosition {
+    position: string;
+    person: {
+        mal_id: number;
+        url: string;
+        images: {
+            jpg: {
+                image_url: string;
+            }
+        };
+        name: string;
+    };
+}
+
+export interface Staff {
+    id: number;
+    name: string;
+    image: string;
+    positions: string[];
 }
 
 // Club related types
@@ -320,16 +349,9 @@ export interface NewsPromo {
     };
 }
 
-// Community Page Types
-export interface CommunityUser {
-  uid: string;
-  username: string;
-  avatar: string;
-}
-
 export interface CommunityPost {
   id: string;
-  user: CommunityUser;
+  user: User;
   text: string;
   timestamp: number;
 }

@@ -222,7 +222,7 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect, episodeStatus, o
 
       {/* Top-Left Badge Container */}
       <div className="absolute top-2 left-2 z-20 flex flex-col items-start gap-1.5 pointer-events-none">
-          {isNew && <span className="order-first px-2 py-1 text-xs font-bold rounded-full text-white animate-flashy-red">NEW EP</span>}
+          {isNew && <span className="order-first px-2 py-1 text-xs font-bold rounded-full text-white bg-red-600 animate-flashy-red">NEW EP</span>}
           {anime.type && (
             <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/60 text-white backdrop-blur-md">{anime.type.toUpperCase()}</span>
           )}
@@ -241,7 +241,7 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect, episodeStatus, o
           {/* Rating Badge (User's if available, else MAL average) */}
           {(userRating || (anime.rating && anime.rating > 0)) && (
               <div className={`flex items-center gap-1 px-2 py-0.5 text-xs font-bold rounded-full bg-black/60 backdrop-blur-md ${ratingColorClass}`}>
-                  <StarIcon className={`w-3 h-3 ${userRating ? 'fill-current' : ''}`} />
+                  <StarIcon className="w-3 h-3" fill="currentColor" />
                   <span>{userRating ? userRating : anime.rating?.toFixed(1)}</span>
               </div>
           )}

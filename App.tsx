@@ -4,7 +4,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import type { Anime, Club, Filter, Notification, Settings, Page, User, ShortcutAction, RecentEpisode } from './types';
+import type { Anime, Club, Filter, Notification, Settings, Page, User, ShortcutAction, RecentEpisode, FavoriteVoiceActor } from './types';
 import { useSettings } from './hooks/useSettings';
 import { useShortcuts } from './hooks/useShortcuts';
 import { mapJikanToAnime, fetchWithRetry } from './api';
@@ -13,7 +13,8 @@ import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import AnimeGrid from './components/AnimeGrid';
 import Footer from './components/Footer';
-import Player from './components/Player';
+// FIX: Changed import to be a named import.
+import { Player } from './components/Player';
 import SearchOverlay from './components/SearchOverlay';
 import AuthModal from './components/AuthModal';
 import ProfilePage from './components/ProfilePage';
@@ -57,6 +58,7 @@ import LoadingBar from './components/LoadingBar';
 import HowToUsePage from './components/HowToUsePage';
 import NewEpisodesSection from './components/NewEpisodesSection';
 import NewEpisodesPage from './components/NewEpisodesPage';
+// FIX: Changed import path for FeaturedCarousel from a non-existent file to the correct one.
 import FeaturedCarousel from './components/FeaturedCarousel';
 import VideosPage from './components/VideosPage';
 import AnimeDetailPage from './components/AnimeDetailPage';
@@ -131,16 +133,27 @@ const App: React.FC = () => {
 
     // Global listener to un-highlight elements on scroll/drag
     useEffect(() => {
+        let scrollTimeout: number;
         const handleInteraction = () => {
-            if (document.activeElement instanceof HTMLElement) {
-                document.activeElement.blur();
-            }
+          document.body.classList.add('is-scrolling');
+          document.documentElement.classList.add('is-scrolling');
+          
+          if (document.activeElement instanceof HTMLElement) {
+              document.activeElement.blur();
+          }
+
+          clearTimeout(scrollTimeout);
+          scrollTimeout = window.setTimeout(() => {
+            document.body.classList.remove('is-scrolling');
+            document.documentElement.classList.remove('is-scrolling');
+          }, 150);
         };
         window.addEventListener('scroll', handleInteraction, { passive: true });
         window.addEventListener('touchmove', handleInteraction, { passive: true });
         return () => {
             window.removeEventListener('scroll', handleInteraction);
             window.removeEventListener('touchmove', handleInteraction);
+            clearTimeout(scrollTimeout);
         };
     }, []);
 
@@ -191,42 +204,17 @@ const App: React.FC = () => {
         }
     }, []);
 
-    const lastViewedTimestamps = useMemo(() => {
-        const map = new Map<number, number>();
-        // watchProgressList is sorted by timestamp descending, so first found is latest
-        watchProgressList.forEach(item => {
-            if (!map.has(item.animeId)) {
-                map.set(item.animeId, item.timestamp);
-            }
-        });
-        return map;
-    }, [watchProgressList]);
-
     const getEpisodeStatusCallback = useCallback((id: number) => {
-        const seenTimestamp = seenNewEpisodes[id];
-        const twentyFourHours = 24 * 60 * 60 * 1000;
-        if (seenTimestamp && (Date.now() - seenTimestamp) < twentyFourHours) {
-            return { isNew: false, episodeNumber: null };
-        }
-
-        const recentEp = recentEpisodes.find(ep => ep.malId === id);
-        const lastViewed = lastViewedTimestamps.get(id);
-        
-        let isNew = false;
-        if (recentEp && recentEp.releaseTimestamp) {
-            // Accommodate both seconds and milliseconds
-            const releaseTimeInMs = recentEp.releaseTimestamp > 1000000000000 ? recentEp.releaseTimestamp : recentEp.releaseTimestamp * 1000;
-            const isRecent = (Date.now() - releaseTimeInMs) < twentyFourHours;
-            const hasBeenViewedSinceRelease = lastViewed && lastViewed > releaseTimeInMs;
-            isNew = isRecent && !hasBeenViewedSinceRelease;
-        }
-        
-        const episodeData = newEpisodeAnime.find(a => a.id === id);
+        // An episode is "new" if it's in the list of recently released episodes
+        // AND the user hasn't "seen" (clicked) it yet in this session.
+        const hasBeenSeen = !!seenNewEpisodes[id];
+        const isConsideredNew = newEpisodeAnime.some(a => a.id === id);
+    
         return {
-            isNew,
-            episodeNumber: episodeData?.episodeNumber || null,
+            isNew: isConsideredNew && !hasBeenSeen,
+            episodeNumber: newEpisodeAnime.find(a => a.id === id)?.episodeNumber || null,
         };
-    }, [recentEpisodes, lastViewedTimestamps, newEpisodeAnime, seenNewEpisodes]);
+    }, [seenNewEpisodes, newEpisodeAnime]);
 
 
     const handleLoginRequest = useCallback((reason: string) => {
@@ -261,26 +249,6 @@ const App: React.FC = () => {
       const handleBeforeInstallPrompt = (e: Event) => { e.preventDefault(); setInstallPrompt(e); };
       window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    }, []);
-
-    useEffect(() => {
-        let scrollTimeout: number;
-        const handleScroll = () => {
-          document.body.classList.add('is-scrolling');
-          // Add to html element as well for some browser compat
-          document.documentElement.classList.add('is-scrolling');
-          
-          clearTimeout(scrollTimeout);
-          scrollTimeout = window.setTimeout(() => {
-            document.body.classList.remove('is-scrolling');
-            document.documentElement.classList.remove('is-scrolling');
-          }, 500); // Fade out after 0.5s of inactivity
-        };
-        window.addEventListener('scroll', handleScroll, { passive: true });
-        return () => {
-            window.removeEventListener('scroll', handleScroll);
-            clearTimeout(scrollTimeout);
-        };
     }, []);
 
     const handleInstallClick = () => {
@@ -534,12 +502,7 @@ const App: React.FC = () => {
     }, [page, filters, hidePlayer]);
 
     const handleAnimeSelect = useCallback((anime: Anime, source?: string) => {
-        const isActuallyNew = (() => {
-            const recentEp = recentEpisodes.find(ep => ep.malId === anime.id);
-            if (!recentEp?.releaseTimestamp) return false;
-            const releaseTimeInMs = recentEp.releaseTimestamp > 1000000000000 ? recentEp.releaseTimestamp : recentEp.releaseTimestamp * 1000;
-            return (Date.now() - releaseTimeInMs) < 24 * 60 * 60 * 1000;
-        })();
+        const isActuallyNew = newEpisodeAnime.some(a => a.id === anime.id);
 
         if (isActuallyNew) {
             const newSeen = { ...seenNewEpisodes, [anime.id]: Date.now() };
@@ -554,7 +517,7 @@ const App: React.FC = () => {
         } else {
             handleDetailSelect(anime, source);
         }
-    }, [page, recentEpisodes, seenNewEpisodes, handleWatchNow, handleDetailSelect]);
+    }, [page, newEpisodeAnime, seenNewEpisodes, handleWatchNow, handleDetailSelect]);
 
     const handleVoiceActorSelect = useCallback((id: number) => {
         if (page !== 'voice-actor') {
@@ -569,8 +532,8 @@ const App: React.FC = () => {
         switch (page) {
             case 'player': return selectedAnime && <Player anime={selectedAnime} allAnime={allAnime} onGoBack={() => setPage(pageBeforePlayerRef.current.page)} onGoHome={goHome} onSelectRelated={handleAnimeSelect} onGenreSelect={(g) => { setFilters({ ...filters, genres: [g] }); setPage('home'); }} onStudioSelect={(s) => { setFilters({ ...filters, studios: [s] }); setPage('home'); }} onUserSelect={(u) => { setSelectedUser(u); setIsUserDetailModalOpen(true); }} onEnterRoom={setWatchTogetherRoomId} breadcrumbsData={pageBeforePlayerRef.current} settings={settings} updateSettings={updateSettings} isLoggedIn={isLoggedIn} onLoginRequest={handleLoginRequest} getEpisodeStatus={getEpisodeStatusCallback} />;
             case 'details': return selectedAnime && <AnimeDetailPage anime={selectedAnime} onGoBack={() => setPage(pageBeforePlayerRef.current.page)} onGoHome={goHome} onWatchNow={handleWatchNow} onGenreSelect={(g) => { setFilters({ ...filters, genres: [g] }); setPage('home'); }} onStudioSelect={(s) => { setFilters({ ...filters, studios: [s] }); setPage('home'); }} onLoginRequest={handleLoginRequest} breadcrumbsData={pageBeforePlayerRef.current} getEpisodeStatus={getEpisodeStatusCallback} onSelectRelated={handleAnimeSelect} onVoiceActorSelect={handleVoiceActorSelect} />;
-            case 'voice-actor': return <VoiceActorPage voiceActorId={selectedVoiceActorId} onGoBack={() => setPage(pageBeforePlayerRef.current.page)} onAnimeSelect={handleAnimeSelect} />;
-            case 'profile': return <ProfilePage onGoBack={() => setPage('home')} allAnime={allAnime} onSelectAnime={handleAnimeSelect} getEpisodeStatus={getEpisodeStatusCallback} onNavigate={navigateTo} />;
+            case 'voice-actor': return <VoiceActorPage voiceActorId={selectedVoiceActorId!} onGoBack={() => setPage(pageBeforePlayerRef.current.page)} onAnimeSelect={handleAnimeSelect} onLoginRequest={handleLoginRequest} />;
+            case 'profile': return <ProfilePage onGoBack={() => setPage('home')} allAnime={allAnime} onSelectAnime={handleAnimeSelect} getEpisodeStatus={getEpisodeStatusCallback} onNavigate={navigateTo} onVoiceActorSelect={handleVoiceActorSelect} />;
             case 'club-detail': return selectedClub && <ClubDetailPage club={selectedClub} onGoBack={() => setPage('community')} onSelectAnime={handleAnimeSelect} getEpisodeStatus={getEpisodeStatusCallback} onLoginRequest={handleLoginRequest} />;
             case 'trending': return <TrendingPage onAnimeSelect={handleAnimeSelect} getEpisodeStatus={getEpisodeStatusCallback} onLoginRequest={handleLoginRequest} />;
             case 'schedule': return <SchedulePage onAnimeSelect={handleAnimeSelect} getEpisodeStatus={getEpisodeStatusCallback} onLoginRequest={handleLoginRequest} />;

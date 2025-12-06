@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, ChangeEvent } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useSettings } from '../hooks/useSettings';
@@ -5,12 +6,13 @@ import { useProfileData } from '../hooks/useProfileData';
 import { useWatchProgress } from '../hooks/useWatchProgress';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { useToast } from '../hooks/useToast';
-import { ChevronLeftIcon, VerifiedIcon, UserIcon, ShieldCheckIcon, HistoryIcon, CogIcon, RefreshCwIcon, LockClosedIcon, EyeIcon, DeviceDesktopIcon, DevicePhoneMobileIcon, StarIcon, ThumbsUpIcon, ThumbsDownIcon } from './icons/Icons';
-import type { Anime, Settings, Page, WatchProgressInfo } from '../types';
+import { ChevronLeftIcon, VerifiedIcon, UserIcon, ShieldCheckIcon, HistoryIcon, CogIcon, RefreshCwIcon, LockClosedIcon, EyeIcon, DeviceDesktopIcon, DevicePhoneMobileIcon, StarIcon, ThumbsUpIcon, ThumbsDownIcon, SearchIcon } from './icons/Icons';
+import type { Anime, Settings, Page, WatchProgressInfo, User, FavoriteVoiceActor } from '../types';
 import { COLOR_PRESETS, VIDEO_SERVERS } from '../constants';
 import { fetchAnilistUserAnimeList, fetchMalUserAnimeList } from '../api';
 import ShortcutSettings from './ShortcutSettings';
 import AnimeCard from './AnimeCard';
+import { useVoiceActorFavorites } from '../hooks/useVoiceActorFavorites';
 
 interface ProfilePageProps {
     onGoBack: () => void;
@@ -18,12 +20,13 @@ interface ProfilePageProps {
     onSelectAnime: (anime: Anime) => void;
     getEpisodeStatus: (animeId: number) => { isNew: boolean; episodeNumber: number | null };
     onNavigate: (page: Page) => void;
+    onVoiceActorSelect: (id: number) => void;
 }
 
 type MainTab = 'general' | 'security' | 'sessions' | 'preferences' | 'sync' | 'privacy';
-type GeneralSubTab = 'profile' | 'privacy' | 'statistics' | 'activity' | 'ratings';
+type GeneralSubTab = 'profile' | 'friends' | 'favorites' | 'privacy' | 'statistics' | 'activity' | 'ratings';
 
-const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectAnime, getEpisodeStatus, onNavigate }) => {
+const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectAnime, getEpisodeStatus, onNavigate, onVoiceActorSelect }) => {
     const { user } = useAuth();
     const [activeMainTab, setActiveMainTab] = useState<MainTab>('general');
     const [activeGeneralSubTab, setActiveGeneralSubTab] = useState<GeneralSubTab>('profile');
@@ -31,7 +34,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
     const renderContent = () => {
         switch (activeMainTab) {
             case 'general':
-                return <GeneralSection activeSubTab={activeGeneralSubTab} setActiveSubTab={setActiveGeneralSubTab} allAnime={allAnime} onSelectAnime={onSelectAnime} getEpisodeStatus={getEpisodeStatus} onNavigate={onNavigate} />;
+                return <GeneralSection activeSubTab={activeGeneralSubTab} setActiveSubTab={setActiveGeneralSubTab} allAnime={allAnime} onSelectAnime={onSelectAnime} getEpisodeStatus={getEpisodeStatus} onNavigate={onNavigate} onVoiceActorSelect={onVoiceActorSelect} />;
             case 'security':
                 return <SecuritySection />;
             case 'sessions':
@@ -43,7 +46,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ onGoBack, allAnime, onSelectA
             case 'privacy':
                 return <PrivacySection isSubSection={false} />;
             default:
-                return <GeneralSection activeSubTab={activeGeneralSubTab} setActiveSubTab={setActiveGeneralSubTab} allAnime={allAnime} onSelectAnime={onSelectAnime} getEpisodeStatus={getEpisodeStatus} onNavigate={onNavigate} />;
+                return <GeneralSection activeSubTab={activeGeneralSubTab} setActiveSubTab={setActiveGeneralSubTab} allAnime={allAnime} onSelectAnime={onSelectAnime} getEpisodeStatus={getEpisodeStatus} onNavigate={onNavigate} onVoiceActorSelect={onVoiceActorSelect} />;
         }
     };
 
@@ -110,17 +113,22 @@ const GeneralSection: React.FC<{
     allAnime: Anime[],
     onSelectAnime: (anime: Anime) => void,
     getEpisodeStatus: (animeId: number) => { isNew: boolean; episodeNumber: number | null },
-    onNavigate: (page: Page) => void
-}> = ({ activeSubTab, setActiveSubTab, allAnime, onSelectAnime, getEpisodeStatus, onNavigate }) => (
+    onNavigate: (page: Page) => void,
+    onVoiceActorSelect: (id: number) => void;
+}> = ({ activeSubTab, setActiveSubTab, allAnime, onSelectAnime, getEpisodeStatus, onNavigate, onVoiceActorSelect }) => (
     <div className="space-y-8">
         <div className="flex flex-wrap border-b border-white/10">
             <SubTabButton label="Profile" isActive={activeSubTab === 'profile'} onClick={() => setActiveSubTab('profile')} />
+            <SubTabButton label="Friends" isActive={activeSubTab === 'friends'} onClick={() => setActiveSubTab('friends')} />
+            <SubTabButton label="Favorites" isActive={activeSubTab === 'favorites'} onClick={() => setActiveSubTab('favorites')} />
             <SubTabButton label="Privacy" isActive={activeSubTab === 'privacy'} onClick={() => setActiveSubTab('privacy')} />
             <SubTabButton label="Statistics" isActive={activeSubTab === 'statistics'} onClick={() => setActiveSubTab('statistics')} />
             <SubTabButton label="Activity" isActive={activeSubTab === 'activity'} onClick={() => setActiveSubTab('activity')} />
             <SubTabButton label="Ratings" isActive={activeSubTab === 'ratings'} onClick={() => setActiveSubTab('ratings')} />
         </div>
         {activeSubTab === 'profile' && <ProfileSubSection />}
+        {activeSubTab === 'friends' && <FriendsSubSection />}
+        {activeSubTab === 'favorites' && <FavoritesSubSection onVoiceActorSelect={onVoiceActorSelect} />}
         {activeSubTab === 'privacy' && <PrivacySection isSubSection />}
         {activeSubTab === 'statistics' && <StatisticsSubSection />}
         {activeSubTab === 'activity' && <ActivitySubSection allAnime={allAnime} onSelectAnime={onSelectAnime} getEpisodeStatus={getEpisodeStatus} onNavigate={onNavigate} />}
@@ -183,6 +191,72 @@ const ProfileSubSection: React.FC = () => {
                 </div>
             </Section>
         </div>
+    );
+};
+
+const FriendsSubSection: React.FC = () => {
+    const { friends } = useProfileData();
+    const [searchQuery, setSearchQuery] = useState('');
+
+    const filteredFriends = useMemo(() => {
+        if (!searchQuery.trim()) return friends;
+        return friends.filter(friend => friend.username.toLowerCase().includes(searchQuery.toLowerCase()));
+    }, [friends, searchQuery]);
+
+    return (
+        <Section title="Friends" subtitle={`You have ${friends.length} friends.`} noPadding>
+            <div className="p-6">
+                <div className="relative mb-4">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[rgb(var(--text-muted))]"><SearchIcon className="w-4 h-4"/></div>
+                    <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search friends..." className="w-full bg-[rgb(var(--surface-input))] border border-white/10 rounded-lg py-2 pl-9 pr-3 text-sm" />
+                </div>
+                {filteredFriends.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {filteredFriends.map(friend => (
+                            <div key={friend.uid} className="flex items-center gap-3 p-2 rounded-lg bg-[rgb(var(--surface-3))] hover:bg-[rgb(var(--surface-4))] text-left transition-colors">
+                                <img src={friend.avatar} alt={friend.username} className="w-10 h-10 rounded-full" />
+                                <span className="font-semibold text-[rgb(var(--text-secondary))] truncate">{friend.username}</span>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-center py-8 text-[rgb(var(--text-muted))]">No friends found.</p>
+                )}
+            </div>
+        </Section>
+    );
+};
+
+const FavoritesSubSection: React.FC<{ onVoiceActorSelect: (id: number) => void }> = ({ onVoiceActorSelect }) => {
+    const { favorites } = useVoiceActorFavorites();
+    const [searchQuery, setSearchQuery] = useState('');
+
+    const filteredFavorites = useMemo(() => {
+        if (!searchQuery.trim()) return favorites;
+        return favorites.filter(fav => fav.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    }, [favorites, searchQuery]);
+    
+    return (
+        <Section title="Favorite Voice Actors" subtitle={`You have ${favorites.length} favorites.`} noPadding>
+            <div className="p-6">
+                <div className="relative mb-4">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[rgb(var(--text-muted))]"><SearchIcon className="w-4 h-4"/></div>
+                    <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search voice actors..." className="w-full bg-[rgb(var(--surface-input))] border border-white/10 rounded-lg py-2 pl-9 pr-3 text-sm" />
+                </div>
+                {filteredFavorites.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {filteredFavorites.map(fav => (
+                            <button key={fav.id} onClick={() => onVoiceActorSelect(fav.id)} className="flex items-center gap-3 p-2 rounded-lg bg-[rgb(var(--surface-3))] hover:bg-[rgb(var(--surface-4))] text-left transition-colors">
+                                <img src={fav.image} alt={fav.name} className="w-10 h-14 object-cover rounded-md" />
+                                <span className="font-semibold text-[rgb(var(--text-secondary))]">{fav.name}</span>
+                            </button>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-center py-8 text-[rgb(var(--text-muted))]">No favorite voice actors found.</p>
+                )}
+            </div>
+        </Section>
     );
 };
 

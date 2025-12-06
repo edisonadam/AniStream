@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Comment as CommentType, Anime, User } from '../types';
 import { useAuth } from '../hooks/useAuth';
@@ -217,16 +219,19 @@ const Comments: React.FC<CommentsProps> = ({ anime, currentSeason, currentEpisod
         )}
         
         {filteredComments.length > 0 ? (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {filteredComments.map(comment => (
               <div key={comment.id} className="flex items-start gap-4">
                 <img loading="lazy" src={comment.user.avatar} alt={comment.user.username} className="w-10 h-10 rounded-full cursor-pointer" onClick={() => onUserSelect(comment.user)} />
                 <div className="flex-1">
-                  <div className="flex items-baseline gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <div className="font-bold text-[rgb(var(--text-primary))] cursor-pointer flex items-center gap-1.5" onClick={() => onUserSelect(comment.user)}>
                         {comment.user.username}
                         {comment.user.isVip && <VerifiedIcon className="w-4 h-4 text-yellow-400" title="VIP Member" />}
                     </div>
+                    {isFriend(comment.user.username) && (
+                        <span className="text-xs font-semibold px-1.5 py-0.5 rounded-sm bg-cyan-500/20 text-cyan-400">Friend</span>
+                    )}
                     <span className="text-xs text-[rgb(var(--text-muted))]">{formatRelativeTime(comment.timestamp)}</span>
                   </div>
                   {comment.isSpoiler ? (

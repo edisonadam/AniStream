@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import type { Filter, Settings, Page } from '../types';
-import { CloseIcon, UsersIcon, BookOpenIcon, GiftIcon, MoonIcon, SunIcon, HomeIcon, TrendingUpIcon, CalendarIcon, HistoryIcon, InfoIcon, AcademicCapIcon, EyeIcon, EyeOffIcon, MessageCircleIcon, UserIcon, ChevronDownIcon, ClipboardIcon, ShieldCheckIcon, HeartIcon, NewspaperIcon, StarIcon, MailIcon, QuestionMarkCircleIcon, FilmIcon, DownloadIcon, ShoppingCartIcon, MicrophoneIcon, RefreshCwIcon, DevicePhoneMobileIcon, ChartBarIcon, BookmarkIcon, LevelUpIcon } from './icons/Icons';
+import { CloseIcon, UsersIcon, BookOpenIcon, GiftIcon, MoonIcon, SunIcon, HomeIcon, TrendingUpIcon, CalendarIcon, HistoryIcon, InfoIcon, AcademicCapIcon, EyeIcon, EyeOffIcon, MessageCircleIcon, UserIcon, ChevronDownIcon, ClipboardIcon, ShieldCheckIcon, HeartIcon, NewspaperIcon, StarIcon, MailIcon, QuestionMarkCircleIcon, FilmIcon, DownloadIcon, ShoppingCartIcon, MicrophoneIcon, RefreshCwIcon, DevicePhoneMobileIcon, LeaderboardIcon, BookmarkIcon, LevelUpIcon } from './icons/Icons';
 import Logo from './Logo';
 import { ANIME_TYPES, ANIME_STATUSES, YEAR_OPTIONS, LANGUAGE_OPTIONS, STUDIO_OPTIONS, GENRES, TAG_OPTIONS } from '../constants';
 
@@ -286,7 +286,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               <SideButton icon={<MessageCircleIcon />} label="Community Hub" onClick={() => handleNavigation('community')} />
               <SideButton icon={<UsersIcon />} label="Watch2Gether" onClick={() => handleNavigation('watch-together')} />
               <SideButton icon={<MicrophoneIcon />} label="Voice Actors" onClick={() => handleNavigation('voice-actor')} />
-              <SideButton icon={<ChartBarIcon />} label="Leaderboards" onClick={() => handleNavigation('leaderboards')} />
+              <SideButton icon={<LeaderboardIcon className="w-7 h-7" />} label="Leaderboards" onClick={() => handleNavigation('leaderboards')} />
             </SidebarSection>
             
             <SidebarSection title="Library">

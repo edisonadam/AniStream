@@ -1,3 +1,4 @@
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
@@ -12,6 +13,7 @@ import { FavoritesProvider } from './contexts/FavoritesContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { NotificationPrefsProvider } from './contexts/NotificationPrefsContext';
 import { QueueProvider } from './contexts/QueueContext';
+import { VoiceActorFavoritesProvider } from './contexts/VoiceActorFavoritesContext';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -30,17 +32,19 @@ const AppWrapper = () => {
           <NotificationPrefsProvider>
             <WatchlistProvider>
               <FavoritesProvider>
-                <WatchProgressProvider>
-                  <ProfileDataProvider>
-                    <ShortcutsProvider>
-                      <FloatingPlayerProvider>
-                        <QueueProvider>
-                          <App />
-                        </QueueProvider>
-                      </FloatingPlayerProvider>
-                    </ShortcutsProvider>
-                  </ProfileDataProvider>
-                </WatchProgressProvider>
+                <VoiceActorFavoritesProvider>
+                  <WatchProgressProvider>
+                    <ProfileDataProvider>
+                      <ShortcutsProvider>
+                        <FloatingPlayerProvider>
+                          <QueueProvider>
+                            <App />
+                          </QueueProvider>
+                        </FloatingPlayerProvider>
+                      </ShortcutsProvider>
+                    </ProfileDataProvider>
+                  </WatchProgressProvider>
+                </VoiceActorFavoritesProvider>
               </FavoritesProvider>
             </WatchlistProvider>
           </NotificationPrefsProvider>

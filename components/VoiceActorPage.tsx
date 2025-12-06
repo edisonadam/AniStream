@@ -1,24 +1,28 @@
 
 
-
 import React, { useState, useEffect } from 'react';
 import { fetchWithRetry } from '../api';
-import { ChevronLeftIcon, ExternalLinkIcon, HeartIcon } from './icons/Icons';
-import type { Anime } from '../types';
+import { ChevronLeftIcon, ExternalLinkIcon, HeartIcon, HeartIconSolid } from './icons/Icons';
+import type { Anime, FavoriteVoiceActor } from '../types';
 import { mapJikanToAnime } from '../api';
+import { useAuth } from '../hooks/useAuth';
+import { useVoiceActorFavorites } from '../hooks/useVoiceActorFavorites';
 
 interface VoiceActorPageProps {
     voiceActorId: number;
     onGoBack: () => void;
     onAnimeSelect: (anime: Anime) => void;
+    onLoginRequest: (reason: string) => void;
 }
 
-const VoiceActorPage: React.FC<VoiceActorPageProps> = ({ voiceActorId, onGoBack, onAnimeSelect }) => {
+const VoiceActorPage: React.FC<VoiceActorPageProps> = ({ voiceActorId, onGoBack, onAnimeSelect, onLoginRequest }) => {
     const [actorData, setActorData] = useState<any>(null);
     const [roles, setRoles] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isAboutExpanded, setIsAboutExpanded] = useState(false);
+    const { isFavorite, addFavorite, removeFavorite } = useVoiceActorFavorites();
+    const { isLoggedIn } = useAuth();
 
     useEffect(() => {
         const fetchActorData = async () => {
@@ -55,6 +59,24 @@ const VoiceActorPage: React.FC<VoiceActorPageProps> = ({ voiceActorId, onGoBack,
             fetchActorData();
         }
     }, [voiceActorId]);
+    
+    const handleFavoriteToggle = () => {
+        if (!actorData) return;
+        if (!isLoggedIn) {
+            onLoginRequest("Please log in to manage your favorite voice actors.");
+            return;
+        }
+        if (isFavorite(voiceActorId)) {
+            removeFavorite(voiceActorId, actorData.name);
+        } else {
+            const favoriteActor: FavoriteVoiceActor = {
+                id: voiceActorId,
+                name: actorData.name,
+                image: actorData.images?.jpg?.image_url,
+            };
+            addFavorite(favoriteActor);
+        }
+    };
 
     const handleAnimeClick = (role: any) => {
         if (!role?.anime?.mal_id) return;
@@ -138,7 +160,15 @@ const VoiceActorPage: React.FC<VoiceActorPageProps> = ({ voiceActorId, onGoBack,
                 </div>
 
                 <div className="flex-1 min-w-0">
-                    <h1 className="text-4xl md:text-5xl font-bold text-[rgb(var(--text-primary))] mb-2">{actorData.name}</h1>
+                    <h1 className="text-4xl md:text-5xl font-bold text-[rgb(var(--text-primary))] mb-2 flex items-center gap-4">
+                        <span>{actorData.name}</span>
+                        <button onClick={handleFavoriteToggle} title={isFavorite(voiceActorId) ? 'Unfavorite' : 'Favorite'}>
+                            {isFavorite(voiceActorId) 
+                                ? <HeartIconSolid className="w-8 h-8 text-red-400" /> 
+                                : <HeartIcon className="w-8 h-8 text-gray-500 hover:text-red-400 transition-colors"/>
+                            }
+                        </button>
+                    </h1>
                     {(actorData.given_name || actorData.family_name) && (
                         <h2 className="text-xl text-[rgb(var(--text-muted))] mb-6">
                             {actorData.family_name} {actorData.given_name} {actorData.alternate_names?.length > 0 && `(${actorData.alternate_names.join(', ')})`}

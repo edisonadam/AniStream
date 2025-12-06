@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import ReactDOM from 'react-dom';
 import type { Anime, Season, Episode, VideoServer, EpisodeViewStyle, User, Character, DefaultLanguage, Page, Filter, Settings, WatchlistStatus } from '../types';
@@ -33,6 +31,8 @@ declare global {
     YT: any;
   }
 }
+
+declare var Hls: any;
 
 const TMDB_API_KEY = '0f463393529890c7bf7e801f907981f8';
 const EPISODES_PER_PAGE = 100;
@@ -154,7 +154,7 @@ const formatAiringTime = (timestamp: number): string => {
     const years = Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
     const months = Math.floor((diff % (1000 * 60 * 60 * 24 * 365.25)) / (1000 * 60 * 60 * 24 * 30.44));
     const days = Math.floor((diff % (1000 * 60 * 60 * 24 * 30.44)) / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / 1000 * 60 * 60);
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
     const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
@@ -169,14 +169,6 @@ const formatAiringTime = (timestamp: number): string => {
 
     if (parts.length > 0) return `in ${parts.slice(0, 2).join(' ')}`;
     return 'Airing soon';
-};
-
-const getSeasonFromDate = (date: Date): string => {
-    const month = date.getMonth(); // 0-11
-    if (month >= 0 && month <= 2) return 'winter';
-    if (month >= 3 && month <= 5) return 'spring';
-    if (month >= 6 && month <= 8) return 'summer';
-    return 'fall';
 };
 
 // Helper component for the details grid
@@ -215,10 +207,10 @@ async function findRootAnime(jikanAnime: any, visitedIds: Set<number> = new Set(
 }
 
 
-const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRelated, onGenreSelect, onStudioSelect, onUserSelect, isEmbed = false, onEnterRoom, isWatchTogetherSession = false, isHost = false, onEpisodeChangeByHost, onPlayerReady, breadcrumbsData, settings, updateSettings, isLoggedIn, onLoginRequest, getEpisodeStatus }) => {
+// FIX: Changed to a named export to resolve module resolution error.
+export const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRelated, onGenreSelect, onStudioSelect, onUserSelect, isEmbed = false, onEnterRoom, isWatchTogetherSession = false, isHost = false, onEpisodeChangeByHost, onPlayerReady, breadcrumbsData, settings, updateSettings, isLoggedIn, onLoginRequest, getEpisodeStatus }) => {
   const [playerAnime, setPlayerAnime] = useState<Anime>(anime);
   const [recommendations, setRecommendations] = useState<Anime[]>([]);
-  const [similarAnime, setSimilarAnime] = useState<Anime[]>([]);
   const [relatedAnime, setRelatedAnime] = useState<Anime[]>([]);
   const [watchOrder, setWatchOrder] = useState<(Partial<Anime> & { relationType: string })[]>([]);
   const [relatedMovies, setRelatedMovies] = useState<Anime[]>([]);
@@ -267,7 +259,6 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
   const { updateProgress, getWatchProgress } = useWatchProgress();
   const { rateAnime, getRating, friends, addNotification } = useProfileData();
   const { addToast } = useToast();
-  const currentRating = playerAnime ? getRating(playerAnime.id) : null;
   
   const episodeRefs = useRef<Map<number, HTMLButtonElement | null>>(new Map());
   const isNavigatingWithArrows = useRef(false);
@@ -311,6 +302,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
     const [selectedLanguage, setSelectedLanguage] = useState<DefaultLanguage>(settings.defaultLanguage);
     const [timestampForComment, setTimestampForComment] = useState<string | null>(null);
     const [episodeListMode, setEpisodeListMode] = useState<'both' | 'sub' | 'dub'>('both');
+    const [showEpisodeNav, setShowEpisodeNav] = useState(true);
 
     useLayoutEffect(() => {
         // We only want to scroll to top when the main content has loaded to avoid layout shifts causing a scroll jump.
@@ -392,28 +384,60 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
     };
   }, [settings.lightsOffMode]);
 
+  const seasonToAnimePartMap = useMemo(() => {
+        const map = new Map<number, Partial<Anime>>();
+        const allParts = [playerAnime, ...seriesParts];
+        for (const part of allParts) {
+            if (!part?.title) continue;
+            const seasonNum = parseSeasonFromTitle(part.title);
+            if (seasonNum !== null && !map.has(seasonNum)) {
+                map.set(seasonNum, part);
+            }
+        }
+        if (!map.has(1)) map.set(1, playerAnime);
+        return map;
+    }, [seriesParts, playerAnime]);
+
   const fetchStreamUrl = useCallback(async () => {
     if (!playerAnime || externalIframeUrl) return;
     setIsStreamLoading(true);
     setStreamError(null);
     setVideoUrl(null);
 
-    let absoluteEpisodeNumber = currentEpisode;
-    if (mediaIds.mediaType === 'tv' && seasons.length > 0) {
-        const sorted = [...seasons].sort((a, b) => a.season_number - b.season_number);
-        let episodeOffset = 0;
-        for (const season of sorted) {
-            if (season.season_number < currentSeason) {
-                episodeOffset += season.episode_count;
-            } else {
-                break;
-            }
-        }
-        absoluteEpisodeNumber += episodeOffset;
-    } else if (playerAnime.type !== 'Movie') {
-        absoluteEpisodeNumber = currentEpisode;
-    } else {
-        absoluteEpisodeNumber = 1;
+    // Determine the title to search. If we are on a specific season that has a separate entry
+    // (e.g. "Attack on Titan Season 2"), use that title to help the provider search.
+    const currentSeasonPart = seasonToAnimePartMap.get(currentSeason);
+    let titleToSearch = currentSeasonPart ? (currentSeasonPart.title_english || currentSeasonPart.title) : (playerAnime.title_english || playerAnime.title);
+    
+    if (!titleToSearch) titleToSearch = playerAnime.title; // Fallback
+
+    // Check if the title explicitly mentions "Season" or "Part"
+    const isSpecificSeasonTitle = /season|part|cour/i.test(titleToSearch || '');
+
+    // Decide which episode number to use.
+    // If the title is specific (e.g. "Season 2"), providers usually start at ep 1 for that entry.
+    // If the title is generic (e.g. "One Piece"), providers use absolute numbering.
+    let episodeToFetch = currentEpisode; // Relative by default
+
+    // If it's NOT a specific season title, and we have multiple seasons mapped in TMDB, 
+    // it implies we might need absolute numbering for some providers (like old Gogoanime entries for big shows).
+    // HOWEVER, for most "Season X" shows, searching the Season title + relative episode is safer.
+    // If we are on "One Piece" (no seasons in title), currentEpisode IS absolute usually.
+    
+    // We'll stick to relative episode if we found a specific season part title to search for.
+    // If we are falling back to the root title but trying to watch season 2, we might need absolute.
+    if (!isSpecificSeasonTitle && mediaIds.mediaType === 'tv' && seasons.length > 0 && currentSeason > 1) {
+         // Calculate absolute if we are forced to search the root title
+         const sorted = [...seasons].sort((a, b) => a.season_number - b.season_number);
+         let episodeOffset = 0;
+         for (const season of sorted) {
+             if (season.season_number < currentSeason) {
+                 episodeOffset += season.episode_count;
+             } else {
+                 break;
+             }
+         }
+         episodeToFetch += episodeOffset;
     }
 
     try {
@@ -428,10 +452,13 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
         } else if (serverSetting === 'zoro') {
             provider = 'zoro';
         }
-        // Other servers like 'hop', 'izy', 'vidembed' etc will try 'zoro' first via this logic.
+        
+        // Append (Dub) to title if searching for dub on providers that separate them
+        if (selectedLanguage === 'dub' && (provider === 'gogoanime' || provider === 'zoro')) {
+             titleToSearch += ' (Dub)';
+        }
 
-        const titleToSearch = playerAnime.title_english || playerAnime.title;
-        const url = await fetchConsumetStreamUrl(titleToSearch, absoluteEpisodeNumber, provider);
+        const url = await fetchConsumetStreamUrl(titleToSearch || '', episodeToFetch, provider);
 
         if (url) {
             setVideoUrl(url);
@@ -441,14 +468,25 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
     } catch (e) {
         // Fallback to Embed Player if direct stream fails (server down/API error)
         console.warn("Primary stream fetch failed, falling back to embed:", e);
-        // Use vidsrc.cc as a reliable fallback which accepts MAL ID and absolute episode number
-        const embedUrl = `https://vidsrc.cc/v2/embed/anime/${playerAnime.id}/${absoluteEpisodeNumber}`;
-        setExternalIframeUrl(embedUrl);
+        
+        // Improved fallback logic: Try using TMDB/IMDB ID for better matching on vidsrc if available
+        const tmdbId = mediaIds.tmdb;
+        if (tmdbId && mediaIds.mediaType === 'tv') {
+            // vidsrc.cc structure for TV shows: /v2/embed/tv/{tmdbId}/{season}/{episode}
+            setExternalIframeUrl(`https://vidsrc.cc/v2/embed/tv/${tmdbId}/${currentSeason}/${currentEpisode}`);
+        } else if (tmdbId && mediaIds.mediaType === 'movie') {
+            setExternalIframeUrl(`https://vidsrc.cc/v2/embed/movie/${tmdbId}`);
+        } else {
+            // Fallback to MAL ID if TMDB is not available (less reliable)
+            // Note: Vidsrc usually expects relative episode number to the MAL entry.
+            const embedUrl = `https://vidsrc.cc/v2/embed/anime/${playerAnime.id}/${currentEpisode}`;
+            setExternalIframeUrl(embedUrl);
+        }
         setStreamError(null); // Clear error since we are handling it with fallback
     } finally {
         setIsStreamLoading(false);
     }
-}, [playerAnime, currentSeason, currentEpisode, seasons, mediaIds.mediaType, settings.videoServer, externalIframeUrl]);
+}, [playerAnime, currentSeason, currentEpisode, seasons, mediaIds.mediaType, mediaIds.tmdb, settings.videoServer, externalIframeUrl, seasonToAnimePartMap, selectedLanguage]);
 
   useEffect(() => {
     fetchStreamUrl();
@@ -837,9 +875,12 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
     const fetchSkipTimes = async () => {
         try {
             const malId = playerAnime.id;
-            // The API also needs episode length for better accuracy, but it works with 0.
-            // Using 0 to get times before video is fully loaded.
-            const res = await fetch(`https://api.aniskip.com/v2/skip-times/${malId}/${currentEpisode}?types=op&types=ed&episodeLength=0`);
+            // The API prefers seconds for episodeLength.
+            // episodes state has runtime in minutes.
+            const currentEpData = episodes.find(e => e.episode_number === currentEpisode);
+            const runtimeSeconds = currentEpData?.runtime ? currentEpData.runtime * 60 : 0;
+
+            const res = await fetch(`https://api.aniskip.com/v2/skip-times/${malId}/${currentEpisode}?types=op&types=ed&episodeLength=${runtimeSeconds}`);
             
             // 404 means no data, which is normal.
             if (!res.ok) {
@@ -868,7 +909,7 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
     };
 
     fetchSkipTimes();
-  }, [playerAnime, currentEpisode]);
+  }, [playerAnime, currentEpisode, episodes]);
 
 
   useEffect(() => {
@@ -980,12 +1021,9 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
     if (isInitialLoadRef.current) {
         if (savedScrollTop !== null) {
             episodeListContainerRef.current.scrollTop = parseInt(savedScrollTop, 10);
-        } else {
-            setTimeout(scrollFunction, 50); // Small delay for initial render
         }
         isInitialLoadRef.current = false;
     } else {
-        // If navigating with next/prev buttons, do not scroll. Otherwise, use the "drag" delay for clicks.
         if (isNavigatingWithArrows.current) {
             isNavigatingWithArrows.current = false; // Reset flag and prevent scroll.
             return;
@@ -1196,6 +1234,22 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
             lang: navigator.language.toLowerCase(),
             hotkey: false, // Disable default hotkeys to use our own global system
             preload: preloadMap[settings.videoLoadStrategy],
+            customType: {
+                m3u8: function (video: HTMLVideoElement, url: string, art: any) {
+                    if (Hls.isSupported()) {
+                        if (art.hls) art.hls.destroy();
+                        const hls = new Hls();
+                        hls.loadSource(url);
+                        hls.attachMedia(video);
+                        art.hls = hls;
+                        art.on('destroy', () => hls.destroy());
+                    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                        video.src = url;
+                    } else {
+                        art.notice.show = 'Unsupported playback format: m3u8';
+                    }
+                },
+            },
              controls: [
                 {
                     name: 'download',
@@ -1362,11 +1416,13 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
     
     art.on('ready', updateMarkers);
     art.on('resize', updateMarkers); // In case progress bar size changes
+    art.on('video:durationchange', updateMarkers); // Ensure markers update when metadata loads
     updateMarkers(); // Initial update
 
     return () => {
         art.off('ready', updateMarkers);
         art.off('resize', updateMarkers);
+        art.off('video:durationchange', updateMarkers);
     };
   }, [skipTimes]);
 
@@ -1452,20 +1508,6 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
   const SeasonNavigator = () => {
     const useTmdbSeasons = seasons.length > 0;
     const useJikanSeriesParts = seriesParts.length > 1;
-
-    const seasonToAnimePartMap = useMemo(() => {
-        const map = new Map<number, Partial<Anime>>();
-        const allParts = [playerAnime, ...seriesParts];
-        for (const part of allParts) {
-            if (!part?.title) continue;
-            const seasonNum = parseSeasonFromTitle(part.title);
-            if (seasonNum !== null && !map.has(seasonNum)) {
-                map.set(seasonNum, part);
-            }
-        }
-        if (!map.has(1)) map.set(1, playerAnime);
-        return map;
-    }, [seriesParts, playerAnime]);
 
     type NavItem = { id: string | number; isActive: boolean; name: string; imageUrl: string; episodeCount?: number; onClick: () => void; onDetailsClick?: () => void; };
     let items: NavItem[] = [];
@@ -1844,9 +1886,9 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
                     </div>
                 )}
                 
-                {!isEmbed && <PlayerActions anime={playerAnime} onClip={() => setIsClippingModalOpen(true)} settings={settings} updateSettings={updateSettings} onSurprise={handleSurpriseFact} onManualServerChange={handleManualServerChange} selectedLanguage={selectedLanguage} onLanguageChange={handleLanguageChange} isLoggedIn={isLoggedIn} onLoginRequest={onLoginRequest} onAddTimestamp={handleTimestamp} onOpenRoomManager={() => setIsRoomManagerOpen(true)} />}
+                {!isEmbed && <PlayerActions anime={playerAnime} onClip={() => setIsClippingModalOpen(true)} settings={settings} updateSettings={updateSettings} onSurprise={handleSurpriseFact} onManualServerChange={handleManualServerChange} selectedLanguage={selectedLanguage} onLanguageChange={handleLanguageChange} isLoggedIn={isLoggedIn} onLoginRequest={onLoginRequest} onAddTimestamp={handleTimestamp} onOpenRoomManager={() => setIsRoomManagerOpen(true)} showEpisodeNav={showEpisodeNav} setShowEpisodeNav={setShowEpisodeNav} />}
                 
-                {mediaIds.mediaType === 'tv' && !isEmbed && (
+                {mediaIds.mediaType === 'tv' && !isEmbed && showEpisodeNav && (
                     <div className="flex justify-between items-center mt-4 p-4 bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 text-white rounded-2xl">
                         <button
                             onClick={handlePrevEpisode}
@@ -2163,32 +2205,20 @@ const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSelectRela
       <div>
           <h3 className="text-lg font-semibold text-[rgb(var(--color-primary-accent))] mb-3">Recommendations</h3>
           <div className="space-y-3">
-          {recommendations.slice(0, 5).map(rec => <div key={rec.id} onClick={() => onSelectRelated(rec, 'Recommendations')} className="group flex items-center gap-3 bg-[rgb(var(--surface-2))/0.6] p-2 rounded-xl hover:bg-[rgb(var(--surface-2))] transition-colors cursor-pointer"><img src={rec.thumbnail} alt="" className="w-12 h-16 object-cover rounded-md" /><div className="flex-1 min-w-0"><h4 className="font-semibold text-sm truncate group-hover:text-[rgb(var(--color-primary-accent))] transition-colors">{getDisplayTitle(rec, settings)}</h4><p className="text-xs text-[rgb(var(--text-muted))]">{rec.type} &bull; {rec.status}</p></div></div>)}
+          {recommendations.slice(0, 5).map(rec => <div key={rec.id} onClick={() => onSelectRelated(rec, 'Recommendations')} className="group flex items-center gap-3 bg-[rgb(var(--surface-2))/0.6] p-2 rounded-xl hover:bg-[rgb(var(--surface-3))] cursor-pointer">
+              <img src={rec.thumbnail} alt={rec.title} className="w-12 h-16 object-cover rounded-md" />
+              <div className="flex-1 min-w-0">
+                  <p className="font-semibold truncate group-hover:text-[rgb(var(--color-primary-accent))]">{rec.title}</p>
+                  <p className="text-xs text-[rgb(var(--text-muted))]">{rec.type} &bull; {rec.status}</p>
+              </div>
+              {rec.rating && <div className="flex items-center gap-1 text-sm font-bold text-yellow-400"><StarIcon className="w-4 h-4"/> {rec.rating.toFixed(2)}</div>}
+          </div>)}
           </div>
       </div>
-      {relatedAnime.length > 0 && (
-          <div>
-              <h3 className="text-lg font-semibold text-[rgb(var(--color-primary-accent))] mb-3">Related Anime</h3>
-              <div className="grid grid-cols-2 gap-4">
-                  {relatedAnime.map(rel => (
-                      <AnimeCard key={rel.id} anime={rel} onSelect={onSelectRelated} episodeStatus={getEpisodeStatus(rel.id)} onLoginRequest={onLoginRequest} />
-                  ))}
-              </div>
-          </div>
-      )}
-      {similarAnime.length > 0 && (
-          <div>
-              <h3 className="text-lg font-semibold text-[rgb(var(--color-primary-accent))] mb-3">Similar Anime</h3>
-              <div className="grid grid-cols-2 gap-4">
-                  {similarAnime.map(anime => (
-                      <AnimeCard key={anime.id} anime={anime} onSelect={onSelectRelated} episodeStatus={getEpisodeStatus(anime.id)} onLoginRequest={onLoginRequest} />
-                  ))}
-              </div>
-          </div>
-      )}
     </div>
     </div>
   );
 };
 
-export default Player;
+// FIX: Removed default export.
+// export default Player;

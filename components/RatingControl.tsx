@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { StarIcon, ChartBarIcon, ChevronLeftIcon, ChevronRightIcon, ViewGridIcon, ViewCarouselIcon } from './icons/Icons';
 import { useAuth } from '../hooks/useAuth';
@@ -175,7 +174,10 @@ const RatingControl: React.FC<RatingControlProps> = ({ animeId, animeTitle }) =>
                                 onClick={() => handleRate(star)}
                                 className={`transition-transform duration-200 hover:scale-110 focus:outline-none p-0.5 ${star <= displayRating ? activeLabel.color : 'text-gray-700'}`}
                             >
-                                <StarIcon className={`w-6 h-6 md:w-8 md:h-8 fill-current`} />
+                                <StarIcon 
+                                    className="w-6 h-6 md:w-8 md:h-8"
+                                    fill={star <= displayRating ? 'currentColor' : 'none'}
+                                />
                             </button>
                         ))}
                     </div>

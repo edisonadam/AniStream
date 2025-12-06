@@ -1,8 +1,7 @@
 
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Anime } from '../types';
-import { ChevronLeftIcon, ChevronRightIcon, PlayIcon, PlusIcon, StarIcon, CheckIcon, InfoIcon } from './icons/Icons';
+import { ChevronLeftIcon, ChevronRightIcon, PlayIcon, PlusIcon, StarIcon, CheckIcon, InfoIcon, PlayIconSolid } from './icons/Icons';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { useAuth } from '../hooks/useAuth';
 import { useSettings } from '../hooks/useSettings';
@@ -91,14 +90,12 @@ const YouTubeBackgroundPlayer: React.FC<{ videoId: string; onError: () => void }
                     playerVars.origin = origin;
                 }
 
-                // FIX: Cast window to any to access YT property for YouTube IFrame API
                 ytPlayer.current = new (window as any).YT.Player(playerElement, {
                     videoId: videoId,
                     playerVars: playerVars,
                     events: {
                         onReady: (event: any) => event.target.playVideo(),
                         onStateChange: (event: any) => {
-                            // FIX: Cast window to any to access YT property for YouTube IFrame API
                             if (event.data === (window as any).YT.PlayerState.ENDED) {
                                 ytPlayer.current?.seekTo(0);
                             }
@@ -124,7 +121,7 @@ const YouTubeBackgroundPlayer: React.FC<{ videoId: string; onError: () => void }
     return (
         <div
             ref={playerRef}
-            className="absolute top-1/2 left-1/2 w-full h-full min-w-[177.77vh] min-h-[100vw] -translate-x-1/2 -translate-y-1/2 scale-105"
+            className="absolute top-1/2 left-1/2 w-full h-full min-w-[177.77vh] min-h-[100vw] -translate-x-1/2 -translate-y-1/2 scale-105 pointer-events-none"
         />
     );
 };
@@ -137,14 +134,19 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
   const { settings } = useSettings();
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  
-  const [touchStartX, setTouchStartX] = useState<number | null>(null);
-  const [touchEndX, setTouchEndX] = useState<number | null>(null);
-  const minSwipeDistance = 50;
 
   const [trailers, setTrailers] = useState<Record<number, string>>({});
   const [trailerErrors, setTrailerErrors] = useState<Set<number>>(new Set());
   const [showVideo, setShowVideo] = useState(false);
+  const [showNav, setShowNav] = useState(true);
+
+  // State for dynamic swiping
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const touchStartRef = useRef({ x: 0, y: 0 });
+  const containerRef = useRef<HTMLElement>(null);
+  const swipeDirectionRef = useRef<'horizontal' | 'vertical' | null>(null);
+
 
   const slides = animeList.slice(0, 5);
 
@@ -167,10 +169,10 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
   }, [slides, settings.homepageTrailer, trailers]);
   
   useEffect(() => {
-    setShowVideo(false); // Hide video when slide changes
+    setShowVideo(false);
     const timer = setTimeout(() => {
         setShowVideo(true);
-    }, 2000); // 2 second delay for banner
+    }, 2000);
     return () => clearTimeout(timer);
   }, [currentIndex]);
 
@@ -196,7 +198,7 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
 
   const startAutoPlay = useCallback(() => {
     stopAutoPlay();
-    intervalRef.current = setInterval(nextSlide, 12000); // 2s banner + 10s video
+    intervalRef.current = setInterval(nextSlide, 12000);
   }, [stopAutoPlay, nextSlide]);
 
   useEffect(() => {
@@ -211,7 +213,7 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
     resetTimeout();
     timeoutRef.current = setTimeout(() => {
       startAutoPlay();
-    }, 12000); // Resume after 12s of inactivity
+    }, 12000);
   }, [stopAutoPlay, resetTimeout, startAutoPlay]);
 
   const goToSlide = (index: number) => {
@@ -230,29 +232,64 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
   };
   
   const onTouchStart = (e: React.TouchEvent) => {
-    setTouchEndX(null); // Reset touch end position
-    setTouchStartX(e.targetTouches[0].clientX);
+    swipeDirectionRef.current = null; // Reset swipe direction
+    stopAutoPlay();
+    touchStartRef.current = { x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY };
+    setIsDragging(true);
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
-    setTouchEndX(e.targetTouches[0].clientX);
+    if (!isDragging) return;
+    const currentX = e.targetTouches[0].clientX;
+    const currentY = e.targetTouches[0].clientY;
+    const diffX = currentX - touchStartRef.current.x;
+    const diffY = currentY - touchStartRef.current.y;
+
+    if (swipeDirectionRef.current === null) {
+      if (Math.abs(diffX) > Math.abs(diffY)) {
+        swipeDirectionRef.current = 'horizontal';
+      } else {
+        swipeDirectionRef.current = 'vertical';
+      }
+    }
+
+    if (swipeDirectionRef.current === 'horizontal') {
+      setDragOffset(diffX);
+    }
   };
 
-  const onTouchEnd = () => {
-    if (!touchStartX || !touchEndX) return;
-    const distance = touchStartX - touchEndX;
-    const isLeftSwipe = distance > minSwipeDistance;
-    const isRightSwipe = distance < -minSwipeDistance;
+  const onTouchEnd = (e: React.TouchEvent) => {
+    setIsDragging(false);
+    
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    const diffX = touchEndX - touchStartRef.current.x;
+    const diffY = touchEndY - touchStartRef.current.y;
+    const containerWidth = containerRef.current?.offsetWidth || window.innerWidth;
 
-    if (isLeftSwipe) {
-      goToNext();
-    } else if (isRightSwipe) {
-      goToPrev();
+    if (Math.abs(diffX) < 10 && Math.abs(diffY) < 10) {
+        // Tap event - Toggle controls
+        setShowNav(prev => !prev);
+    } 
+    else if (swipeDirectionRef.current === 'horizontal') {
+        if (diffX < -containerWidth / 4) { // Swipe left
+            nextSlide();
+        } else if (diffX > containerWidth / 4) { // Swipe right
+            prevSlide();
+        }
     }
+    
+    setDragOffset(0);
+    handleManualInteraction();
+    swipeDirectionRef.current = null; // Reset for next touch
   };
 
   const handleAddToWatchlist = () => {
       if (!currentSlide) return;
+      if (!isLoggedIn) {
+          onLoginRequest("Please log in to add to your watchlist.");
+          return;
+      }
       if (inWatchlist) return;
       const status = 'Plan to Watch';
       addToWatchlist(currentSlide, status);
@@ -292,104 +329,115 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ animeList, onAnimeS
 
   return (
     <section 
+      ref={containerRef}
       className="relative w-full h-[90vh] overflow-hidden group mb-8"
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
-      {/* Slides */}
-      {slides.map((slide, index) => {
-          const trailerUrl = settings.homepageTrailer ? trailers[slide.id] : null;
-          const isActive = index === currentIndex;
-          const videoId = trailerUrl ? getYouTubeId(trailerUrl) : null;
-          const hasError = trailerErrors.has(slide.id);
-          
-          return (
-            <div key={slide.id} className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${isActive ? 'opacity-100' : 'opacity-0'}`}>
-                <img loading="lazy" src={slide.bannerImage} alt={getDisplayTitle(slide, settings)} className={`w-full h-full object-cover ${isActive ? 'animate-ken-burns' : ''}`} />
-                {isActive && videoId && !hasError && showVideo && (
-                    <div className="absolute inset-0 overflow-hidden pointer-events-none animate-cinematic-fade-in" style={{ animationDuration: '1.5s' }}>
-                       <YouTubeBackgroundPlayer videoId={videoId} onError={() => handleTrailerError(slide.id)} />
-                    </div>
-                )}
-            </div>
-          )
-      })}
+      <div className="absolute inset-0 w-full h-full">
+          <div
+            className="flex h-full w-full"
+            style={{
+              width: `${slides.length * 100}%`,
+              transform: `translateX(calc(-${(100 / slides.length) * currentIndex}% + ${dragOffset}px))`,
+              transition: isDragging ? 'none' : `transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)`,
+            }}
+          >
+            {slides.map((slide, index) => {
+                const trailerUrl = settings.homepageTrailer ? trailers[slide.id] : null;
+                const isActive = index === currentIndex;
+                const videoId = trailerUrl ? getYouTubeId(trailerUrl) : null;
+                const hasError = trailerErrors.has(slide.id);
+                
+                return (
+                  <div key={slide.id} className="relative h-full" style={{ width: `${100 / slides.length}%` }}>
+                      <img loading="lazy" src={slide.bannerImage} alt={getDisplayTitle(slide, settings)} className={`w-full h-full object-cover ${isActive ? 'animate-ken-burns' : ''}`} />
+                      {isActive && videoId && !hasError && showVideo && (
+                          <div className="absolute inset-0 overflow-hidden pointer-events-none animate-cinematic-fade-in" style={{ animationDuration: '1.5s' }}>
+                             <YouTubeBackgroundPlayer videoId={videoId} onError={() => handleTrailerError(slide.id)} />
+                          </div>
+                      )}
+                  </div>
+                )
+            })}
+          </div>
+      </div>
+
 
       {/* Gradient Fades */}
-      <div className="absolute top-0 left-0 w-full h-48 bg-gradient-to-b from-[rgb(var(--bg-gradient-start))] to-transparent z-10"></div>
-      <div className="absolute bottom-0 left-0 w-full h-96 bg-gradient-to-t from-[rgb(var(--bg-gradient-start))] to-transparent z-10"></div>
-      <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent w-3/4 z-10"></div>
+      <div className="absolute top-0 left-0 w-full h-48 bg-gradient-to-b from-[rgb(var(--bg-gradient-start))] to-transparent z-10 pointer-events-none"></div>
+      <div className="absolute bottom-0 left-0 w-full h-96 bg-gradient-to-t from-[rgb(var(--bg-gradient-start))] to-transparent z-10 pointer-events-none"></div>
+      <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent w-3/4 z-10 pointer-events-none"></div>
 
       {/* Content */}
       {currentSlide && (
-        <div className="absolute bottom-10 md:bottom-20 left-4 md:left-12 text-white max-w-2xl z-20">
+        <div className="absolute bottom-10 md:bottom-20 left-4 md:left-12 text-white max-w-2xl z-20 pointer-events-auto">
             <div key={currentIndex} className="animate-subtle-fade-in-up">
               <h2 className="text-4xl md:text-6xl font-black mb-3 drop-shadow-2xl" style={{textShadow: '0 4px 20px rgba(0,0,0,0.9)'}}>
                 {displayTitle}
               </h2>
               <div className="flex items-center flex-wrap gap-x-4 gap-y-2 mb-4 text-gray-300 font-medium" style={{textShadow: '0 2px 8px rgba(0,0,0,0.7)'}}>
-                  {isNew && <span className="px-2 py-1 text-sm font-bold rounded-md animate-flashy-red text-white">NEW EPISODE</span>}
-                  {currentSlide.status === 'Ongoing' && episodeNumber && (
+                  {isNew && <span className="px-2 py-1 text-sm font-bold rounded-md bg-red-600 text-white animate-pulse">NEW EPISODE</span>}
+                  {currentSlide.status === 'Ongoing' && episodeNumber && (currentSlide.totalEpisodes || currentSlide.episodes_count) && (
                       <span
                           className="inline-flex items-center rounded-md bg-cyan-500/20 px-2 py-1 text-sm font-semibold text-cyan-300 backdrop-blur-sm"
-                          title={`Episode ${episodeNumber} of ${currentSlide.totalEpisodes || currentSlide.episodes_count || '?'} released`}
+                          title={`Episode ${episodeNumber} of ${currentSlide.totalEpisodes || currentSlide.episodes_count} released`}
                       >
-                          Ep {episodeNumber} / {currentSlide.totalEpisodes || currentSlide.episodes_count || '?'}
+                          Ep {episodeNumber} / {currentSlide.totalEpisodes || currentSlide.episodes_count}
                       </span>
                   )}
                   {currentSlide.type && <span>{currentSlide.type}</span>}
                   {currentSlide.type === 'Movie' && currentSlide.runtime && <span>{formatDuration(currentSlide.runtime)}</span>}
                   {currentSlide.rating && (
                       <div className="flex items-center gap-1.5">
-                          <StarIcon className="w-5 h-5 text-[rgb(var(--color-warning))]" />
+                          <StarIcon className="w-5 h-5 text-[rgb(var(--color-warning))]" fill="currentColor" />
                           <span>{currentSlide.rating.toFixed(1)}</span>
                       </div>
                   )}
                   <span>{currentSlide.genres.slice(0, 3).join(' • ')}</span>
               </div>
               <p className="line-clamp-3 text-gray-200 mb-6 max-w-lg">{currentSlide.synopsis}</p>
-              <div className="flex flex-wrap items-center gap-3">
-                <button onClick={() => onAnimeSelect(currentSlide)} className="flex items-center gap-2 px-6 py-3 bg-[rgb(var(--color-primary))] text-white rounded-full font-bold hover:bg-[rgb(var(--color-primary-hover))] transition-transform duration-300 hover:scale-105 shadow-lg shadow-[rgb(var(--shadow-color))/0.4] hover:shadow-[rgb(var(--shadow-color))/0.6]">
-                  <PlayIcon className="w-6 h-6"/>
-                  <span>Watch Now</span>
-                </button>
-                <button onClick={() => onDetailsSelect(currentSlide)} className="flex items-center gap-2 px-6 py-3 bg-transparent text-white rounded-full font-bold hover:bg-white/10 backdrop-blur-sm border-2 border-white/20 hover:border-white/40 transition-all duration-300 transform hover:scale-105">
-                    <InfoIcon className="w-6 h-6"/>
-                    <span>Details</span>
-                </button>
-                <button
-                  onClick={() => {
-                      if (!isLoggedIn) {
-                          onLoginRequest("Please log in to manage your watchlist.");
-                      } else {
-                          handleAddToWatchlist();
-                      }
-                  }}
-                  disabled={inWatchlist}
-                  className="flex items-center gap-2 px-6 py-3 bg-white/10 text-white rounded-full font-bold hover:bg-white/20 transition-colors backdrop-blur-sm disabled:opacity-70 disabled:cursor-not-allowed">
-                  {inWatchlist ? <CheckIcon/> : <PlusIcon/>}
-                  <span>{inWatchlist ? 'In List' : 'Add to List'}</span>
-                </button>
+              
+              <div className="flex flex-col gap-3 items-start sm:flex-row sm:items-center">
+                  <button onClick={(e) => { e.stopPropagation(); onAnimeSelect(currentSlide); }} className="h-12 flex items-center justify-center gap-2 px-6 py-3 bg-[rgb(var(--color-primary))] text-white rounded-full font-bold transition-transform duration-300 hover:scale-105 shadow-lg shadow-[rgb(var(--shadow-color))/0.4] w-full sm:w-auto">
+                      <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
+                          <PlayIconSolid className="w-2.5 h-2.5 text-blue-600" />
+                      </div>
+                      <span className="text-sm">Watch Now</span>
+                  </button>
+                  <div className="flex gap-3 w-full sm:w-auto">
+                      <button onClick={(e) => { e.stopPropagation(); onDetailsSelect(currentSlide); }} className="h-12 flex-1 sm:flex-initial flex items-center justify-center gap-2 px-6 py-3 bg-white/10 text-white rounded-full font-bold hover:bg-white/20 transition-transform duration-300 hover:scale-105 backdrop-blur-sm">
+                          <InfoIcon className="w-5 h-5"/>
+                          <span className="text-sm">Details</span>
+                      </button>
+                      <button
+                          onClick={(e) => { e.stopPropagation(); handleAddToWatchlist(); }}
+                          disabled={isLoggedIn && inWatchlist}
+                          className="h-12 flex-1 sm:flex-initial flex items-center justify-center gap-2 px-6 py-3 bg-white/10 text-white rounded-full font-semibold hover:bg-white/20 transition-all duration-300 hover:scale-105 backdrop-blur-sm disabled:opacity-70 disabled:cursor-not-allowed">
+                          {isLoggedIn && inWatchlist ? <CheckIcon className="w-5 h-5"/> : <PlusIcon className="w-5 h-5"/>}
+                          <span className="text-sm">{isLoggedIn && inWatchlist ? 'In List' : 'Add to List'}</span>
+                      </button>
+                  </div>
               </div>
             </div>
         </div>
       )}
       
       {/* Navigation */}
-      <button onClick={goToPrev} className="absolute top-1/2 left-4 transform -translate-y-1/2 p-3 bg-black/30 rounded-full text-white opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-[rgb(var(--color-primary))] hover:scale-110 z-20" aria-label="Previous slide">
-        <ChevronLeftIcon className="w-8 h-8"/>
+      <button onTouchEnd={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); goToPrev(); }} className={`absolute top-1/2 left-4 transform -translate-y-1/2 p-3 bg-black/30 rounded-full text-white transition-all duration-300 hover:bg-[rgb(var(--color-primary))] hover:scale-110 z-20 ${showNav ? 'opacity-0 group-hover:opacity-100' : 'opacity-0 pointer-events-none'}`} aria-label="Previous slide">
+          <ChevronLeftIcon className="w-8 h-8"/>
       </button>
-      <button onClick={goToNext} className="absolute top-1/2 right-4 transform -translate-y-1/2 p-3 bg-black/30 rounded-full text-white opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-[rgb(var(--color-primary))] hover:scale-110 z-20" aria-label="Next slide">
-        <ChevronRightIcon className="w-8 h-8"/>
+      <button onTouchEnd={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); goToNext(); }} className={`absolute top-1/2 right-4 transform -translate-y-1/2 p-3 bg-black/30 rounded-full text-white transition-all duration-300 hover:bg-[rgb(var(--color-primary))] hover:scale-110 z-20 ${showNav ? 'opacity-0 group-hover:opacity-100' : 'opacity-0 pointer-events-none'}`} aria-label="Next slide">
+          <ChevronRightIcon className="w-8 h-8"/>
       </button>
 
       {/* Indicators */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex space-x-2 z-20">
+      <div className={`absolute bottom-6 left-1/2 -translate-x-1/2 flex space-x-2 z-20 transition-opacity duration-300 ${showNav ? 'opacity-100' : 'opacity-0'}`}>
         {slides.map((_, index) => (
           <button 
             key={index} 
-            onClick={() => goToSlide(index)} 
+            onClick={(e) => { e.stopPropagation(); goToSlide(index); }} 
             className={`w-8 h-1.5 rounded-full transition-all duration-300 ${currentIndex === index ? 'bg-[rgb(var(--color-primary-accent))]' : 'bg-gray-500/50 hover:bg-gray-400'}`}
             aria-label={`Go to slide ${index + 1}`}
           ></button>

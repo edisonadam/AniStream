@@ -1,12 +1,14 @@
 
 
+
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { ref, onValue, set, push, serverTimestamp, onDisconnect, remove, get, update } from 'firebase/database';
 import { db } from '../firebase';
 import { useAuth } from '../hooks/useAuth';
 import type { Anime, Room, ChatMessage, RoomParticipant } from '../types';
 import { fetchWithRetry, mapJikanToAnime } from '../api';
-import Player from './Player';
+// FIX: Changed import to be a named import.
+import { Player } from './Player';
 import { formatRelativeTime } from '../utils';
 import { UsersIcon, CloseIcon, VideoCameraIcon, VideoCameraOffIcon, MicrophoneIcon, MicrophoneOffIcon, SearchIcon, ChevronLeftIcon, PlusIcon } from './icons/Icons';
 import { useSettings } from '../hooks/useSettings';

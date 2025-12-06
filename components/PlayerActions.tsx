@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import type { Anime, WatchlistStatus, VideoServer, Settings, DefaultLanguage } from '../types';
@@ -25,6 +24,8 @@ interface PlayerActionsProps {
   onLoginRequest: (reason: string) => void;
   onAddTimestamp: () => void;
   onOpenRoomManager: () => void;
+  showEpisodeNav: boolean;
+  setShowEpisodeNav: (value: boolean) => void;
 }
 
 const ActionButton: React.FC<{ icon: React.ReactNode, label: string, onClick: (e: React.MouseEvent) => void, buttonRef?: React.Ref<HTMLButtonElement>, isActive?: boolean, isDanger?: boolean }> = ({ icon, label, onClick, buttonRef, isActive, isDanger }) => (
@@ -52,7 +53,7 @@ const Toggle: React.FC<{ label: string, icon?: React.ReactNode, checked: boolean
     </label>
 );
 
-const PlayerActions: React.FC<PlayerActionsProps> = ({ anime, onClip, settings, updateSettings, onSurprise, onManualServerChange, selectedLanguage, onLanguageChange, isLoggedIn, onLoginRequest, onAddTimestamp, onOpenRoomManager }) => {
+const PlayerActions: React.FC<PlayerActionsProps> = ({ anime, onClip, settings, updateSettings, onSurprise, onManualServerChange, selectedLanguage, onLanguageChange, isLoggedIn, onLoginRequest, onAddTimestamp, onOpenRoomManager, showEpisodeNav, setShowEpisodeNav }) => {
     const { addFavorite, removeFavorite, isFavorite } = useFavorites();
     const { addToWatchlist, removeFromWatchlist, updateWatchlistStatus, isInWatchlist, getWatchlistStatus } = useWatchlist();
     const { addToast } = useToast();
@@ -175,6 +176,7 @@ const PlayerActions: React.FC<PlayerActionsProps> = ({ anime, onClip, settings, 
                 <ActionButton icon={<UsersIcon />} label="Watch2Gether" onClick={() => handleAuthenticatedAction(onOpenRoomManager, "Log in to start a room")} />
                 <ActionButton icon={<MessageCircleIcon />} label="Comments" onClick={scrollToComments} />
                 <ActionButton icon={<SparklesIcon />} label="Surprise Me!" onClick={onSurprise} />
+                <ActionButton icon={<ViewListIcon />} label="Toggle Episode Nav" onClick={() => setShowEpisodeNav(!showEpisodeNav)} isActive={showEpisodeNav} />
                 <ActionButton icon={<FlagIcon />} label="Report" onClick={handleReport} isDanger />
             </div>
 

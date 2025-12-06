@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import type { Anime, Character, Page, Filter } from '../types';
@@ -29,10 +27,10 @@ interface AnimeDetailPageProps {
     onVoiceActorSelect?: (id: number) => void;
 }
 
-const StatItem: React.FC<{ label: string; value: string | number | null | undefined }> = ({ label, value }) => (
-    <div className="bg-[rgb(var(--surface-3))/0.5] p-3 rounded-lg text-center">
-        <p className="text-sm font-semibold text-[rgb(var(--text-muted))]">{label}</p>
-        <p className="text-lg font-bold text-[rgb(var(--text-primary))]">{value || 'N/A'}</p>
+const StatItem: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
+    <div className="bg-[rgb(var(--surface-3))/0.5] p-3 rounded-lg text-center h-full flex flex-col justify-center">
+        <p className="text-sm font-semibold text-[rgb(var(--text-muted))] mb-1">{label}</p>
+        <div className="text-lg font-bold text-[rgb(var(--text-primary))] flex items-center justify-center h-full">{value || 'N/A'}</div>
     </div>
 );
 
@@ -251,7 +249,7 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ anime, onGoBack, onGo
                         <h2 className="text-lg text-[rgb(var(--text-muted))] mt-1">{fullAnime.title_english}</h2>
                         <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 my-4">
                             {fullAnime.genres.map(genre => (
-                                <button key={genre} onClick={() => onGenreSelect(genre)} className="px-3 py-1 text-xs font-semibold rounded-full bg-[rgb(var(--color-primary))/0.3] text-[rgb(var(--text-on-accent))] hover:bg-[rgb(var(--color-primary))/0.5]">
+                                <button key={genre} onClick={() => onGenreSelect(genre)} className="px-3 py-1 text-xs font-semibold rounded-full bg-[rgb(var(--color-primary))/0.3] text-[rgb(var(--text-on-accent))] hover:bg-[rgb(var(--color-primary))/0.5] transition-colors">
                                     {genre}
                                 </button>
                             ))}
@@ -296,7 +294,16 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ anime, onGoBack, onGo
                         <StatItem label="Episodes" value={fullAnime.totalEpisodes} />
                         <StatItem label="Duration" value={formatDuration(fullAnime.avgEpisodeDuration)} />
                         <StatItem label="Type" value={fullAnime.type} />
-                        <StatItem label="Studio" value={fullAnime.studio} />
+                        <StatItem label="Studio" value={
+                            fullAnime.studio ? (
+                                <button 
+                                    onClick={() => onStudioSelect(fullAnime.studio)} 
+                                    className="hover:text-[rgb(var(--color-primary-accent))] hover:underline transition-colors"
+                                >
+                                    {fullAnime.studio}
+                                </button>
+                            ) : 'Unknown'
+                        } />
                         <StatItem label="Source" value={fullAnime.source} />
                         <StatItem label="Views" value={fullAnime.views?.toLocaleString()} />
                         <StatItem label="Likes" value={fullAnime.likes?.toLocaleString()} />
