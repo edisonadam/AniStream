@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { StarIcon, ChartBarIcon, ChevronLeftIcon, ChevronRightIcon, ViewGridIcon, ViewCarouselIcon } from './icons/Icons';
+import { StarIcon, ChartBarIcon, ChevronLeftIcon, ChevronRightIcon, ViewGridIcon, ViewCarouselIcon, PencilIcon } from './icons/Icons';
 import { useAuth } from '../hooks/useAuth';
 import { useProfileData } from '../hooks/useProfileData';
 import { db } from '../firebase';
@@ -7,6 +7,7 @@ import { ref, runTransaction, onValue, set, push } from 'firebase/database';
 import { useToast } from '../hooks/useToast';
 import type { Review } from '../types';
 import { formatRelativeTime } from '../utils';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface RatingControlProps {
     animeId: number;
@@ -159,38 +160,44 @@ const RatingControl: React.FC<RatingControlProps> = ({ animeId, animeTitle }) =>
     const activeLabel = RATING_LABELS[Math.round(displayRating)] || RATING_LABELS[0];
 
     return (
-        <div className="bg-[rgb(var(--surface-2))/0.6] backdrop-blur-xl border border-white/10 p-6 rounded-2xl mb-8 animate-subtle-fade-in-up">
+        <div className="bg-[rgb(var(--surface-2))/0.4] backdrop-blur-xl border border-white/5 p-8 rounded-3xl mb-12 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-[rgb(var(--color-primary))]/5 blur-[100px] rounded-full -mr-32 -mt-32 pointer-events-none" />
             
             {/* Rating Header */}
-            <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-6">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-8 mb-8 relative z-10">
                 
-                <div className="flex flex-col items-center md:items-start gap-2">
-                    <h3 className="text-lg font-bold text-[rgb(var(--text-primary))]">Rate this Anime</h3>
-                    <div className="flex items-center gap-1" onMouseLeave={() => setHoverRating(0)}>
+                <div className="flex flex-col items-center md:items-start gap-3">
+                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                        <StarIcon className="w-5 h-5 text-[rgb(var(--color-primary-accent))]" />
+                        Rate this Anime
+                    </h3>
+                    <div className="flex items-center gap-1.5" onMouseLeave={() => setHoverRating(0)}>
                         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
-                            <button
+                            <motion.button
                                 key={star}
+                                whileHover={{ scale: 1.2, y: -2 }}
+                                whileTap={{ scale: 0.9 }}
                                 onMouseEnter={() => setHoverRating(star)}
                                 onClick={() => handleRate(star)}
-                                className={`transition-transform duration-200 hover:scale-110 focus:outline-none p-0.5 ${star <= displayRating ? activeLabel.color : 'text-gray-700'}`}
+                                className={`transition-all duration-300 focus:outline-none p-0.5 ${star <= displayRating ? activeLabel.color : 'text-white/10'}`}
                             >
                                 <StarIcon 
-                                    className="w-6 h-6 md:w-8 md:h-8"
+                                    className="w-7 h-7 md:w-9 md:h-9"
                                     fill={star <= displayRating ? 'currentColor' : 'none'}
                                 />
-                            </button>
+                            </motion.button>
                         ))}
                     </div>
-                    <div className={`text-sm font-bold uppercase tracking-widest transition-colors duration-300 ${activeLabel.color}`}>
-                        {displayRating > 0 ? `${displayRating} - ${activeLabel.text}` : 'Click to Rate'}
+                    <div className={`text-xs font-black uppercase tracking-[0.2em] transition-all duration-500 py-1 px-3 rounded-full bg-white/5 border border-white/5 ${activeLabel.color}`}>
+                        {displayRating > 0 ? `${displayRating} / 10 • ${activeLabel.text}` : 'Select your rating'}
                     </div>
                 </div>
 
-                <div className="hidden md:block w-px h-16 bg-white/10"></div>
+                <div className="hidden md:block w-px h-20 bg-white/10"></div>
 
-                <div className="flex flex-col items-center gap-2">
-                    <span className="text-xs text-[rgb(var(--text-muted))] uppercase tracking-wide">Manual Input</span>
-                    <div className="flex items-center gap-2">
+                <div className="flex flex-col items-center gap-3">
+                    <span className="text-[10px] text-[rgb(var(--text-muted))] uppercase font-black tracking-widest">Manual Score</span>
+                    <div className="flex items-center gap-3">
                         <input 
                             type="number" min="0" max="10" 
                             value={userRating > 0 ? userRating : ''} 
@@ -199,27 +206,27 @@ const RatingControl: React.FC<RatingControlProps> = ({ animeId, animeTitle }) =>
                                 if (!isNaN(val) && val >= 0 && val <= 10) handleRate(val);
                             }}
                             placeholder="-"
-                            className="w-16 text-center bg-[rgb(var(--surface-3))] border border-white/10 rounded-xl py-2 text-lg font-bold focus:ring-2 focus:ring-[rgb(var(--color-primary))]"
+                            className="w-20 text-center bg-[rgb(var(--surface-3))] border border-white/10 rounded-2xl py-3 text-2xl font-black text-white focus:ring-2 focus:ring-[rgb(var(--color-primary))] transition-all outline-none"
                         />
-                        <span className="text-[rgb(var(--text-muted))]">/ 10</span>
+                        <span className="text-lg font-bold text-[rgb(var(--text-muted))]">/ 10</span>
                     </div>
                 </div>
 
-                <div className="hidden md:block w-px h-16 bg-white/10"></div>
+                <div className="hidden md:block w-px h-20 bg-white/10"></div>
 
-                <div className="flex flex-col items-center md:items-end min-w-[120px]">
-                    <span className="text-xs text-[rgb(var(--text-muted))] uppercase tracking-wide mb-1">Website Rating</span>
-                    <div className="flex items-center gap-3">
+                <div className="flex flex-col items-center md:items-end min-w-[140px]">
+                    <span className="text-[10px] text-[rgb(var(--text-muted))] uppercase font-black tracking-widest mb-2">AniStream Rating</span>
+                    <div className="flex items-center gap-4">
                         <div className="text-right">
-                            <div className="text-3xl font-black text-[rgb(var(--text-primary))] leading-none">
+                            <div className="text-4xl font-black text-white leading-none tracking-tighter">
                                 {globalStats.average > 0 ? globalStats.average : '--'}
                             </div>
-                            <div className="text-xs text-[rgb(var(--text-muted))] mt-1">
+                            <div className="text-[10px] font-bold text-[rgb(var(--text-muted))] mt-1.5 uppercase tracking-wider">
                                 {globalStats.count.toLocaleString()} votes
                             </div>
                         </div>
-                         <div className="w-12 h-12 rounded-full bg-[rgb(var(--surface-3))] flex items-center justify-center">
-                            <ChartBarIcon className="w-6 h-6 text-[rgb(var(--color-primary-accent))]" />
+                         <div className="w-14 h-14 rounded-2xl bg-[rgb(var(--color-primary))]/10 flex items-center justify-center border border-[rgb(var(--color-primary))]/20 shadow-lg shadow-[rgb(var(--color-primary))]/5">
+                            <ChartBarIcon className="w-7 h-7 text-[rgb(var(--color-primary-accent))]" />
                         </div>
                     </div>
                 </div>
@@ -228,94 +235,119 @@ const RatingControl: React.FC<RatingControlProps> = ({ animeId, animeTitle }) =>
             
             {/* Progress Bar Visual */}
             {globalStats.count > 0 && (
-                <div className="mt-2 mb-6">
-                    <div className="flex justify-between text-xs text-[rgb(var(--text-muted))] mb-1">
-                        <span>Community Score</span>
-                        <span>{globalStats.average} / 10</span>
+                <div className="mt-4 mb-8 relative z-10">
+                    <div className="flex justify-between text-[10px] font-black text-[rgb(var(--text-muted))] uppercase tracking-widest mb-2">
+                        <span>Community Sentiment</span>
+                        <span className="text-white">{globalStats.average} / 10</span>
                     </div>
-                    <div className="w-full h-2 bg-[rgb(var(--surface-3))] rounded-full overflow-hidden">
-                        <div 
-                            className={`h-full bg-gradient-to-r ${RATING_LABELS[Math.round(globalStats.average)]?.gradient || 'from-blue-500 to-purple-500'}`} 
-                            style={{ width: `${(globalStats.average / 10) * 100}%` }}
-                        ></div>
+                    <div className="w-full h-3 bg-white/5 rounded-full overflow-hidden border border-white/5 p-0.5">
+                        <motion.div 
+                            initial={{ width: 0 }}
+                            animate={{ width: `${(globalStats.average / 10) * 100}%` }}
+                            transition={{ duration: 1.5, ease: "easeOut" }}
+                            className={`h-full rounded-full bg-gradient-to-r ${RATING_LABELS[Math.round(globalStats.average)]?.gradient || 'from-blue-500 to-purple-500'} shadow-[0_0_15px_rgba(var(--color-primary),0.3)]`} 
+                        ></motion.div>
                     </div>
                 </div>
             )}
 
             {/* Write a Review */}
-            {isReviewOpen && isLoggedIn && (
-                <div className="mt-6 bg-[rgb(var(--surface-3))/0.5] p-4 rounded-xl animate-subtle-fade-in-up">
-                    <p className="text-sm font-semibold mb-2 text-[rgb(var(--text-secondary))]">Write a short review (Optional)</p>
-                    <textarea
-                        value={reviewText}
-                        onChange={(e) => setReviewText(e.target.value)}
-                        placeholder={`What did you think of ${animeTitle}?`}
-                        className="w-full bg-[rgb(var(--surface-input))] border border-white/10 rounded-lg p-3 text-sm text-[rgb(var(--text-primary))] focus:ring-1 focus:ring-[rgb(var(--border-focus))]"
-                        rows={2}
-                    />
-                    <div className="flex justify-end gap-2 mt-2">
-                        <button onClick={() => setIsReviewOpen(false)} className="px-3 py-1.5 text-xs text-[rgb(var(--text-muted))] hover:text-white">Cancel</button>
-                        <button onClick={submitReview} className="px-4 py-1.5 bg-[rgb(var(--color-primary))] text-white text-xs font-bold rounded-lg hover:bg-[rgb(var(--color-primary-hover))]">Post Review</button>
-                    </div>
-                </div>
-            )}
+            <AnimatePresence>
+                {isReviewOpen && isLoggedIn && (
+                    <motion.div 
+                        initial={{ opacity: 0, height: 0, y: 20 }}
+                        animate={{ opacity: 1, height: 'auto', y: 0 }}
+                        exit={{ opacity: 0, height: 0, y: 20 }}
+                        className="mt-8 bg-white/5 p-6 rounded-3xl border border-white/5 relative z-10 overflow-hidden"
+                    >
+                        <div className="flex items-center gap-2 mb-4">
+                            <PencilIcon className="w-4 h-4 text-[rgb(var(--color-primary-accent))]" />
+                            <p className="text-sm font-bold text-white">Share your thoughts</p>
+                        </div>
+                        <textarea
+                            value={reviewText}
+                            onChange={(e) => setReviewText(e.target.value)}
+                            placeholder={`What did you think of ${animeTitle}?`}
+                            className="w-full bg-[rgb(var(--surface-input))] border border-white/10 rounded-2xl p-4 text-sm text-white focus:ring-2 focus:ring-[rgb(var(--color-primary))] transition-all outline-none placeholder:text-white/20"
+                            rows={3}
+                        />
+                        <div className="flex justify-end gap-3 mt-4">
+                            <button onClick={() => setIsReviewOpen(false)} className="px-5 py-2 text-xs font-bold text-[rgb(var(--text-muted))] hover:text-white transition-colors">Cancel</button>
+                            <button onClick={submitReview} className="px-6 py-2.5 bg-[rgb(var(--color-primary))] text-[rgb(var(--text-on-primary))] text-xs font-black rounded-xl hover:bg-[rgb(var(--color-primary-hover))] transition-all active:scale-95 shadow-lg shadow-[rgb(var(--color-primary))]/20">Post Review</button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Reviews Section */}
             {reviews.length > 0 && (
-                <div className="mt-8 border-t border-white/10 pt-6 relative">
-                    <div className="flex justify-between items-center mb-4">
-                        <h4 className="text-sm font-bold text-[rgb(var(--text-muted))] uppercase tracking-wider flex items-center gap-2">
-                            Community Reviews <span className="bg-[rgb(var(--surface-3))] px-2 py-0.5 rounded text-xs text-[rgb(var(--text-primary))]">{reviews.length}</span>
+                <div className="mt-10 border-t border-white/5 pt-10 relative z-10">
+                    <div className="flex justify-between items-center mb-6">
+                        <h4 className="text-[10px] font-black text-[rgb(var(--text-muted))] uppercase tracking-[0.2em] flex items-center gap-3">
+                            Community Reviews 
+                            <span className="bg-white/5 px-2.5 py-1 rounded-lg text-[10px] text-white border border-white/5">{reviews.length}</span>
                         </h4>
-                        <div className="flex items-center bg-[rgb(var(--surface-3))] rounded-lg p-1">
-                             <button onClick={() => setViewMode('carousel')} className={`p-1.5 rounded ${viewMode === 'carousel' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`} title="Carousel View"><ViewCarouselIcon className="w-4 h-4"/></button>
-                             <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded ${viewMode === 'grid' ? 'bg-[rgb(var(--surface-1))] text-[rgb(var(--color-primary-accent))]' : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-secondary))]'}`} title="View All"><ViewGridIcon className="w-4 h-4"/></button>
+                        <div className="flex items-center bg-white/5 rounded-2xl p-1 border border-white/5">
+                             <button onClick={() => setViewMode('carousel')} className={`p-2 rounded-xl transition-all ${viewMode === 'carousel' ? 'bg-[rgb(var(--color-primary))] text-white shadow-lg' : 'text-white/40 hover:text-white/60'}`} title="Carousel View"><ViewCarouselIcon className="w-4 h-4"/></button>
+                             <button onClick={() => setViewMode('grid')} className={`p-2 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-[rgb(var(--color-primary))] text-white shadow-lg' : 'text-white/40 hover:text-white/60'}`} title="View All"><ViewGridIcon className="w-4 h-4"/></button>
                         </div>
                     </div>
                     
                     {viewMode === 'carousel' ? (
                         <div className="relative group">
-                            <button onClick={() => scrollReviews('left')} className="absolute left-0 top-1/2 -translate-y-1/2 -ml-4 z-10 p-2 bg-black/50 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[rgb(var(--color-primary))]"><ChevronLeftIcon className="w-5 h-5"/></button>
-                            <button onClick={() => scrollReviews('right')} className="absolute right-0 top-1/2 -translate-y-1/2 -mr-4 z-10 p-2 bg-black/50 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[rgb(var(--color-primary))]"><ChevronRightIcon className="w-5 h-5"/></button>
+                            <button onClick={() => scrollReviews('left')} className="absolute left-0 top-1/2 -translate-y-1/2 -ml-4 z-10 p-3 bg-black/80 backdrop-blur-md rounded-full text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-[rgb(var(--color-primary))] border border-white/10 shadow-2xl"><ChevronLeftIcon className="w-5 h-5"/></button>
+                            <button onClick={() => scrollReviews('right')} className="absolute right-0 top-1/2 -translate-y-1/2 -mr-4 z-10 p-3 bg-black/80 backdrop-blur-md rounded-full text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-[rgb(var(--color-primary))] border border-white/10 shadow-2xl"><ChevronRightIcon className="w-5 h-5"/></button>
                             
-                            <div ref={scrollRef} className="flex gap-4 overflow-x-auto pb-4 -mx-2 px-2 snap-x scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
+                            <div ref={scrollRef} className="flex gap-5 overflow-x-auto pb-6 -mx-2 px-2 snap-x scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
                                 {reviews.map((review) => (
-                                    <div key={review.id} className="snap-start flex-shrink-0 w-72 bg-[rgb(var(--surface-3))] p-4 rounded-xl border border-white/5">
-                                        <div className="flex items-start justify-between mb-2">
-                                            <div className="flex items-center gap-2">
-                                                <img src={review.userAvatar} alt={review.username} className="w-8 h-8 rounded-full" />
+                                    <motion.div 
+                                        key={review.id} 
+                                        whileHover={{ y: -5 }}
+                                        className="snap-start flex-shrink-0 w-80 bg-white/5 p-5 rounded-3xl border border-white/5 shadow-xl"
+                                    >
+                                        <div className="flex items-start justify-between mb-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="relative">
+                                                    <img src={review.userAvatar} alt={review.username} className="w-10 h-10 rounded-full border-2 border-white/10" />
+                                                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-[rgb(var(--surface-3))]" />
+                                                </div>
                                                 <div>
-                                                    <p className="text-sm font-bold text-[rgb(var(--text-primary))]">{review.username}</p>
-                                                    <p className="text-[10px] text-[rgb(var(--text-muted))]">{formatRelativeTime(review.timestamp)}</p>
+                                                    <p className="text-sm font-bold text-white">{review.username}</p>
+                                                    <p className="text-[10px] font-medium text-[rgb(var(--text-muted))] uppercase tracking-wider">{formatRelativeTime(review.timestamp)}</p>
                                                 </div>
                                             </div>
-                                            <div className={`px-2 py-0.5 rounded text-xs font-bold ${RATING_LABELS[review.rating]?.color} bg-black/20`}>
-                                                {review.rating}/10
+                                            <div className={`px-2.5 py-1 rounded-lg text-[10px] font-black ${RATING_LABELS[review.rating]?.color} bg-black/40 border border-white/5`}>
+                                                {review.rating} / 10
                                             </div>
                                         </div>
-                                        <p className="text-sm text-[rgb(var(--text-secondary))] line-clamp-3 leading-relaxed">"{review.text}"</p>
-                                    </div>
+                                        <p className="text-sm text-[rgb(var(--text-secondary))] line-clamp-4 leading-relaxed italic">"{review.text}"</p>
+                                    </motion.div>
                                 ))}
                             </div>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-96 overflow-y-auto pr-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 max-h-[500px] overflow-y-auto pr-3 custom-scrollbar">
                              {reviews.map((review) => (
-                                <div key={review.id} className="bg-[rgb(var(--surface-3))] p-4 rounded-xl border border-white/5">
-                                    <div className="flex items-start justify-between mb-2">
-                                        <div className="flex items-center gap-2">
-                                            <img src={review.userAvatar} alt={review.username} className="w-8 h-8 rounded-full" />
+                                <motion.div 
+                                    key={review.id} 
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="bg-white/5 p-6 rounded-3xl border border-white/5 shadow-xl"
+                                >
+                                    <div className="flex items-start justify-between mb-4">
+                                        <div className="flex items-center gap-3">
+                                            <img src={review.userAvatar} alt={review.username} className="w-10 h-10 rounded-full border-2 border-white/10" />
                                             <div>
-                                                <p className="text-sm font-bold text-[rgb(var(--text-primary))]">{review.username}</p>
-                                                <p className="text-[10px] text-[rgb(var(--text-muted))]">{formatRelativeTime(review.timestamp)}</p>
+                                                <p className="text-sm font-bold text-white">{review.username}</p>
+                                                <p className="text-[10px] font-medium text-[rgb(var(--text-muted))] uppercase tracking-wider">{formatRelativeTime(review.timestamp)}</p>
                                             </div>
                                         </div>
-                                        <div className={`px-2 py-0.5 rounded text-xs font-bold ${RATING_LABELS[review.rating]?.color} bg-black/20`}>
-                                            {review.rating}/10
+                                        <div className={`px-2.5 py-1 rounded-lg text-[10px] font-black ${RATING_LABELS[review.rating]?.color} bg-black/40 border border-white/5`}>
+                                            {review.rating} / 10
                                         </div>
                                     </div>
-                                    <p className="text-sm text-[rgb(var(--text-secondary))] leading-relaxed">"{review.text}"</p>
-                                </div>
+                                    <p className="text-sm text-[rgb(var(--text-secondary))] leading-relaxed italic">"{review.text}"</p>
+                                </motion.div>
                             ))}
                         </div>
                     )}

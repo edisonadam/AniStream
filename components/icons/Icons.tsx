@@ -126,6 +126,8 @@ export const LockClosedIcon = createSolidIcon(<path fillRule="evenodd" d="M5 9V7
 export const ArrowUpIcon = createIcon(<path d="M12 19V5M5 12l7-7 7 7" />);
 export const HeartIconSolid = createSolidIcon(<path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />);
 export const PlusCircleIcon = createIcon(<><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" /></>);
+export const TrashIcon = createIcon(<path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />);
+export const PencilIcon = createIcon(<path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />);
 export const FlagIcon = createIcon(<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7" />);
 {/* FIX: Add missing PlayIconSolid component. */}
 export const PlayIconSolid = createSolidIcon(<path d="M6.32 2.577a1.5 1.5 0 012.36 0l8.66 7.518a1.5 1.5 0 010 2.51l-8.66 7.518a1.5 1.5 0 01-2.36-1.255V3.832a1.5 1.5 0 010-1.255z" />);

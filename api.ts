@@ -1,33 +1,99 @@
 
 import type { Anime, Character, VoiceActor, NewsPromo, Manga, WatchlistStatus } from './types';
 
+const CONSUMET_API_URL = 'https://consumet-api-sigma-eight.vercel.app';
+
+// Simple rate limiter queue
+const requestQueue: { url: string, options?: RequestInit, resolve: (value: Response) => void, reject: (reason?: any) => void }[] = [];
+let isRequesting = false;
+const RATE_LIMIT_DELAY = 350; // 3 requests per second = ~333ms. Using 350ms to be safe.
+
+// Global state for rate limiting tracking
+export let isGlobalRateLimited = false;
+const rateLimitListeners: ((isLimited: boolean) => void)[] = [];
+
+export const subscribeToRateLimit = (callback: (isLimited: boolean) => void) => {
+    rateLimitListeners.push(callback);
+    return () => {
+        const index = rateLimitListeners.indexOf(callback);
+        if (index > -1) rateLimitListeners.splice(index, 1);
+    };
+};
+
+const setRateLimited = (limited: boolean) => {
+    if (isGlobalRateLimited !== limited) {
+        isGlobalRateLimited = limited;
+        rateLimitListeners.forEach(cb => cb(limited));
+    }
+};
+
+const processQueue = async () => {
+    if (isRequesting || requestQueue.length === 0) return;
+    isRequesting = true;
+
+    const { url, options, resolve, reject } = requestQueue.shift()!;
+
+    try {
+        const response = await fetch(url, options);
+        resolve(response);
+    } catch (error) {
+        reject(error);
+    } finally {
+        setTimeout(() => {
+            isRequesting = false;
+            processQueue();
+        }, RATE_LIMIT_DELAY);
+    }
+};
+
+const fetchWithRateLimit = (url: string, options?: RequestInit): Promise<Response> => {
+    return new Promise((resolve, reject) => {
+        requestQueue.push({ url, options, resolve, reject });
+        processQueue();
+    });
+};
+
 /**
  * A wrapper for the fetch API that includes automatic retries on rate limiting (429) or network errors.
  * @param url The URL to fetch.
  * @param retries The number of times to retry on failure.
  * @param delay The base delay in milliseconds between retries.
+ * @param options Optional fetch options (RequestInit).
  * @returns A promise that resolves to the Response object.
  */
-export const fetchWithRetry = async (url: string, retries = 3, delay = 1000): Promise<Response> => {
+export const fetchWithRetry = async (url: string, retries = 3, delay = 1000, options?: RequestInit): Promise<Response> => {
+    // Only use rate limiter for Jikan API
+    const isJikan = url.includes('api.jikan.moe');
+    
     for (let i = 0; i <= retries; i++) {
         try {
-            const response = await fetch(url);
-            // If we get a 429 (Too Many Requests) and we have retries left, wait and try again.
-            if (response.status === 429 && i < retries) {
-                const retryAfterHeader = response.headers.get('Retry-After');
-                // The header can be in seconds. Default to exponential backoff.
-                const waitTime = retryAfterHeader ? parseInt(retryAfterHeader, 10) * 1000 : delay * (i + 1); 
+            const response = isJikan ? await fetchWithRateLimit(url, options) : await fetch(url, options);
+            
+            // If we get a 429 (Too Many Requests) or 5xx (Server Error)
+            if (response.status === 429 || (response.status >= 500 && response.status <= 599)) {
+                if (response.status === 429) setRateLimited(true);
                 
-                console.warn(`Rate limit hit for ${url}. Retrying in ${waitTime}ms...`);
-                await new Promise(resolve => setTimeout(resolve, waitTime));
-                continue;
+                if (i < retries) {
+                    const retryAfterHeader = response.headers.get('Retry-After');
+                    // Default to a longer backoff for 429s/5xxs (e.g., 2s, 4s, 8s)
+                    const waitTime = retryAfterHeader 
+                        ? parseInt(retryAfterHeader, 10) * 1000 
+                        : delay * Math.pow(2, i + 1); 
+                    
+                    console.warn(`Rate limit or server error (${response.status}) hit for ${url}. Retrying in ${waitTime}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, waitTime));
+                    continue;
+                }
+            } else if (response.ok) {
+                setRateLimited(false);
             }
+            
             // If the response is anything else (ok or another error), return it immediately.
             return response;
         } catch (error) {
             // This catches network errors (e.g., offline).
             if (i < retries) {
-                const waitTime = delay * (i + 1); // Exponential backoff for network errors
+                const waitTime = delay * Math.pow(2, i + 1); // Exponential backoff
                 console.warn(`Network error for ${url}. Retrying in ${waitTime}ms...`);
                 await new Promise(resolve => setTimeout(resolve, waitTime));
                 continue;
@@ -36,9 +102,35 @@ export const fetchWithRetry = async (url: string, retries = 3, delay = 1000): Pr
             throw error;
         }
     }
-    // This should theoretically not be reached, but it's a safeguard.
     throw new Error(`Fetch failed for ${url} after multiple retries.`);
 };
+
+export const fetchTopCharacters = async (page = 1): Promise<Character[]> => {
+    const response = await fetchWithRetry(`https://api.jikan.moe/v4/top/characters?page=${page}`);
+    if (!response.ok) throw new Error('Failed to fetch top characters');
+    const data = await response.json();
+    return data.data.map((item: any) => ({
+        id: item.mal_id,
+        name: item.name,
+        image: item.images?.jpg?.image_url || '',
+        role: item.about, // Using 'about' as a description/role placeholder
+        voiceActors: []
+    }));
+};
+
+export const fetchTopPeople = async (page = 1): Promise<any[]> => {
+    const response = await fetchWithRetry(`https://api.jikan.moe/v4/top/people?page=${page}`);
+    if (!response.ok) throw new Error('Failed to fetch top people');
+    const data = await response.json();
+    return data.data.map((item: any) => ({
+        id: item.mal_id,
+        name: item.name,
+        image: item.images?.jpg?.image_url || '',
+        about: item.about,
+        favorites: item.favorites
+    }));
+};
+
 
 /**
  * Maps a raw item from the Jikan API to the application's Anime type.
@@ -279,6 +371,15 @@ export const fetchNewsPromos = async (): Promise<NewsPromo[]> => {
     return result.data || [];
 }
 
+export const fetchTopUpcomingAnime = async (page = 1): Promise<Anime[]> => {
+    const response = await fetchWithRetry(`https://api.jikan.moe/v4/top/anime?filter=upcoming&page=${page}`);
+    if (!response.ok) throw new Error('Failed to fetch top upcoming anime');
+    const data = await response.json();
+    return (data.data || [])
+        .map((item: any) => mapJikanToAnime(item))
+        .filter((anime): anime is Anime => anime !== null);
+};
+
 // --- AniList Integration ---
 
 const ANILIST_API_URL = 'https://graphql.anilist.co';
@@ -290,13 +391,16 @@ async function fetchAnilist(query: string, variables: object, token?: string) {
     if (token) {
         headers['Authorization'] = 'Bearer ' + token;
     }
-    const response = await fetch(ANILIST_API_URL, {
+    
+    // Use fetchWithRetry for AniList as well
+    const response = await fetchWithRetry(ANILIST_API_URL, 3, 1000, {
         method: 'POST',
         headers,
         body: JSON.stringify({ query, variables }),
     });
+
     if (!response.ok) {
-        const errorBody = await response.json();
+        const errorBody = await response.json().catch(() => ({}));
         throw new Error(`AniList API Error: ${errorBody.errors?.[0]?.message || 'Unknown error'}`);
     }
     return response.json();
@@ -379,7 +483,7 @@ export const fetchAniListDetails = async (malId: number) => {
             return JSON.parse(cached);
         }
 
-        const response = await fetch(ANILIST_API_URL, {
+        const response = await fetchWithRetry(ANILIST_API_URL, 3, 1000, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
             body: JSON.stringify({ query: anilistQuery, variables: { malId } }),
@@ -426,7 +530,7 @@ export const fetchAniListDetails = async (malId: number) => {
 };
 
 
-const mapAnilistToAnime = (item: any): Anime | null => {
+export const mapAnilistToAnime = (item: any): Anime | null => {
     if (!item?.idMal) return null; // We use MAL ID as the primary key in our app
 
     let status: Anime['status'] = 'Upcoming';
@@ -569,6 +673,59 @@ export const updateAnilistEntry = async (
     }
 };
 
+export const fetchAniListAiringSchedule = async (): Promise<(Anime & { nextAiringEpisode: { episode: number, airingAt: number } })[]> => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    let season;
+    // Seasons: WINTER (Dec-Feb), SPRING (Mar-May), SUMMER (Jun-Aug), FALL (Sep-Nov)
+    if (month >= 2 && month <= 4) season = 'SPRING';
+    else if (month >= 5 && month <= 7) season = 'SUMMER';
+    else if (month >= 8 && month <= 10) season = 'FALL';
+    else season = 'WINTER';
+
+    const query = `
+      query ($season: MediaSeason, $year: Int) {
+        Page(page: 1, perPage: 40) {
+          media(season: $season, seasonYear: $year, type: ANIME, status: RELEASING, sort: POPULARITY_DESC) {
+            idMal
+            title { romaji english native }
+            coverImage { extraLarge }
+            bannerImage
+            genres
+            seasonYear
+            status
+            episodes
+            averageScore
+            type
+            duration
+            isAdult
+            studios(isMain: true) { nodes { name } }
+            nextAiringEpisode {
+              episode
+              airingAt
+            }
+          }
+        }
+      }
+    `;
+
+    const result = await fetchAnilist(query, { season, year });
+    const media = result.data?.Page?.media || [];
+    
+    return media.map((item: any) => {
+        const anime = mapAnilistToAnime(item);
+        if (!anime || !item.nextAiringEpisode) return null;
+        return {
+            ...anime,
+            nextAiringEpisode: {
+                episode: item.nextAiringEpisode.episode,
+                airingAt: item.nextAiringEpisode.airingAt * 1000 // convert to ms
+            }
+        };
+    }).filter(Boolean);
+};
+
 // Maintained for backward compatibility for now
 export const updateAnilistProgress = async (anilistId: number, episode: number, token: string): Promise<void> => {
     const mutation = `
@@ -591,7 +748,7 @@ export const fetchConsumetStreamUrl = async (
     try {
         // Clean title: remove parenthetical info like (TV) or (2024) to improve search hits
         const cleanTitle = title.replace(/\s*\([^)]*\)/g, '').trim();
-        const searchRes = await fetchWithRetry(`https://api.consumet.org/anime/${provider}/${encodeURIComponent(cleanTitle)}`);
+        const searchRes = await fetchWithRetry(`${CONSUMET_API_URL}/anime/${provider}/${encodeURIComponent(cleanTitle)}`);
         
         if (!searchRes.ok) throw new Error('Anime not found on provider');
         const searchData = await searchRes.json();
@@ -603,7 +760,7 @@ export const fetchConsumetStreamUrl = async (
         const animeId = animeResult.id;
 
         // 2. Fetch episode list for the anime.
-        const episodesRes = await fetchWithRetry(`https://api.consumet.org/anime/${provider}/info/${animeId}`);
+        const episodesRes = await fetchWithRetry(`${CONSUMET_API_URL}/anime/${provider}/info/${animeId}`);
         if (!episodesRes.ok) throw new Error('Could not fetch episode list');
         const episodesData = await episodesRes.json();
         
@@ -612,7 +769,7 @@ export const fetchConsumetStreamUrl = async (
         if (!episodeId) throw new Error(`Episode ${episodeNumber} not found for ${title}`);
 
         // 3. Fetch the streaming URL for the episode.
-        const streamRes = await fetchWithRetry(`https://api.consumet.org/anime/${provider}/watch/${episodeId}`);
+        const streamRes = await fetchWithRetry(`${CONSUMET_API_URL}/anime/${provider}/watch/${episodeId}`);
         if (!streamRes.ok) throw new Error('Could not fetch streaming URL');
         const streamData = await streamRes.json();
 

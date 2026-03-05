@@ -1,7 +1,7 @@
 
 
 import React, { useState, useRef, useEffect } from 'react';
-import { HamburgerIcon, SearchIcon, BellIcon, UserIcon, CloseIcon, BookmarkIcon, LogoutIcon, UsersIcon, MessageCircleIcon, LevelUpIcon, HeartIcon, RefreshCwIcon, SettingsIcon, FilmIcon, ViewListIcon, NewspaperIcon, VerifiedIcon } from './icons/Icons';
+import { HamburgerIcon, SearchIcon, BellIcon, UserIcon, CloseIcon, BookmarkIcon, LogoutIcon, UsersIcon, MessageCircleIcon, LevelUpIcon, HeartIcon, RefreshCwIcon, SettingsIcon, FilmIcon, ViewListIcon, NewspaperIcon, VerifiedIcon, SunIcon, MoonIcon } from './icons/Icons';
 import { useAuth } from '../hooks/useAuth';
 import type { Notification, Anime, Page, NotificationType } from '../types';
 import Logo from './Logo';
@@ -47,7 +47,7 @@ const NotificationIcon: React.FC<{ type: NotificationType }> = ({ type }) => {
 const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClick, onShowWatchlist, onShowQueue, onNavigate, onGoHome, onNotificationClick, trendingAnime = [], onTrendingAnimeClick = (_) => {} }) => {
   const { isLoggedIn, user, logout } = useAuth();
   const { notifications, markNotificationsAsRead, clearAllNotifications, aniTokens } = useProfileData();
-  const { settings } = useSettings();
+  const { settings, updateSettings } = useSettings();
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   
@@ -95,6 +95,10 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
     setIsNotificationOpen(false);
   }
 
+  const toggleTheme = () => {
+    updateSettings({ theme: settings.theme === 'dark' ? 'light' : 'dark' });
+  };
+
   return (
     <header className="sticky top-0 z-40 bg-[rgb(var(--surface-1))/0.9] backdrop-blur-xl border-b border-[rgb(var(--border-color))] shadow-lg transition-all duration-300">
       <div className="w-full px-4 sm:px-6 lg:px-10">
@@ -135,6 +139,15 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onLoginClick, onSearchClic
 
           {/* Right Section */}
           <div className="flex items-center space-x-3 sm:space-x-5">
+            <button 
+              onClick={toggleTheme} 
+              title={`Switch to ${settings.theme === 'dark' ? 'light' : 'dark'} mode`}
+              className="p-2.5 rounded-full text-[rgb(var(--text-secondary))] bg-white/5 hover:text-[rgb(var(--color-primary-accent))] hover:bg-white/10 transition-all"
+              aria-label="Toggle theme"
+            >
+              {settings.theme === 'dark' ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
+            </button>
+
             <button onClick={onSearchClick} title="Search" className="sm:hidden p-2.5 rounded-full text-[rgb(var(--text-secondary))] bg-white/5 hover:text-[rgb(var(--color-primary-accent))] hover:bg-white/10 transition-all" aria-label="Search"><SearchIcon /></button>
             
             {isLoggedIn && user ? (

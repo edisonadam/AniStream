@@ -14,7 +14,7 @@ interface NewEpisodesPageProps {
 }
 
 const NewEpisodesPage: React.FC<NewEpisodesPageProps> = ({ onSelectAnime, onGoBack, getEpisodeStatus, onLoginRequest }) => {
-    const [animeList, setAnimeList] = useState<Anime[]>([]);
+    const [animeList, setAnimeList] = useState<(Anime & { latestEpisode: number })[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -29,15 +29,23 @@ const NewEpisodesPage: React.FC<NewEpisodesPageProps> = ({ onSelectAnime, onGoBa
                 }
                 const data = await res.json();
                 
-                // FIX: Explicitly type the argument in the filter's type guard to ensure
-                // the compiler correctly narrows the array type from `(Anime | null)[]` to `Anime[]`.
-                const mapped = (data.data || []).map((item: any) => mapJikanToAnime(item.entry)).filter((anime: Anime | null): anime is Anime => anime !== null);
+                const mapped = (data.data || []).map((item: any) => {
+                    const anime = mapJikanToAnime(item.entry);
+                    if (!anime) return null;
+                    // Extract episode number from the first episode in the list
+                    const latestEpisode = item.episodes?.[0]?.mal_id || null;
+                    return { ...anime, latestEpisode };
+                }).filter((item: any): item is (Anime & { latestEpisode: number }) => item !== null && item.latestEpisode !== null);
                 
-                // The same anime might appear multiple times if multiple episodes were released.
-                // We only want to show each anime once.
-                const uniqueAnime = Array.from(new Map(mapped.map(a => [a.id, a])).values());
+                // Deduplicate by ID, keeping the one with the highest episode number
+                const uniqueMap = new Map<number, Anime & { latestEpisode: number }>();
+                mapped.forEach((item: any) => {
+                    if (!uniqueMap.has(item.id) || uniqueMap.get(item.id)!.latestEpisode < item.latestEpisode) {
+                        uniqueMap.set(item.id, item);
+                    }
+                });
 
-                setAnimeList(uniqueAnime);
+                setAnimeList(Array.from(uniqueMap.values()));
             } catch (e) {
                 setError(e instanceof Error ? e.message : 'An unknown error occurred.');
             } finally {
@@ -72,7 +80,7 @@ const NewEpisodesPage: React.FC<NewEpisodesPageProps> = ({ onSelectAnime, onGoBa
                                 <AnimeCard 
                                     anime={anime} 
                                     onSelect={onSelectAnime} 
-                                    episodeStatus={getEpisodeStatus(anime.id)} 
+                                    episodeStatus={{ isNew: true, episodeNumber: anime.latestEpisode }}
                                     onLoginRequest={onLoginRequest}
                                 />
                             </div>

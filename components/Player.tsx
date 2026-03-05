@@ -34,7 +34,7 @@ declare global {
 
 declare var Hls: any;
 
-const TMDB_API_KEY = '0f463393529890c7bf7e801f907981f8';
+const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY || '0f463393529890c7bf7e801f907981f8';
 const EPISODES_PER_PAGE = 100;
 
 interface PlayerProps {
@@ -1037,6 +1037,8 @@ export const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSel
     }
   }, [isLoadingEpisodes, paginatedEpisodes, currentSeason, playerAnime, currentEpisode]);
   
+  const shareUrl = `${window.location.origin}/?animeId=${playerAnime.id}${currentEpisode > 1 ? `&episode=${currentEpisode}` : ''}`;
+
   const handleShareWithFriend = (friend: User) => {
     if (!user || !playerAnime) return;
     addNotification({
@@ -1744,7 +1746,62 @@ export const Player: React.FC<PlayerProps> = ({ anime, onGoBack, onGoHome, onSel
     <div className={`animate-subtle-fade-in-up ${isFullPage ? 'fixed inset-0 bg-[rgb(var(--bg-gradient-start))] z-[9999] overflow-y-auto' : ''}`}>
         {/* Modal Portals */}
         {modalRoot && isEmbedModalOpen && ReactDOM.createPortal(<EmbedModal animeId={playerAnime.id} onClose={() => setIsEmbedModalOpen(false)} />, modalRoot)}
-        {modalRoot && isShareModalOpen && ReactDOM.createPortal(<div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center animate-cinematic-fade-in" onClick={() => setIsShareModalOpen(false)}><div className="bg-[rgb(var(--surface-2))] p-6 rounded-2xl w-96" onClick={e => e.stopPropagation()}><h3 className="text-lg font-bold mb-4">Share with a friend</h3><div className="space-y-2">{friends.map(f => <button key={f.uid} onClick={() => handleShareWithFriend(f)} className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-[rgb(var(--surface-3))] text-left"><img src={f.avatar} alt={f.username} className="w-8 h-8 rounded-full"/>{f.username}</button>)}</div></div></div>, modalRoot)}
+        {modalRoot && isShareModalOpen && ReactDOM.createPortal(
+            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center animate-cinematic-fade-in p-4" onClick={() => setIsShareModalOpen(false)}>
+                <div className="bg-[rgb(var(--surface-2))] border border-white/10 p-6 rounded-3xl w-full max-md animate-modal-pop-in" style={{ maxWidth: '400px' }} onClick={e => e.stopPropagation()}>
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-xl font-bold text-[rgb(var(--text-primary))]">Share Anime</h3>
+                        <button onClick={() => setIsShareModalOpen(false)} className="p-2 rounded-full hover:bg-white/10 text-[rgb(var(--text-muted))]"><CloseIcon className="w-5 h-5" /></button>
+                    </div>
+                    
+                    <div className="grid grid-cols-4 gap-4 mb-6">
+                        <button onClick={() => window.open(`https://twitter.com/intent/tweet?text=Watching ${displayTitle} on AniStream!&url=${encodeURIComponent(shareUrl)}`, '_blank')} className="flex flex-col items-center gap-2 group">
+                            <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center group-hover:scale-110 transition-transform">
+                                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                            </div>
+                            <span className="text-[10px] font-medium">Twitter</span>
+                        </button>
+                        <button onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, '_blank')} className="flex flex-col items-center gap-2 group">
+                            <div className="w-10 h-10 rounded-full bg-[#1877F2] flex items-center justify-center group-hover:scale-110 transition-transform">
+                                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                            </div>
+                            <span className="text-[10px] font-medium">Facebook</span>
+                        </button>
+                        <button onClick={() => window.open(`https://www.reddit.com/submit?url=${encodeURIComponent(shareUrl)}&title=Watching ${displayTitle} on AniStream!`, '_blank')} className="flex flex-col items-center gap-2 group">
+                            <div className="w-10 h-10 rounded-full bg-[#FF4500] flex items-center justify-center group-hover:scale-110 transition-transform">
+                                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.056 1.597.04.21.06.427.06.646 0 3.033-3.662 5.492-8.18 5.492-4.51 0-8.177-2.459-8.177-5.492 0-.21.022-.426.059-.635-.617-.268-1.05-.881-1.05-1.6 0-.968.786-1.754 1.754-1.754.483 0 .913.196 1.221.505 1.19-.858 2.846-1.42 4.671-1.493l.887-4.141a.25.25 0 0 1 .203-.196l2.64-.554c.105-.022.214.045.243.146zM8.5 12.14a1.14 1.14 0 1 0 0 2.281 1.14 1.14 0 0 0 0-2.281zm7 0a1.14 1.14 0 1 0 0 2.281 1.14 1.14 0 0 0 0-2.281zM12 17.33c-1.628 0-3.059-.486-4.058-1.26a.25.25 0 0 1 .313-.393c.836.65 2.057 1.053 3.745 1.053 1.689 0 2.91-.404 3.746-1.053a.25.25 0 0 1 .312.393c-.999.774-2.43 1.26-4.058 1.26z"/></svg>
+                            </div>
+                            <span className="text-[10px] font-medium">Reddit</span>
+                        </button>
+                        <button onClick={() => { navigator.clipboard.writeText(shareUrl); addToast('Link copied to clipboard', 'success'); setIsShareModalOpen(false); }} className="flex flex-col items-center gap-2 group">
+                            <div className="w-10 h-10 rounded-full bg-[rgb(var(--surface-3))] flex items-center justify-center group-hover:scale-110 transition-transform">
+                                <ShareIcon className="w-5 h-5 text-white" />
+                            </div>
+                            <span className="text-[10px] font-medium">Copy Link</span>
+                        </button>
+                    </div>
+
+                    {friends.length > 0 && (
+                        <>
+                            <div className="flex items-center gap-2 mb-3">
+                                <div className="h-px flex-1 bg-white/10"></div>
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-[rgb(var(--text-muted))]">Share with Friends</span>
+                                <div className="h-px flex-1 bg-white/10"></div>
+                            </div>
+                            <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                                {friends.map(f => (
+                                    <button key={f.uid} onClick={() => handleShareWithFriend(f)} className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-[rgb(var(--surface-3))] transition-colors text-left group">
+                                        <img src={f.avatar} alt={f.username} className="w-8 h-8 rounded-full border border-white/10 group-hover:border-[rgb(var(--color-primary-accent))] transition-colors"/>
+                                        <span className="text-sm font-medium text-[rgb(var(--text-secondary))] group-hover:text-[rgb(var(--text-primary))]">{f.username}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </>
+                    )}
+                </div>
+            </div>, 
+            modalRoot
+        )}
         {modalRoot && isClippingModalOpen && ReactDOM.createPortal(<ClippingModal onClose={() => setIsClippingModalOpen(false)} />, modalRoot)}
         {modalRoot && isInviteFriendModalOpen && ReactDOM.createPortal(<InviteFriendModal anime={playerAnime} onClose={() => setIsInviteFriendModalOpen(false)} />, modalRoot)}
         {modalRoot && isRoomManagerOpen && ReactDOM.createPortal(<RoomManagerModal anime={playerAnime} currentSeason={currentSeason} currentEpisode={currentEpisode} onClose={() => setIsRoomManagerOpen(false)} onEnterRoom={onEnterRoom} />, modalRoot)}

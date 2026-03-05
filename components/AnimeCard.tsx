@@ -11,6 +11,7 @@ import { useWatchProgress } from '../hooks/useWatchProgress';
 import { useToast } from '../hooks/useToast';
 import { useQueue } from '../hooks/useQueue';
 import { useProfileData } from '../hooks/useProfileData';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface AnimeCardProps {
   anime: Anime;
@@ -187,7 +188,10 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect, episodeStatus, o
     : 'text-yellow-400'; // Default for global rating
 
   return (
-    <div className={`anime-card-touch-target group relative rounded-xl shadow-lg cursor-pointer transform transition-all duration-300 hover:shadow-2xl hover:shadow-[rgb(var(--shadow-color))/0.4] hover:scale-105`}
+    <motion.div 
+      whileHover={{ scale: 1.05, y: -5 }}
+      whileTap={{ scale: 0.98 }}
+      className={`anime-card-touch-target group relative rounded-2xl shadow-lg cursor-pointer transform transition-all duration-300 hover:shadow-[0_0_30px_rgba(var(--color-primary),0.5)] overflow-hidden border border-white/5 hover:border-[rgb(var(--color-primary))]/50`}
       onClick={handleClick}
       onKeyDown={(e) => e.key === 'Enter' && handleClick(e as any)}
       role="button"
@@ -196,110 +200,123 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect, episodeStatus, o
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      <div className="aspect-[2/3] w-full relative bg-black rounded-xl overflow-hidden">
-        <img loading="lazy" src={anime.thumbnail} alt={displayTitle} className="w-full h-full object-cover z-0" />
-        {isHovering && trailerKey && !isLoadingTrailer && (
-            <div className="absolute inset-0 animate-cinematic-fade-in pointer-events-none z-10">
-                 <iframe
-                    className="w-full h-full pointer-events-none"
-                    src={`https://www.youtube.com/embed/${trailerKey}?autoplay=1&mute=1&controls=0&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&loop=1&playlist=${trailerKey}`}
-                    title={`${displayTitle} trailer`}
-                    frameBorder="0"
-                    allow="autoplay; encrypted-media; picture-in-picture"
-                    allowFullScreen
-                    tabIndex={-1}
-                ></iframe>
-            </div>
-        )}
+      <div className="aspect-[2/3] w-full relative bg-black overflow-hidden">
+        <img loading="lazy" src={anime.thumbnail} alt={displayTitle} className="w-full h-full object-cover z-0 transition-transform duration-700 group-hover:scale-110" />
+        <AnimatePresence>
+            {isHovering && trailerKey && !isLoadingTrailer && (
+                <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 z-10 pointer-events-none"
+                >
+                    <iframe
+                        className="w-full h-full pointer-events-none scale-110"
+                        src={`https://www.youtube.com/embed/${trailerKey}?autoplay=1&mute=1&controls=0&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&loop=1&playlist=${trailerKey}`}
+                        title={`${displayTitle} trailer`}
+                        frameBorder="0"
+                        allow="autoplay; encrypted-media; picture-in-picture"
+                        allowFullScreen
+                        tabIndex={-1}
+                    ></iframe>
+                    <div className="absolute inset-0 bg-black/20" />
+                </motion.div>
+            )}
+        </AnimatePresence>
         {isHovering && isLoadingTrailer && (
              <div className="absolute inset-0 flex items-center justify-center bg-black/70 z-10 pointer-events-none">
-                <div className="w-8 h-8 border-2 border-white/50 border-t-white rounded-full animate-spin"></div>
+                <div className="w-8 h-8 border-2 border-[rgb(var(--color-primary))]/50 border-t-[rgb(var(--color-primary))] rounded-full animate-spin"></div>
             </div>
         )}
       </div>
 
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-100 transition-opacity duration-300 z-10 pointer-events-none rounded-xl"></div>
+      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-100 transition-opacity duration-300 z-10 pointer-events-none rounded-xl"></div>
 
       {/* Top-Left Badge Container */}
-      <div className="absolute top-2 left-2 z-20 flex flex-col items-start gap-1.5 pointer-events-none">
-          {isNew && <span className="order-first px-2 py-1 text-xs font-bold rounded-full text-white bg-red-600 animate-flashy-red">NEW EP</span>}
+      <div className="absolute top-2.5 left-2.5 z-20 flex flex-col items-start gap-1.5 pointer-events-none">
+          {isNew && <span className="order-first px-2 py-1 text-[10px] font-black rounded-lg text-white bg-red-600 shadow-lg shadow-red-600/40 animate-pulse">NEW EP</span>}
           {anime.type && (
-            <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/60 text-white backdrop-blur-md">{anime.type.toUpperCase()}</span>
+            <span className="px-2 py-0.5 text-[10px] font-black rounded-lg bg-black/60 text-white backdrop-blur-md border border-white/10">{anime.type.toUpperCase()}</span>
           )}
           {subDubLabel && (
-              <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/60 text-white backdrop-blur-md">
+              <span className="px-2 py-0.5 text-[10px] font-black rounded-lg bg-black/60 text-white backdrop-blur-md border border-white/10">
                   {subDubLabel}
               </span>
           )}
       </div>
 
       {/* Top-Right Badge Container */}
-      <div className="absolute top-2 right-2 z-20 flex flex-col items-end gap-1.5 pointer-events-none">
-          {anime.status === 'Ongoing' && <div title="Ongoing" className="w-3 h-3 bg-blue-500 rounded-full ring-2 ring-black"></div>}
-          {anime.status === 'Completed' && <div title="Completed" className="w-3 h-3 bg-green-500 rounded-full ring-2 ring-black"></div>}
+      <div className="absolute top-2.5 right-2.5 z-20 flex flex-col items-end gap-1.5 pointer-events-none">
+          {anime.status === 'Ongoing' && <div title="Ongoing" className="w-2.5 h-2.5 bg-blue-500 rounded-full ring-2 ring-black shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div>}
+          {anime.status === 'Completed' && <div title="Completed" className="w-2.5 h-2.5 bg-green-500 rounded-full ring-2 ring-black shadow-[0_0_8px_rgba(34,197,94,0.5)]"></div>}
           
           {/* Rating Badge (User's if available, else MAL average) */}
           {(userRating || (anime.rating && anime.rating > 0)) && (
-              <div className={`flex items-center gap-1 px-2 py-0.5 text-xs font-bold rounded-full bg-black/60 backdrop-blur-md ${ratingColorClass}`}>
+              <div className={`flex items-center gap-1 px-2 py-0.5 text-[10px] font-black rounded-lg bg-black/60 backdrop-blur-md border border-white/10 ${ratingColorClass}`}>
                   <StarIcon className="w-3 h-3" fill="currentColor" />
                   <span>{userRating ? userRating : anime.rating?.toFixed(1)}</span>
               </div>
           )}
-          
-          {anime.releaseYear && (
-            <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/60 text-white backdrop-blur-md">{anime.releaseYear}</span>
-          )}
       </div>
       
       {/* Bottom-Right Badge Container (Episode Info) */}
-      <div className="absolute bottom-14 right-2 z-20 flex flex-row-reverse items-center gap-1.5 pointer-events-none">
+      <div className="absolute bottom-14 right-2.5 z-20 flex flex-row-reverse items-center gap-1.5 pointer-events-none">
           {anime.type === 'Movie' && anime.runtime ? (
-            <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/60 text-white backdrop-blur-sm">{formatDuration(anime.runtime)}</span>
+            <span className="px-2 py-0.5 text-[10px] font-black rounded-lg bg-black/60 text-white backdrop-blur-md border border-white/10">{formatDuration(anime.runtime)}</span>
           ) : anime.avgEpisodeDuration ? (
-            <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-black/60 text-white backdrop-blur-sm">~{anime.avgEpisodeDuration}m</span>
+            <span className="px-2 py-0.5 text-[10px] font-black rounded-lg bg-black/60 text-white backdrop-blur-md border border-white/10">~{anime.avgEpisodeDuration}m</span>
           ) : null}
           {showBadge && (
             <div
-                className="inline-flex items-center rounded-full bg-cyan-500/20 px-2 py-0.5 text-xs font-semibold text-cyan-400 backdrop-blur-sm"
+                className="inline-flex items-center rounded-lg bg-cyan-500/20 px-2 py-0.5 text-[10px] font-black text-cyan-400 backdrop-blur-md border border-cyan-500/30"
             >
                 {badgeText}
             </div>
           )}
       </div>
 
-        <div className={`watchlist-menu absolute top-2 right-2 z-30 transition-opacity duration-300 ${isHovering ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} onMouseLeave={() => setIsMenuOpen(false)} onClick={e => e.stopPropagation()}>
-            <button onClick={handleMenuToggle} title="More options" className="p-1.5 bg-black/50 rounded-full text-white hover:bg-[rgb(var(--color-primary))/0.8] transition-colors">
-                <DotsVerticalIcon />
+        <div className={`watchlist-menu absolute top-2.5 right-2.5 z-30 transition-opacity duration-300 ${isHovering ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} onMouseLeave={() => setIsMenuOpen(false)} onClick={e => e.stopPropagation()}>
+            <button onClick={handleMenuToggle} title="More options" className="p-2 bg-black/60 backdrop-blur-md rounded-full text-white hover:bg-[rgb(var(--color-primary))] transition-all border border-white/10 shadow-lg">
+                <DotsVerticalIcon className="w-4 h-4" />
             </button>
-            {isLoggedIn && isMenuOpen && (
-                <div className="absolute top-full right-0 mt-1 bg-[rgb(var(--surface-2))] rounded-lg shadow-lg p-1 z-40 w-48">
-                    <button onClick={handleAddToQueue} disabled={inQueue} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] rounded-md disabled:opacity-50 disabled:cursor-not-allowed">
-                        {inQueue ? <CheckIcon className="w-4 h-4 text-green-400"/> : <ViewListIcon className="w-4 h-4"/>}
-                        <span>{inQueue ? 'In Queue' : 'Add to Queue'}</span>
-                    </button>
-                    <div className="h-px bg-white/10 my-1"></div>
-                    {WATCHLIST_STATUSES.map(status => (
-                        <button key={status} onClick={(e) => handleWatchlistClick(e, status)} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] rounded-md">
-                           {currentStatus === status ? <CheckIcon className="w-4 h-4 text-[rgb(var(--color-primary-accent))]"/> : <span className="w-4 h-4"></span>}
-                           <span>{status}</span>
+            <AnimatePresence>
+                {isLoggedIn && isMenuOpen && (
+                    <motion.div 
+                        initial={{ opacity: 0, scale: 0.9, y: -10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9, y: -10 }}
+                        className="absolute top-full right-0 mt-2 bg-[rgb(var(--surface-2))] rounded-2xl shadow-2xl p-1.5 z-40 w-52 border border-white/10 backdrop-blur-xl"
+                    >
+                        <button onClick={handleAddToQueue} disabled={inQueue} className="w-full flex items-center gap-3 px-3 py-2.5 text-xs font-bold text-left text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                            {inQueue ? <CheckIcon className="w-4 h-4 text-green-400"/> : <ViewListIcon className="w-4 h-4"/>}
+                            <span>{inQueue ? 'In Queue' : 'Add to Queue'}</span>
                         </button>
-                    ))}
-                    {inWatchlist && (
-                        <>
-                            <div className="h-px bg-white/10 my-1"></div>
-                            <button onClick={handleRemoveFromWatchlist} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-red-400 hover:bg-red-500/20 rounded-md">
-                                <PlusIcon className="w-4 h-4 rotate-45"/>
-                                <span>Remove</span>
+                        <div className="h-px bg-white/10 my-1.5 mx-2"></div>
+                        {WATCHLIST_STATUSES.map(status => (
+                            <button key={status} onClick={(e) => handleWatchlistClick(e, status)} className="w-full flex items-center gap-3 px-3 py-2.5 text-xs font-bold text-left text-[rgb(var(--text-secondary))] hover:bg-[rgb(var(--surface-3))] rounded-xl transition-colors">
+                               <div className="w-4 h-4 flex items-center justify-center">
+                                    {currentStatus === status && <CheckIcon className="w-4 h-4 text-[rgb(var(--color-primary-accent))]"/>}
+                               </div>
+                               <span>{status}</span>
                             </button>
-                        </>
-                    )}
-                </div>
-            )}
+                        ))}
+                        {inWatchlist && (
+                            <>
+                                <div className="h-px bg-white/10 my-1.5 mx-2"></div>
+                                <button onClick={handleRemoveFromWatchlist} className="w-full flex items-center gap-3 px-3 py-2.5 text-xs font-bold text-left text-red-400 hover:bg-red-500/20 rounded-xl transition-colors">
+                                    <PlusIcon className="w-4 h-4 rotate-45"/>
+                                    <span>Remove</span>
+                                </button>
+                            </>
+                        )}
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
 
-      <div className="absolute bottom-0 left-0 right-0 p-3 pointer-events-none z-20">
+      <div className="absolute bottom-0 left-0 right-0 p-4 pointer-events-none z-20">
         <div className="w-full overflow-hidden">
-            <h3 ref={titleRef} className={`text-white font-bold text-sm truncate transition-colors ${!isOverflowing ? 'group-hover:text-[rgb(var(--color-primary-accent))]' : 'group-hover:hidden'}`}>
+            <h3 ref={titleRef} className={`text-white font-bold text-sm truncate transition-colors duration-300 ${!isOverflowing ? 'group-hover:text-[rgb(var(--color-primary-accent))]' : 'group-hover:hidden'}`}>
                 {displayTitle}
             </h3>
             {isOverflowing && (
@@ -311,9 +328,9 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onSelect, episodeStatus, o
                 </div>
             )}
         </div>
-        {currentStatus && <p className="text-xs font-semibold text-[rgb(var(--color-primary-accent))]">{currentStatus}</p>}
+        {currentStatus && <p className="text-[10px] font-black text-[rgb(var(--color-primary-accent))] uppercase tracking-wider mt-0.5">{currentStatus}</p>}
       </div>
-    </div>
+    </motion.div>
   );
 };
 

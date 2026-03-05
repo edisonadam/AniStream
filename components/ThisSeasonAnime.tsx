@@ -35,10 +35,12 @@ const getCurrentSeasonInfo = (): { year: number; season: string } => {
     return { year, season };
 };
 
+import { useToast } from '../hooks/useToast';
 const ThisSeasonAnime: React.FC<ThisSeasonAnimeProps> = ({ onAnimeSelect, onShowSchedule, getEpisodeStatus, onLoginRequest }) => {
   const [seasonalAnime, setSeasonalAnime] = useState<Anime[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { settings } = useSettings();
+  const { addToast } = useToast();
 
   useEffect(() => {
     const fetchSeasonal = async () => {
@@ -57,12 +59,13 @@ const ThisSeasonAnime: React.FC<ThisSeasonAnimeProps> = ({ onAnimeSelect, onShow
         setSeasonalAnime(mapped);
       } catch (e) {
         console.error(e);
+        addToast("Failed to fetch this season's anime. Please try again later.", "error");
       } finally {
         setIsLoading(false);
       }
     };
     fetchSeasonal();
-  }, [settings.restrictAdultContent]);
+  }, [settings.restrictAdultContent, addToast]);
 
   if (isLoading) {
       return (

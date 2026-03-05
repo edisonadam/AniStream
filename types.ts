@@ -118,6 +118,7 @@ export interface Comment {
   animeThumbnail: string; // For recent comments section
   animeBanner: string; // For recent comments section
   isSpoiler?: boolean;
+  isEdited?: boolean;
 }
 
 export interface Review {

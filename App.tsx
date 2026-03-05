@@ -7,7 +7,7 @@ import ReactDOM from 'react-dom';
 import type { Anime, Club, Filter, Notification, Settings, Page, User, ShortcutAction, RecentEpisode, FavoriteVoiceActor } from './types';
 import { useSettings } from './hooks/useSettings';
 import { useShortcuts } from './hooks/useShortcuts';
-import { mapJikanToAnime, fetchWithRetry } from './api';
+import { mapJikanToAnime, fetchWithRetry, fetchAniListAiringSchedule, subscribeToRateLimit, fetchTopUpcomingAnime } from './api';
 import { getDisplayTitle, mapPartialToFullAnime } from './utils';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
@@ -59,12 +59,14 @@ import HowToUsePage from './components/HowToUsePage';
 import NewEpisodesSection from './components/NewEpisodesSection';
 import NewEpisodesPage from './components/NewEpisodesPage';
 // FIX: Changed import path for FeaturedCarousel from a non-existent file to the correct one.
+import UpcomingAnimeSection from './components/UpcomingAnimeSection';
 import FeaturedCarousel from './components/FeaturedCarousel';
 import VideosPage from './components/VideosPage';
 import AnimeDetailPage from './components/AnimeDetailPage';
 import QueueOverlay from './components/QueueOverlay';
 import { useQueue } from './hooks/useQueue';
 import { useProfileData } from './hooks/useProfileData';
+import RateLimitBanner from './components/RateLimitBanner';
 import LeaderboardsPage from './components/LeaderboardsPage';
 import ShopPage from './components/ShopPage';
 import DownloadsPage from './components/DownloadsPage';
@@ -86,8 +88,10 @@ const App: React.FC = () => {
 
     const [featuredAnime, setFeaturedAnime] = useState<Anime[]>([]);
     const [topAnimeList, setTopAnimeList] = useState<Anime[]>([]);
+    const [upcomingAnimeList, setUpcomingAnimeList] = useState<Anime[]>([]);
     const [isCarouselLoading, setIsCarouselLoading] = useState(true);
     const [isTopAnimeLoading, setIsTopAnimeLoading] = useState(true);
+    const [isUpcomingLoading, setIsUpcomingLoading] = useState(true);
     
     const [gridAnime, setGridAnime] = useState<Anime[]>([]);
     const [allAnime, setAllAnime] = useState<Anime[]>([]); // For lookups
@@ -127,6 +131,21 @@ const App: React.FC = () => {
     const { addNotification } = useProfileData();
     const { watchProgressList } = useWatchProgress();
     const welcomeToastShown = useRef(false);
+    const rateLimitToastId = useRef<number | null>(null);
+
+    // Subscribe to rate limit changes
+    useEffect(() => {
+        return subscribeToRateLimit((isLimited) => {
+            if (isLimited) {
+                if (rateLimitToastId.current === null) {
+                    addToast("We're experiencing high traffic. Some data might take a moment to load.", "warning", 10000);
+                    rateLimitToastId.current = 1; 
+                }
+            } else {
+                rateLimitToastId.current = null;
+            }
+        });
+    }, [addToast]);
     
     const homePageScrollPosition = useRef(0);
     const pageBeforePlayerRef = useRef<{page: Page, filters: Filter, source?: string}>({page: 'home', filters});
@@ -231,13 +250,23 @@ const App: React.FC = () => {
             document.body.style.overflow = 'hidden';
             document.documentElement.style.overflow = 'hidden';
             if (preloader) preloader.style.display = 'flex';
+
+            // Safety timeout: force hide preloader after 10 seconds if it's still stuck
+            const timer = setTimeout(() => {
+                console.warn("Loading took too long, forcing preloader hide.");
+                setIsCarouselLoading(false);
+                setIsTopAnimeLoading(false);
+            }, 10000);
+            return () => clearTimeout(timer);
         } else {
             document.body.style.overflow = '';
             document.documentElement.style.overflow = '';
             if (preloader && preloader.style.display !== 'none') {
                 preloader.style.transition = 'opacity 0.5s ease';
                 preloader.style.opacity = '0';
-                setTimeout(() => { preloader.style.display = 'none'; }, 500);
+                setTimeout(() => { 
+                    if (preloader) preloader.style.display = 'none'; 
+                }, 500);
             }
         }
     }, [isCarouselLoading, isTopAnimeLoading]);
@@ -295,47 +324,32 @@ const App: React.FC = () => {
     const fetchSecondaryHomePageData = useCallback(async () => {
         setIsNewEpisodesLoading(true);
         try {
-            const recentResult = await fetchWithRetry(`https://api.jikan.moe/v4/watch/episodes?limit=25`);
-            if (recentResult.ok) {
-                const data = await recentResult.json();
-                const recentEntries: any[] = data.data || [];
-    
-                setRecentEpisodes(recentEntries.map(entry => ({
-                    id: `${entry.entry.mal_id}-${entry.episodes[0]?.mal_id}`,
-                    episodeId: entry.episodes[0]?.url,
-                    episodeNumber: entry.episodes[0]?.mal_id,
-                    title: entry.entry.title,
-                    image: entry.entry.images.jpg.image_url,
-                    url: entry.episodes[0]?.url,
-                    releaseTimestamp: new Date(entry.date).getTime(),
-                    malId: entry.entry.mal_id,
-                })));
-                
-                const mappedAnime = recentEntries.map(entry => {
-                    const anime = mapJikanToAnime(entry.entry);
-                    if (!anime) return null;
-                    return {
-                        ...anime,
-                        episodeNumber: entry.episodes[0]?.mal_id || 1,
-                    };
-                }).filter((a): a is (Anime & { episodeNumber: number }) => a !== null);
-                
-                const uniqueAnimeMap = new Map<number, (Anime & { episodeNumber: number })>();
-                for (const anime of mappedAnime) {
-                    if (!uniqueAnimeMap.has(anime.id) || (uniqueAnimeMap.get(anime.id)!.episodeNumber < anime.episodeNumber)) {
-                        uniqueAnimeMap.set(anime.id, anime);
-                    }
-                }
-                const uniqueAnimeList = Array.from(uniqueAnimeMap.values());
-                
-                setNewEpisodeAnime(uniqueAnimeList);
-                setAllAnime(prev => Array.from(new Map([...prev, ...uniqueAnimeList].map(a => [a.id, a])).values()));
-            } else {
-                console.error("Failed to fetch recent episodes from Jikan:", await recentResult.text());
-                setNewEpisodeAnime([]);
-            }
+            const airingAnime = await fetchAniListAiringSchedule();
+
+            // Filter for anime that have aired recently
+            const now = Date.now();
+            const twentyFourHours = 24 * 60 * 60 * 1000;
+            
+            const recentlyAired = airingAnime.filter(a => {
+                const timeDiff = a.nextAiringEpisode.airingAt - now;
+                // Include if it has aired in the last 24 hours
+                return timeDiff < 0 && timeDiff > -twentyFourHours;
+            });
+
+            // Sort by most recently aired
+            recentlyAired.sort((a, b) => b.nextAiringEpisode.airingAt - a.nextAiringEpisode.airingAt);
+            
+            const mappedAnime = recentlyAired.map(anime => ({
+                ...anime,
+                // The episode that just aired is nextAiringEpisode.episode - 1
+                episodeNumber: anime.nextAiringEpisode.episode - 1,
+            }));
+
+            setNewEpisodeAnime(mappedAnime);
+            setAllAnime(prev => Array.from(new Map([...prev, ...mappedAnime].map(a => [a.id, a])).values()));
+
         } catch (error) {
-            console.error("An unexpected error occurred in fetchSecondaryHomePageData:", error);
+            console.error("Failed to fetch airing schedule from AniList:", error);
             setNewEpisodeAnime([]);
         } finally {
             setIsNewEpisodesLoading(false);
@@ -345,31 +359,41 @@ const App: React.FC = () => {
     const fetchPrimaryHomePageData = useCallback(async () => {
         setIsCarouselLoading(true);
         setIsTopAnimeLoading(true);
+        setIsUpcomingLoading(true);
         try {
-            const [featuredResult, topResult] = await Promise.allSettled([
-                fetchWithRetry('https://api.jikan.moe/v4/seasons/now?limit=15'),
-                fetchWithRetry('https://api.jikan.moe/v4/top/anime?limit=15'),
-            ]);
-
+            // Serialize requests to avoid rate limiting
+            const featuredResult = await fetchWithRetry('https://api.jikan.moe/v4/seasons/now?limit=15').catch(e => ({ ok: false, status: 500, json: async () => ({}) } as Response));
+            
             let allFetchedAnime: Anime[] = [];
 
-            if (featuredResult.status === 'fulfilled' && featuredResult.value.ok) {
-                const data = await featuredResult.value.json();
+            if (featuredResult.ok) {
+                const data = await featuredResult.json();
                 const mapped = data.data.map(mapJikanToAnime).filter(Boolean);
                 setFeaturedAnime(mapped);
                 allFetchedAnime.push(...mapped);
             } else {
-                console.error("Failed to fetch featured anime:", featuredResult.status === 'rejected' ? featuredResult.reason : 'Request failed');
+                console.error("Failed to fetch featured anime");
             }
 
-            if (topResult.status === 'fulfilled' && topResult.value.ok) {
-                const data = await topResult.value.json();
+            // Small delay between requests if not using the queue (but we are now, so this is just extra safety)
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            const topResult = await fetchWithRetry('https://api.jikan.moe/v4/top/anime?limit=15').catch(e => ({ ok: false, status: 500, json: async () => ({}) } as Response));
+
+            if (topResult.ok) {
+                const data = await topResult.json();
                 const mapped = data.data.map(mapJikanToAnime).filter(Boolean);
                 setTopAnimeList(mapped);
                 allFetchedAnime.push(...mapped);
             } else {
-                console.error("Failed to fetch top anime:", topResult.status === 'rejected' ? topResult.reason : 'Request failed');
+                console.error("Failed to fetch top anime");
             }
+            
+            await new Promise(resolve => setTimeout(resolve, 500));
+            const upcoming = await fetchTopUpcomingAnime(1);
+            setUpcomingAnimeList(upcoming);
+            allFetchedAnime.push(...upcoming);
+            
             setAllAnime(prev => Array.from(new Map([...prev, ...allFetchedAnime].map(a => [a.id, a])).values()));
         } catch (error) {
             console.error("An unexpected error occurred in fetchPrimaryHomePageData:", error);
@@ -377,6 +401,7 @@ const App: React.FC = () => {
         } finally {
             setIsCarouselLoading(false);
             setIsTopAnimeLoading(false);
+            setIsUpcomingLoading(false);
         }
     }, [addToast]);
 
@@ -400,56 +425,55 @@ const App: React.FC = () => {
         if (filters.genres.length > 0) params.append('genres', filters.genres.map(g => GENRES_MAP[g]).filter(Boolean).join(','));
         if (filters.types.length > 0) params.append('type', filters.types.join(',').toLowerCase());
         if (filters.statuses.length > 0) params.append('status', filters.statuses.join(',').toLowerCase());
+        if (filters.years.length > 0) params.append('start_date', filters.years[0]); // Jikan v4 start_date can take a year
+        if (filters.studios.length > 0) {
+            // Jikan uses producer IDs for studios. This is tricky without a mapping.
+            // For now, we'll use the query if it's just one studio, or skip if complex.
+            // Alternatively, we can use the 'producers' param if we had IDs.
+        }
         if (filters.letter && !filters.query) params.append('letter', filters.letter);
         return `https://api.jikan.moe/v4/anime?${params.toString()}${sfwQuery}`;
     }, [filters, settings.restrictAdultContent]);
 
-    useEffect(() => {
-        const fetchFirstPage = async () => {
-            setIsGridLoading(true);
-            try {
-                const url = buildQuery(1);
-                const response = await fetchWithRetry(url);
-                if (!response.ok) throw new Error(`Jikan API responded with status ${response.status}`);
-                const data = await response.json();
-                const mapped = data.data.map(mapJikanToAnime).filter(Boolean);
-                setGridAnime(mapped);
-                setAllAnime(prev => Array.from(new Map([...prev, ...mapped].map(a => [a.id, a])).values()));
-                setHasMore(data.pagination?.has_next_page ?? false);
-                setTotalPages(data.pagination?.last_visible_page ?? 0);
-                setCurrentPage(1);
-            } catch (error) {
-                console.error("Failed to fetch initial grid data:", error);
-                addToast("Could not load anime list.", "error");
-                setGridAnime([]);
-            } finally {
-                setIsGridLoading(false);
-            }
-        };
-        fetchFirstPage();
-    }, [buildQuery, addToast]);
+    const fetchGridData = useCallback(async (pageToFetch: number = 1) => {
+        if (pageToFetch === 1) setIsGridLoading(true);
+        else setIsLoadingMore(true);
 
-    const loadMoreData = useCallback(async () => {
-        if (isLoadingMore || !hasMore) return;
-        setIsLoadingMore(true);
-        const pageToFetch = currentPage + 1;
         try {
             const url = buildQuery(pageToFetch);
             const response = await fetchWithRetry(url);
             if (!response.ok) throw new Error(`Jikan API responded with status ${response.status}`);
             const data = await response.json();
             const mapped = data.data.map(mapJikanToAnime).filter(Boolean);
-            setGridAnime(prev => [...prev, ...mapped]);
+            
+            if (pageToFetch === 1) {
+                setGridAnime(mapped);
+            } else {
+                setGridAnime(prev => [...prev, ...mapped]);
+            }
+            
             setAllAnime(prev => Array.from(new Map([...prev, ...mapped].map(a => [a.id, a])).values()));
             setHasMore(data.pagination?.has_next_page ?? false);
+            setTotalPages(data.pagination?.last_visible_page ?? 0);
             setCurrentPage(pageToFetch);
         } catch (error) {
-            console.error("Failed to load more grid data:", error);
-            addToast("Could not load more anime.", "error");
+            console.error(`Failed to fetch grid data for page ${pageToFetch}:`, error);
+            addToast(`Could not load anime ${pageToFetch === 1 ? 'list' : 'more'}.`, "error");
+            if (pageToFetch === 1) setGridAnime([]);
         } finally {
+            setIsGridLoading(false);
             setIsLoadingMore(false);
         }
-    }, [isLoadingMore, hasMore, currentPage, buildQuery, addToast]);
+    }, [buildQuery, addToast]);
+
+    useEffect(() => {
+        fetchGridData(1);
+    }, [fetchGridData]);
+
+    const loadMoreData = useCallback(async () => {
+        if (isLoadingMore || !hasMore) return;
+        fetchGridData(currentPage + 1);
+    }, [isLoadingMore, hasMore, currentPage, fetchGridData]);
     
     const handleCollapseGrid = () => {
         setGridAnime(prev => prev.slice(0, ANIME_PAGE_SIZE));
@@ -531,7 +555,7 @@ const App: React.FC = () => {
         if (watchTogetherRoomId) return <WatchTogetherPage roomId={watchTogetherRoomId} onExit={() => setWatchTogetherRoomId(null)} />;
         switch (page) {
             case 'player': return selectedAnime && <Player anime={selectedAnime} allAnime={allAnime} onGoBack={() => setPage(pageBeforePlayerRef.current.page)} onGoHome={goHome} onSelectRelated={handleAnimeSelect} onGenreSelect={(g) => { setFilters({ ...filters, genres: [g] }); setPage('home'); }} onStudioSelect={(s) => { setFilters({ ...filters, studios: [s] }); setPage('home'); }} onUserSelect={(u) => { setSelectedUser(u); setIsUserDetailModalOpen(true); }} onEnterRoom={setWatchTogetherRoomId} breadcrumbsData={pageBeforePlayerRef.current} settings={settings} updateSettings={updateSettings} isLoggedIn={isLoggedIn} onLoginRequest={handleLoginRequest} getEpisodeStatus={getEpisodeStatusCallback} />;
-            case 'details': return selectedAnime && <AnimeDetailPage anime={selectedAnime} onGoBack={() => setPage(pageBeforePlayerRef.current.page)} onGoHome={goHome} onWatchNow={handleWatchNow} onGenreSelect={(g) => { setFilters({ ...filters, genres: [g] }); setPage('home'); }} onStudioSelect={(s) => { setFilters({ ...filters, studios: [s] }); setPage('home'); }} onLoginRequest={handleLoginRequest} breadcrumbsData={pageBeforePlayerRef.current} getEpisodeStatus={getEpisodeStatusCallback} onSelectRelated={handleAnimeSelect} onVoiceActorSelect={handleVoiceActorSelect} />;
+            case 'details': return selectedAnime && <AnimeDetailPage anime={selectedAnime} onGoBack={() => setPage(pageBeforePlayerRef.current.page)} onGoHome={goHome} onWatchNow={handleWatchNow} onGenreSelect={(g) => { setFilters({ ...filters, genres: [g] }); setPage('home'); }} onStudioSelect={(s) => { setFilters({ ...filters, studios: [s] }); setPage('home'); }} onLoginRequest={handleLoginRequest} breadcrumbsData={pageBeforePlayerRef.current} getEpisodeStatus={getEpisodeStatusCallback} onSelectRelated={handleAnimeSelect} onVoiceActorSelect={handleVoiceActorSelect} onUserSelect={(u) => { setSelectedUser(u); setIsUserDetailModalOpen(true); }} />;
             case 'voice-actor': return <VoiceActorPage voiceActorId={selectedVoiceActorId!} onGoBack={() => setPage(pageBeforePlayerRef.current.page)} onAnimeSelect={handleAnimeSelect} onLoginRequest={handleLoginRequest} />;
             case 'profile': return <ProfilePage onGoBack={() => setPage('home')} allAnime={allAnime} onSelectAnime={handleAnimeSelect} getEpisodeStatus={getEpisodeStatusCallback} onNavigate={navigateTo} onVoiceActorSelect={handleVoiceActorSelect} />;
             case 'club-detail': return selectedClub && <ClubDetailPage club={selectedClub} onGoBack={() => setPage('community')} onSelectAnime={handleAnimeSelect} getEpisodeStatus={getEpisodeStatusCallback} onLoginRequest={handleLoginRequest} />;
@@ -569,6 +593,7 @@ const App: React.FC = () => {
                     />
                     {isLoggedIn && settings.showViewHistoryOnHome && <ContinueWatching onShowHistory={() => setPage('history')} onSelectAnime={(a) => handleAnimeSelect(a, 'Continue Watching')} allAnime={allAnime} getEpisodeStatus={getEpisodeStatusCallback} onLoginRequest={handleLoginRequest} />}
                     <NewEpisodesSection onAnimeSelect={handleAnimeSelect} newEpisodeAnime={newEpisodeAnime} getEpisodeStatus={getEpisodeStatusCallback} isLoading={isNewEpisodesLoading} onViewAll={() => navigateTo('new-episodes')} onLoginRequest={handleLoginRequest} />
+                    <UpcomingAnimeSection animeList={upcomingAnimeList} isLoading={isUpcomingLoading} onAnimeSelect={handleAnimeSelect} getEpisodeStatus={getEpisodeStatusCallback} onLoginRequest={handleLoginRequest} />
                     <TopAnime animeList={topAnimeList.slice(0, 10)} isLoading={isTopAnimeLoading} onAnimeSelect={handleAnimeSelect} onShowTop100={() => setPage('top-100')} getEpisodeStatus={getEpisodeStatusCallback} onLoginRequest={handleLoginRequest} />
                     <ThisSeasonAnime onAnimeSelect={handleAnimeSelect} onShowSchedule={() => setPage('schedule')} getEpisodeStatus={getEpisodeStatusCallback} onLoginRequest={handleLoginRequest} />
                     <RecentCommentsCarousel onAnimeSelect={handleAnimeSelect} />
@@ -590,6 +615,7 @@ const App: React.FC = () => {
                         getEpisodeStatus={getEpisodeStatusCallback}
                         onCollapse={handleCollapseGrid}
                         onLoginRequest={handleLoginRequest}
+                        onRetry={() => fetchGridData(1)}
                     />
                     <AlphabeticalBrowse onLetterSelect={(letter) => setFilters(prev => ({...prev, letter: prev.letter === letter ? '' : letter, query: ''}))} selectedLetter={filters.letter} />
                 </>
@@ -598,8 +624,9 @@ const App: React.FC = () => {
     };
 
     return (
-        <div>
+        <div className="bg-[rgb(var(--bg-gradient-start))] min-h-screen text-[rgb(var(--text-primary))] selection:bg-[rgb(var(--color-primary)/0.3)] selection:text-[rgb(var(--color-primary-accent))]">
             <LoadingBar isLoading={isPageLoading || isCarouselLoading || isGridLoading} />
+            <RateLimitBanner />
             <Toaster />
             <PermissionInfoModal />
             {isShortcutsHelpOpen && <ShortcutsHelpModal onClose={() => setIsShortcutsHelpOpen(false)} />}

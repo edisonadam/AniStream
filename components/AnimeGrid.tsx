@@ -22,11 +22,12 @@ interface AnimeGridProps {
   isPreloading?: boolean;
   onCollapse?: () => void;
   onLoginRequest: (reason: string) => void;
+  onRetry?: () => void;
 }
 
 const ANIME_PAGE_SIZE = 25; // As defined in App.tsx fetch logic
 
-const AnimeGrid: React.FC<AnimeGridProps> = ({ onAnimeSelect, animeList, title, filters, isLoading, onLoadMore, hasMore, isLoadingMore, sortValue, onSortChange, loadMoreMode, getEpisodeStatus, currentPage, totalPages, isPreloading = false, onCollapse, onLoginRequest }) => {
+const AnimeGrid: React.FC<AnimeGridProps> = ({ onAnimeSelect, animeList, title, filters, isLoading, onLoadMore, hasMore, isLoadingMore, sortValue, onSortChange, loadMoreMode, getEpisodeStatus, currentPage, totalPages, isPreloading = false, onCollapse, onLoginRequest, onRetry }) => {
   const hasActiveFilters = Object.values(filters).some(v => {
     if (Array.isArray(v)) return v.length > 0;
     if (typeof v === 'string' && v !== 'popularity') return true;
@@ -180,6 +181,14 @@ const AnimeGrid: React.FC<AnimeGridProps> = ({ onAnimeSelect, animeList, title, 
                 <>
                     <p className="font-semibold text-lg text-[rgb(var(--text-primary))]">Nothing to see here... yet!</p>
                     <p>There might be an issue fetching data, or the library is empty.</p>
+                    {onRetry && (
+                        <button 
+                            onClick={onRetry}
+                            className="mt-4 px-6 py-2 bg-[rgb(var(--surface-3))] hover:bg-[rgb(var(--surface-4))] text-[rgb(var(--text-primary))] rounded-xl font-semibold transition-all"
+                        >
+                            Retry Fetch
+                        </button>
+                    )}
                 </>
             )}
         </div>
